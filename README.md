@@ -217,6 +217,28 @@ ulvo env status <PROJECT_PATH>
 ulvo env reclaim <PROJECT_PATH>
 ```
 
+### Workspace Migration & Storage Reclamation
+Automate workspace-wide Python virtual-environment scanning, capacity planning, verification, and safe legacy retirement:
+```powershell
+# Scan workspace to discover all Python environments and project dependencies
+ulvo migrate scan E:\Workspace
+
+# Generate capacity-aware, prioritized migration plan with 500 MB reserve
+ulvo migrate plan E:\Workspace
+
+# Verify project candidate against 10 pre-retirement safety gates (Gates A-J)
+ulvo migrate verify <PROJECT_PATH>
+
+# Synthesize .ulvo/manifest.toml atomically without touching legacy .venv
+ulvo migrate apply <PROJECT_PATH>
+
+# Retire legacy environment safely after all gates pass
+ulvo migrate retire <PROJECT_PATH> --yes
+
+# View comprehensive migration and storage reclamation summary report
+ulvo migrate report E:\Workspace
+```
+
 For complete command-line documentation, see [docs/CLI.md](docs/CLI.md).
 
 ---

@@ -1101,13 +1101,61 @@ pub fn safe_reclaim_environment_hierarchy(
 
     // 2. Delete all subdirectories (deepest first)
     for dir_path in dirs {
-        std::fs::remove_dir(&dir_path)
-            .map_err(|e| format!("failed removing empty directory '{}': {e}", dir_path.display()))?;
+        if let Ok(meta) = std::fs::symlink_metadata(&dir_path) {
+            let mut perms = meta.permissions();
+            if perms.readonly() {
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(&dir_path, perms);
+            }
+        }
+
+        let mut deleted = false;
+        let mut last_err = String::new();
+        for attempt in 0..5 {
+            match std::fs::remove_dir(&dir_path) {
+                Ok(_) => {
+                    deleted = true;
+                    break;
+                }
+                Err(e) => {
+                    last_err = e.to_string();
+                    std::thread::sleep(std::time::Duration::from_millis(20 * (attempt + 1)));
+                }
+            }
+        }
+
+        if !deleted {
+            return Err(format!("failed removing empty directory '{}': {last_err}", dir_path.display()));
+        }
     }
 
     // 3. Delete top environment directory
-    std::fs::remove_dir(&canon_env)
-        .map_err(|e| format!("failed removing environment root '{}': {e}", canon_env.display()))?;
+    if let Ok(meta) = std::fs::symlink_metadata(&canon_env) {
+        let mut perms = meta.permissions();
+        if perms.readonly() {
+            perms.set_readonly(false);
+            let _ = std::fs::set_permissions(&canon_env, perms);
+        }
+    }
+
+    let mut top_deleted = false;
+    let mut top_err = String::new();
+    for attempt in 0..5 {
+        match std::fs::remove_dir(&canon_env) {
+            Ok(_) => {
+                top_deleted = true;
+                break;
+            }
+            Err(e) => {
+                top_err = e.to_string();
+                std::thread::sleep(std::time::Duration::from_millis(20 * (attempt + 1)));
+            }
+        }
+    }
+
+    if !top_deleted {
+        return Err(format!("failed removing environment root '{}': {top_err}", canon_env.display()));
+    }
 
     Ok((physical_bytes, file_count))
 }

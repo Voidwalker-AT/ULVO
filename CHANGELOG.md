@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
 
+## [0.2.3] - 2026-10-19
+
+### Stage 2.9 — Automated Workspace-Wide Python Virtual-Environment Migration & Storage Reclamation
+
+#### Added
+- **Automated Migration CLI Subcommands**: Added `ulvo migrate <scan|plan|verify|apply|retire|status|report>` providing full lifecycle orchestration from read-only scanning to fail-closed verification, atomic integration, and safe legacy environment retirement with `--json` schema support.
+- **10 Formal Verification Gates (Gates A–J)**: Implemented exhaustive pre-retirement safety checks:
+  - *Gate A*: Reparse point verification (rejects directory junctions, symlinks, and mount points).
+  - *Gate B*: Structural hierarchy & direct parentage (enforces `.venv` resides directly inside project root).
+  - *Gate C*: Vault resource exclusion (forbids deletion of ULVO vault runtimes or cached environments).
+  - *Gate D*: Prohibited category check (excludes Conda environments and shared base interpreters).
+  - *Gate E*: Active process liveness check (uses Win32 Toolhelp snapshot and CIM query without self-matching).
+  - *Gate F*: File lock & handle contention check (verifies exclusive access across executable binaries and libraries).
+  - *Gate G*: Dependency reproducibility check (`LockfilePinned`, `ManifestSpecified`, `DerivedFromInstalled`).
+  - *Gate H*: ULVO manifest integration check (validates syntax and schema of `.ulvo/manifest.toml`).
+  - *Gate I*: Capacity & functional readiness check (verifies available storage budget and executes ULVO resolve).
+  - *Gate J*: Irreplaceable files check (scans for `.git`, user Python scripts, model weights, and datasets).
+- **Capacity-Aware Low-Storage Migration Planning**: Formulates prioritized migration queues with a strict 500 MB safety reserve, safely categorizing multi-gigabyte AI/ML environments as `BLOCKED_CAPACITY` to prevent storage exhaustion on constrained volumes.
+- **Atomic Manifest Synthesis (`ulvo migrate apply`)**: Synthesizes standard `.ulvo/manifest.toml` integration contracts atomically via `write_atomic` without altering, touching, or invalidating legacy `.venv` directories.
+- **Win32 Directory Read-Only Attribute Hardening**: Hardened `safe_reclaim_environment_hierarchy` to strip Windows `ReadOnly` attributes on subdirectories and root directories with exponential retry backoff, fixing `ERROR_ACCESS_DENIED (os error 5)` on protected package subtrees.
+- **Verified Production Workspace Retirements**: Safely migrated and retired project-local `.venv`s for `Tools/whichllm` and `Active/ProofStack` after passing 100% of all 10 verification gates, achieving 100.98 MB (100,989,500 bytes) of total verified physical storage recovery across the workspace.
+- **Post-Retirement Functional Verification**: Independently verified that retired projects execute cleanly through ULVO's ephemeral vault environments with zero recreation of project-local `.venv` directories.
+- **Comprehensive Test Suite Expansion**: Added 6 new unit and synthetic integration tests in `ulvo-adapters` and `ulvo-discovery`, bringing workspace total to 89 passing native tests.
+
 ---
 
 ## [0.2.2] - 2026-10-19

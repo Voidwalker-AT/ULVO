@@ -54,6 +54,53 @@ enum Commands {
         #[command(subcommand)]
         subcommand: EnvCommands,
     },
+    /// Automated workspace-wide Python virtual-environment migration system
+    Migrate {
+        #[command(subcommand)]
+        subcommand: MigrateCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum MigrateCommands {
+    /// Perform a read-only scan of the workspace for Python environments and projects
+    Scan {
+        #[arg(default_value = "E:\\Workspace")]
+        path: PathBuf,
+    },
+    /// Formulate a capacity-aware, prioritized migration plan
+    Plan {
+        #[arg(default_value = "E:\\Workspace")]
+        path: PathBuf,
+        /// Safety reserve in bytes (default: 500 MB)
+        #[arg(long, default_value = "524288000")]
+        safety_reserve: u64,
+    },
+    /// Verify a specific project against Gates A through J
+    Verify {
+        project_path: PathBuf,
+    },
+    /// Apply ULVO integration to a project (generates .ulvo/manifest.toml atomically without touching legacy env)
+    Apply {
+        project_path: PathBuf,
+    },
+    /// Safely retire legacy virtual environment if and only if all gates pass
+    Retire {
+        project_path: PathBuf,
+        /// Explicit confirmation flag to authorize retirement
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Display migration status of discovered projects in workspace
+    Status {
+        #[arg(default_value = "E:\\Workspace")]
+        path: PathBuf,
+    },
+    /// Generate comprehensive migration summary report
+    Report {
+        #[arg(default_value = "E:\\Workspace")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -580,6 +627,204 @@ fn run(cli: Cli) -> Result<i32, String> {
                             println!("  Volume Delta:       {} bytes", delta);
                         }
                         println!("  Status:             {}", result.message);
+                    }
+                    Ok(0)
+                }
+            }
+        }
+        Commands::Migrate { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let orchestrator = ulvo_discovery::MigrationOrchestrator::new(vault_path)?;
+            match subcommand {
+                MigrateCommands::Scan { path } => {
+                    let result = orchestrator.scan(&path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Workspace Migration Scan ({})", result.workspace_root);
+                        println!("  Discovered Candidates:     {}", result.total_candidates);
+                        println!("  Total Logical Storage:     {} bytes ({:.2} MB)",
+                            result.total_logical_bytes,
+                            result.total_logical_bytes as f64 / 1_048_576.0
+                        );
+                        println!("  Total Physical Allocation: {} bytes ({:.2} MB)",
+                            result.total_physical_allocated_bytes,
+                            result.total_physical_allocated_bytes as f64 / 1_048_576.0
+                        );
+                        println!("\n  Candidates:");
+                        for c in &result.candidates {
+                            let size_mb = c.physical_allocated_bytes.unwrap_or(c.logical_bytes) as f64 / 1_048_576.0;
+                            println!("    - {:<28} [{:<6}] Size: {:>8.2} MB | Reproducibility: {:<20} | Status: {:<10} | Risk: {:<8}",
+                                c.project_name,
+                                c.python_version.as_deref().unwrap_or("?"),
+                                size_mb,
+                                c.reproducibility.to_string(),
+                                c.status.to_string(),
+                                c.risk_level.to_string(),
+                            );
+                            if let Some(ref reason) = c.blocker_reason {
+                                println!("        Note: {}", reason);
+                            }
+                        }
+                    }
+                    Ok(0)
+                }
+                MigrateCommands::Plan { path, safety_reserve } => {
+                    let result = orchestrator.plan(&path, safety_reserve)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Migration Capacity-Aware Plan ({})", result.workspace_root);
+                        println!("  Drive Free Storage:        {:.2} MB ({} bytes)",
+                            result.drive_free_bytes as f64 / 1_048_576.0,
+                            result.drive_free_bytes
+                        );
+                        println!("  Safety Reserve:            {:.2} MB",
+                            result.safety_reserve_bytes as f64 / 1_048_576.0
+                        );
+                        println!("  Available Budget:          {:.2} MB",
+                            result.available_budget_bytes as f64 / 1_048_576.0
+                        );
+                        println!("  Total Recoverable Storage: {:.2} MB",
+                            result.total_recoverable_bytes as f64 / 1_048_576.0
+                        );
+                        println!("  Capacity-Blocked Storage:  {:.2} MB",
+                            result.capacity_blocked_bytes as f64 / 1_048_576.0
+                        );
+                        println!("\n  Prioritized Migration Queue (Ordered):");
+                        if result.prioritized_queue.is_empty() {
+                            println!("    (No candidates currently eligible within capacity budget)");
+                        } else {
+                            for (idx, p) in result.prioritized_queue.iter().enumerate() {
+                                let cand = result.candidates.iter().find(|c| &c.project_path == p);
+                                let (name, size_mb, repro) = match cand {
+                                    Some(c) => (
+                                        c.project_name.as_str(),
+                                        c.physical_allocated_bytes.unwrap_or(c.logical_bytes) as f64 / 1_048_576.0,
+                                        c.reproducibility.to_string(),
+                                    ),
+                                    None => ("unknown", 0.0, "unknown".to_string()),
+                                };
+                                println!("    {:>2}. {:<24} Size: {:>7.2} MB | Reproducibility: {:<20} | Path: {}",
+                                    idx + 1, name, size_mb, repro, p
+                                );
+                            }
+                        }
+                    }
+                    Ok(0)
+                }
+                MigrateCommands::Verify { project_path } => {
+                    let result = orchestrator.verify(&project_path)?;
+                    let can_retire = result.can_retire;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Migration Safety Gate Verification");
+                        println!("  Project Path:       {}", result.project_path);
+                        println!("  Legacy Environment: {}", result.legacy_env_path);
+                        println!("  Retirement Status:  {}", if can_retire { "ELIGIBLE FOR RETIREMENT" } else { "RETIREMENT BLOCKED" });
+                        println!("\n  Safety Gates (A - J):");
+                        for gate in &result.gates {
+                            let flag = if gate.passed { "[PASS]" } else { "[FAIL]" };
+                            println!("    {:<7} {}: {}", flag, gate.name, gate.message);
+                        }
+                        if let Some(ref diag) = result.diagnostic {
+                            println!("\n  Diagnostic: {}", diag);
+                        }
+                    }
+                    Ok(if can_retire { 0 } else { 1 })
+                }
+                MigrateCommands::Apply { project_path } => {
+                    let result = orchestrator.apply(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Migration Apply Integration");
+                        println!("  Project Path:         {}", result.project_path);
+                        println!("  Manifest Path:        {}", result.manifest_path);
+                        println!("  Manifest Created:     {}", result.manifest_created);
+                        println!("  Legacy Env Untouched: {}", result.legacy_env_untouched);
+                        println!("  Status:               {}", result.message);
+                    }
+                    Ok(0)
+                }
+                MigrateCommands::Retire { project_path, yes } => {
+                    let result = orchestrator.retire(&project_path, yes)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Migration Legacy Environment Retirement");
+                        println!("  Project Path:        {}", result.project_path);
+                        println!("  Retired Target:      {}", result.legacy_env_path);
+                        println!("  Physical Freed:      {} bytes ({:.2} MB)",
+                            result.physical_bytes_reclaimed,
+                            result.physical_bytes_reclaimed as f64 / 1_048_576.0
+                        );
+                        if let Some(delta) = result.volume_free_bytes_delta {
+                            println!("  Volume Delta:        {} bytes", delta);
+                        }
+                        println!("  Post-Verification:   {}", if result.post_verification_passed { "PASSED" } else { "FAILED" });
+                        println!("  Status:              {}", result.message);
+                    }
+                    Ok(0)
+                }
+                MigrateCommands::Status { path } => {
+                    let candidates = orchestrator.status(&path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&candidates).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Migration Status ({})", path.display());
+                        for c in &candidates {
+                            let size_mb = c.physical_allocated_bytes.unwrap_or(c.logical_bytes) as f64 / 1_048_576.0;
+                            println!("  - {:<24} Size: {:>7.2} MB | Status: {:<12} | Risk: {:<8} | Integrated: {}",
+                                c.project_name, size_mb, c.status.to_string(), c.risk_level.to_string(), c.ulvo_integrated
+                            );
+                        }
+                    }
+                    Ok(0)
+                }
+                MigrateCommands::Report { path } => {
+                    let result = orchestrator.report(&path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Workspace Migration & Reclamation Report");
+                        println!("  Workspace Root:                   {}", result.workspace_root);
+                        println!("  Discovered Environments:          {}", result.total_environments_discovered);
+                        println!("  Successfully Integrated Projects: {}", result.successfully_integrated_projects);
+                        println!("  Verified Retirements:             {}", result.verified_retirements);
+                        println!("  Blocked Environments:             {}", result.blocked_environments);
+                        println!("  Remaining Legacy Environments:    {}", result.remaining_legacy_environments);
+                        println!("  Total Measured Physical Recovery: {} bytes ({:.2} MB)",
+                            result.total_measured_physical_recovered_bytes,
+                            result.total_measured_physical_recovered_bytes as f64 / 1_048_576.0
+                        );
+                        println!("\n  Migration Summary Table:");
+                        println!("  {:<24} | {:<7} | {:>9} | {:<16} | {:<10} | {:<10} | {:<14} | {:>9} | {:<15}",
+                            "Project Name", "Python", "Phys MB", "Reproducibility", "ULVO Int", "Func Ver", "Eligibility", "Recov MB", "Blocker"
+                        );
+                        println!("  {}", "-".repeat(125));
+                        for row in &result.summary_table {
+                            let phys_mb = row.physical_bytes as f64 / 1_048_576.0;
+                            let recov_mb = row.actual_recovered_bytes as f64 / 1_048_576.0;
+                            let blocker_str = row.blocker.as_deref().unwrap_or("-");
+                            let truncated_blocker = if blocker_str.len() > 25 {
+                                &blocker_str[..25]
+                            } else {
+                                blocker_str
+                            };
+                            println!("  {:<24} | {:<7} | {:>9.2} | {:<16} | {:<10} | {:<10} | {:<14} | {:>9.2} | {}",
+                                if row.project_name.len() > 24 { &row.project_name[..24] } else { &row.project_name },
+                                if row.python_version.len() > 7 { &row.python_version[..7] } else { &row.python_version },
+                                phys_mb,
+                                if row.reproducibility.len() > 16 { &row.reproducibility[..16] } else { &row.reproducibility },
+                                row.ulvo_integration_status,
+                                row.functional_verification,
+                                row.retirement_eligibility,
+                                recov_mb,
+                                truncated_blocker
+                            );
+                        }
                     }
                     Ok(0)
                 }

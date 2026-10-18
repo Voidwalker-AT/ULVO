@@ -33,6 +33,13 @@ pub fn scan_workspace_environments_only(workspace_root: &Path) -> Result<Vec<Pyt
     Ok(envs)
 }
 
+pub(crate) fn is_ignored_scan_dir(name: &str) -> bool {
+    matches!(
+        name,
+        ".git" | ".github" | "target" | "node_modules" | "__pycache__" | ".pytest_cache" | ".mypy_cache" | ".ruff_cache" | ".idea" | ".vscode"
+    )
+}
+
 fn walk_for_envs(current: &Path, root: &Path, envs: &mut Vec<PythonEnvironment>) {
     if is_reparse_point(current) {
         return;
@@ -48,6 +55,9 @@ fn walk_for_envs(current: &Path, root: &Path, envs: &mut Vec<PythonEnvironment>)
         }
         if p.is_dir() {
             let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if is_ignored_scan_dir(&name) {
+                continue;
+            }
             subdirs.push((name, p));
         } else if p.is_file() {
             let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();

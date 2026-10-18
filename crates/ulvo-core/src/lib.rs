@@ -4,11 +4,13 @@ pub mod resource;
 pub mod registry;
 pub mod workspace;
 pub mod lifecycle;
+pub mod migration;
 
 pub use resource::*;
 pub use registry::*;
 pub use workspace::*;
 pub use lifecycle::*;
+pub use migration::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

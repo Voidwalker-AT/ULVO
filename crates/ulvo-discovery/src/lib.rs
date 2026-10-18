@@ -4,6 +4,8 @@ pub mod workspace_audit;
 pub use workspace_audit::*;
 pub mod project_lifecycle;
 pub use project_lifecycle::*;
+pub mod migration_orchestrator;
+pub use migration_orchestrator::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;

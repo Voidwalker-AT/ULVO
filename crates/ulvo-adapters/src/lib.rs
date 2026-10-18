@@ -6,6 +6,8 @@ pub mod fs_identity;
 pub use fs_identity::*;
 pub mod vault_uv;
 pub use vault_uv::*;
+pub mod migration_ops;
+pub use migration_ops::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

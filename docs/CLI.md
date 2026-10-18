@@ -291,9 +291,65 @@ ulvo env reclaim E:\Workspace\Active\NexusNode\server [--json]
 
 ---
 
-## 8. Non-Mutating Execution Guarantee
+## 8. `ulvo migrate`
+
+Automated workspace-wide Python virtual-environment migration and storage reclamation system. Scans projects, verifies dependency specifications, enforces 10 safety gates, synthesizes `.ulvo/manifest.toml`, and safely retires legacy environments.
+
+### 8.1 `ulvo migrate scan [PATH]`
+Performs a read-only scan of the workspace, discovering all Python virtual environments, resolving project roots, detecting Python versions, and analyzing dependency reproducibility.
+
+```sh
+ulvo migrate scan E:\Workspace [--json]
+```
+
+### 8.2 `ulvo migrate plan [PATH] [--safety-reserve <BYTES>]`
+Formulates a capacity-aware, prioritized migration plan. Enforces a safety reserve (default: 500 MB) and calculates the available capacity budget. Blocks multi-gigabyte or high-risk ML environments whose sizes exceed the capacity budget (`BLOCKED_CAPACITY`), and sorts eligible candidates in ascending size order.
+
+```sh
+ulvo migrate plan E:\Workspace [--safety-reserve 524288000] [--json]
+```
+
+### 8.3 `ulvo migrate verify <PROJECT_PATH>`
+Executes all 10 formal safety gates (Gates A–J) against a candidate project and its legacy environment. Returns `Retirement Status: ELIGIBLE FOR RETIREMENT` if and only if all gates pass.
+
+```sh
+ulvo migrate verify E:\Workspace\Tools\whichllm [--json]
+```
+
+### 8.4 `ulvo migrate apply <PROJECT_PATH>`
+Atomically creates `.ulvo/manifest.toml` for the project using `write_atomic` without altering, touching, or invalidating the legacy environment.
+
+```sh
+ulvo migrate apply E:\Workspace\Tools\whichllm [--json]
+```
+
+### 8.5 `ulvo migrate retire <PROJECT_PATH> [--yes]`
+Safely retires the project's legacy virtual environment leaf-first within the project boundary. Requires explicit `--yes` confirmation and enforces all 10 gates before unlinking files and directories.
+
+```sh
+ulvo migrate retire E:\Workspace\Tools\whichllm --yes [--json]
+```
+
+### 8.6 `ulvo migrate status [PATH]`
+Displays the live migration status, risk level, and integration state across all workspace projects.
+
+```sh
+ulvo migrate status E:\Workspace [--json]
+```
+
+### 8.7 `ulvo migrate report [PATH]`
+Generates a comprehensive migration and storage reclamation report with a full Markdown/ASCII summary table detailing discovered environments, integration status, functional verification, retirement results, and physical storage recovered.
+
+```sh
+ulvo migrate report E:\Workspace [--json]
+```
+
+---
+
+## 9. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.
 - Safe reclamation fails closed if active processes are detected holding leases.
 - All temporary test fixtures use process-level ownership sentinels.
+- Legacy environment retirement requires explicit authorization and passes 10 safety gates.
