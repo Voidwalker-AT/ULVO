@@ -237,14 +237,14 @@ ulvo project inspect E:\Workspace\Active\NexusNode\server [--json]
 ```
 
 ### 5.2 `ulvo project resolve <path>`
-Resolves runtime requirements and computes the deterministic environment identifier (`env_<hash>`) and vault target directory.
+Resolves runtime requirements and computes the deterministic specification fingerprint hash and vault target directory (`env_<slug>_<hash>`).
 
 ```sh
 ulvo project resolve E:\Workspace\Active\NexusNode\server [--json]
 ```
 
 ### 5.3 `ulvo project doctor <path>`
-Executes preflight health and dependency checks, verifying manifest syntax, `uv` package manager availability, runtime resolution, and dependency manifest presence.
+Executes preflight health and dependency checks, verifying manifest syntax, `uv` package manager availability, runtime resolution, and dependency manifest presence. Purely read-only; does not create directories.
 
 ```sh
 ulvo project doctor E:\Workspace\Active\NexusNode\server [--json]
@@ -254,7 +254,7 @@ ulvo project doctor E:\Workspace\Active\NexusNode\server [--json]
 
 ## 6. `ulvo run`
 
-Executes a command inside an isolated, ULVO-managed project environment. If the environment is not yet materialized, ULVO provisions it on demand inside the vault with PATH sanitization (preventing leakage from local `.venv`).
+Executes a command inside an isolated, ULVO-managed project environment. If the environment is not yet materialized, ULVO provisions it on demand inside the vault with PATH sanitization (preventing leakage from local `.venv`). Automatically attaches processes to a Win32 Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` to supervise child and worker processes.
 
 ### Syntax
 ```sh
@@ -276,14 +276,14 @@ ulvo run E:\Workspace\Active\NexusNode\server -- python -m unittest tests/test_p
 Manages the lifecycle and reclamation of ULVO project environments.
 
 ### 7.1 `ulvo env status <path>`
-Queries the current 9-state lifecycle (`DEFINED`, `RESOLVED`, `MATERIALIZING`, `READY`, `EXECUTING`, `RELEASED`, `RECLAIMABLE`, `RECLAIMED`, `FAILED`), active process leases, and quiescence.
+Queries the current 9-state lifecycle (`DEFINED`, `RESOLVED`, `MATERIALIZING`, `READY`, `EXECUTING`, `RELEASED`, `RECLAIMABLE`, `RECLAIMED`, `FAILED`), active process leases with creation timestamps, specification hash, and quiescence.
 
 ```sh
 ulvo env status E:\Workspace\Active\NexusNode\server [--json]
 ```
 
 ### 7.2 `ulvo env reclaim <path>`
-Safely reclaims an environment if quiescent. Enforces fail-closed safety gates (Win32 process liveness checking, ownership sentinel verification, reparse point rejection).
+Safely reclaims an environment if quiescent. Enforces fail-closed safety gates (Win32 process liveness checking, PID-reuse protection, ownership record validation, reparse point rejection). Employs leaf-first bottom-up traversal with retry backoff and reports physical bytes freed and volume free-space delta.
 
 ```sh
 ulvo env reclaim E:\Workspace\Active\NexusNode\server [--json]

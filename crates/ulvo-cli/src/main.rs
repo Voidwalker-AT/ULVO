@@ -492,6 +492,7 @@ fn run(cli: Cli) -> Result<i32, String> {
                         println!("  Package Manager:         {}", result.package_manager);
                         println!("  Requirement Files:       {}", if result.requirement_files.is_empty() { "none".to_string() } else { result.requirement_files.join(", ") });
                         println!("  Environment Target:      {}", result.environment_target_path);
+                        println!("  Specification Hash:      {}", result.specification_hash);
                         println!("  Lifecycle State:         {}", result.state);
                     }
                     Ok(0)
@@ -549,6 +550,9 @@ fn run(cli: Cli) -> Result<i32, String> {
                         if !result.active_pids.is_empty() {
                             println!("    PIDs:             {:?}", result.active_pids);
                         }
+                        if let Some(ref spec) = result.specification_hash {
+                            println!("  Specification Hash: {}", spec);
+                        }
                         if let Some(ref exe) = result.python_executable {
                             println!("  Python Executable:  {}", exe);
                         }
@@ -567,7 +571,14 @@ fn run(cli: Cli) -> Result<i32, String> {
                         println!("  Environment ID:     {}", result.environment_id);
                         println!("  Environment Path:   {}", result.environment_path);
                         println!("  Reclaimed:          {}", result.reclaimed);
-                        println!("  Bytes Freed:        {} ({:.2} MB)", result.bytes_reclaimed, (result.bytes_reclaimed as f64) / (1024.0 * 1024.0));
+                        println!("  Physical Freed:     {} bytes ({:.2} MB, {} files)",
+                            result.physical_bytes_reclaimed,
+                            (result.physical_bytes_reclaimed as f64) / (1024.0 * 1024.0),
+                            result.file_count_reclaimed
+                        );
+                        if let Some(delta) = result.volume_free_bytes_delta {
+                            println!("  Volume Delta:       {} bytes", delta);
+                        }
                         println!("  Status:             {}", result.message);
                     }
                     Ok(0)

@@ -91,6 +91,20 @@ flowchart LR
   - Safe reclamation telemetry recording 29.25 MB freed upon quiescence.
   - 67/67 automated tests passing across the workspace.
 
+### Stage 2.8.1: Ephemeral Lifecycle Safety, Concurrency Hardening & .venv Independence
+- **Status**: `COMPLETED`
+- **Pilot Target**: `Active\NexusNode\server`
+- **Deliverables**:
+  - Leaf-first safe directory deletion engine rejecting reparse points/junctions and clearing read-only attributes with retry backoff.
+  - Multi-field ownership record deserialization and canonical path validation.
+  - Process liveness engine tracking creation timestamps via `GetProcessTimes` to protect against PID recycling, with `ERROR_ACCESS_DENIED` mapped to fail-closed `ProcessLiveness::Unknown`.
+  - Cross-process concurrency control with Win32 `LockFileEx` exclusive locking and atomic `MoveFileExW` temporary file updates.
+  - Win32 Job Object supervision (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) guaranteeing clean child and worker process termination.
+  - Cryptographic dependency specification fingerprinting across manifests and requirement files.
+  - Read-only safety verification ensuring inspection/doctor/resolve/status commands never mutate disk.
+  - Dual physical allocation (`GetCompressedFileSizeW`) and volume free delta (`GetDiskFreeSpaceExW`) telemetry.
+  - 78/78 passing automated regression tests across the workspace.
+
 ---
 
 ## Future Roadmap

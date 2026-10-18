@@ -15,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-10-19
+
+### Stage 2.8.1 — Project-Local .venv Independence: Ephemeral Lifecycle Safety & Concurrency Hardening
+
+#### Added
+- **Leaf-First Safe Deletion Engine**: Built `safe_reclaim_environment_hierarchy` in `ulvo-adapters` performing bottom-up leaf-first traversal, rejecting reparse points/junctions, clearing Windows read-only file attributes, and retrying deletion with exponential backoff on transient handles.
+- **Cryptographic Specification Fingerprinting**: Implemented `EnvironmentSpecification` and `DependencyManifestFingerprint` in `ulvo-core` and `ulvo-discovery`, generating deterministic 16-character environment hashes across manifests (`requirements.txt`, `pyproject.toml`, `.ulvo/manifest.toml`), Python versions, platforms, and architectures to detect dependency drift and prevent cross-project collisions.
+- **Win32 Job Object Process Supervision**: Implemented `JobSupervisor` using `CreateJobObjectW` and `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` (0x2000), binding spawned runners and background worker processes to guarantee automatic termination on crash or exit.
+- **Fail-Closed Process Liveness Engine**: Added `ProcessLiveness` (`Alive`, `Terminated`, `Unknown`) with `GetProcessTimes` creation timestamp validation to defend against PID reuse, mapping `ERROR_ACCESS_DENIED` to `Unknown` to strictly block reclamation while indeterminate processes exist.
+- **Cross-Process Concurrency & Atomic Leases**: Built `EnvironmentFileLock` using Win32 `LockFileEx` exclusive locking with bounded timeout backoff, pairing with `write_atomic` via `MoveFileExW(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)` to eliminate lease read-modify-write race conditions.
+- **Structural Ownership Record Validation**: Added `validate()` on `EnvironmentOwnershipRecord` enforcing multi-field verification (sentinel, schema version, canonical project path, vault root boundary, and environment ID) before authorizing reclamation.
+- **Volume Delta Free Space Telemetry**: Integrated Win32 `GetDiskFreeSpaceExW` to calculate volume free space delta alongside physical cluster allocation from `GetCompressedFileSizeW`.
+- **Read-Only Safety Enforcement**: Removed eager directory creation from `UvManager::new()` and `VaultPaths::new()`, deferring writes exclusively to explicit materialization so inspection, doctor, resolution, and status queries remain strictly read-only.
+- **Adversarial Regression Test Suite**: Added 11 new unit and adversarial integration tests bringing workspace total to 78 passing tests covering multithreaded lock contention, Job Object assignment, read-only file deletion, PID reuse simulation, and dependency invalidation.
+
+---
+
 ## [0.2.0] - 2026-10-19
 
 ### Stage 2.8 — Project-to-ULVO Ephemeral Python Environment Integration

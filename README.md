@@ -80,7 +80,13 @@ The following capabilities are fully implemented, verified natively on Windows, 
 - **Python Virtual Environment Discovery**: Detection of virtualenvs, Python versions, editable installs (`direct_url.json`, `.pth`), and native C-extension wheels.
 - **Cryptographic Manifest Discrimination**: Evaluation of `.dist-info/WHEEL` ABI tags and `.dist-info/RECORD` SHA-256 digests.
 - **Bounded Storage Savings Model**: Three-tier set-theoretic savings model (`Conservative`, `Realistic`, `Theoretical`) without heuristic percentage multipliers.
-- **Read-Only Non-Mutating CLI**: Full CLI suite with `--json` output (`inventory`, `inspect`, `vault`, `workspace`).
+- **Read-Only Non-Mutating CLI**: Full CLI suite with `--json` output (`inventory`, `inspect`, `vault`, `workspace`, `project`).
+- **9-State Ephemeral Environment Lifecycle**: `DEFINED` → `RESOLVED` → `MATERIALIZING` → `READY` → `EXECUTING` → `RELEASED` → `RECLAIMABLE` → `RECLAIMED` / `FAILED` state transitions with persistent ownership sentinels.
+- **Specification Fingerprinting**: Cryptographic digest generation across dependency manifests (`requirements.txt`, `pyproject.toml`, `manifest.toml`) to ensure automatic invalidation on dependency drift.
+- **Cross-Process Concurrency & Atomic Leases**: Win32 `LockFileEx` exclusive locking with polling backoff and `MoveFileExW` atomic file rename.
+- **Win32 Job Object Supervision**: Kernel-level child process termination (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) guarding against lingering background workers.
+- **Leaf-First Safe Deletion Engine**: Bottom-up directory traversal rejecting reparse points/junctions and safely clearing read-only attributes with retry backoff.
+- **Dual Storage Accounting**: Physical cluster allocation (`GetCompressedFileSizeW`) and volume free-space delta (`GetDiskFreeSpaceExW`).
 
 ---
 
@@ -88,7 +94,6 @@ The following capabilities are fully implemented, verified natively on Windows, 
 
 The following capabilities are in active development or planned for subsequent releases:
 
-- **Stage 2.8 Ephemeral Python Environment Pilot**: On-demand materialization of ephemeral virtual environments for selected projects via junction projections.
 - **Shared Package-Store Hardlinking**: Hardlinked package caching across isolated environments.
 - **Multi-Ecosystem Expansion**: Adapters for Node.js (`pnpm`), Go (`GOMODCACHE`), and Java/JVM.
 - **Desktop Graphical Interface**: Native Windows desktop GUI for workspace visualization and environment management.
