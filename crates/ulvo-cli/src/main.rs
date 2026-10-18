@@ -252,34 +252,69 @@ fn run(cli: Cli) -> Result<(), String> {
                         println!("{}", serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?);
                     } else {
                         println!("ULVO Workspace Intelligence Audit ({})", report.workspace_root);
-                        println!("  Total Storage:         {:.2} GB ({} files, {} unique physical allocations)",
+                        let scan_status_str = if report.scan_incomplete {
+                            format!("INCOMPLETE ({} inaccessible entries)", report.inaccessible_count)
+                        } else {
+                            "COMPLETE".to_string()
+                        };
+                        println!("  Scan Status:           {}", scan_status_str);
+                        println!("  Logical Storage:       {:.2} GB ({} files, {} unique physical allocations)",
                             report.total_logical_gb, report.total_files, report.unique_physical_files);
+                        let phys_str = match report.total_physical_allocated_gb {
+                            Some(gb) => format!("{:.2} GB", gb),
+                            None => "Unknown (incomplete physical allocation telemetry)".to_string(),
+                        };
+                        println!("  Physical Allocation:   {}", phys_str);
                         println!("  Hardlink Deduplication: {} files", report.hardlink_count);
                         println!("\nTop-Level Categories:");
                         for (cat, stats) in &report.category_breakdown {
-                            println!("  {:<20} {:>8} files  {:>6.2} GB", cat, stats.file_count, stats.logical_gb);
+                            let cat_phys = match stats.physical_allocated_gb {
+                                Some(gb) => format!("{:>6.2} GB physical", gb),
+                                None => "  unknown physical".to_string(),
+                            };
+                            let inacc_note = if stats.inaccessible_count > 0 {
+                                format!(" ({} inaccessible)", stats.inaccessible_count)
+                            } else {
+                                String::new()
+                            };
+                            println!("  {:<20} {:>8} files  {:>6.2} GB logical  {} {}",
+                                cat, stats.file_count, stats.logical_gb, cat_phys, inacc_note);
                         }
                         println!("\nPython Virtual Environments: {} detected", report.python_environments.len());
                         println!("  Top Environments by Size:");
                         for env in report.python_environments.iter().take(8) {
                             let mb = (env.logical_bytes as f64) / (1024.0 * 1024.0);
-                            println!("    {:<45} {:>7.1} MB  Python {:<8} ({} pkgs)",
-                                env.relative_path, mb, env.python_version.as_deref().unwrap_or("unknown"), env.packages.len());
+                            let phys_mb = match env.physical_allocated_bytes {
+                                Some(b) => format!("{:>7.1} MB physical", (b as f64) / (1024.0 * 1024.0)),
+                                None => "   unknown physical".to_string(),
+                            };
+                            let edit_flag = if env.has_editable { " [editable]" } else { "" };
+                            let native_flag = if env.has_native { " [native]" } else { "" };
+                            println!("    {:<40} {:>7.1} MB logical  {}  Python {:<8} ({} pkgs){}{}",
+                                env.relative_path, mb, phys_mb, env.python_version.as_deref().unwrap_or("unknown"), env.packages.len(), edit_flag, native_flag);
                         }
                         println!("\nPackage Duplication Analysis:");
-                        println!("  Identical Package Copies: {} distinct duplicated distributions", report.package_duplications.len());
-                        for dup in report.package_duplications.iter().take(6) {
+                        println!("  Duplicated Package Distributions: {} detected", report.package_duplications.len());
+                        for dup in report.package_duplications.iter().take(8) {
                             let wasted_mb = (dup.total_wasted_bytes as f64) / (1024.0 * 1024.0);
-                            println!("    {:<25} == {:<12} ({:>2} copies, {:>7.1} MB wasted)",
-                                dup.package, dup.version, dup.instance_count, wasted_mb);
+                            let flag = if dup.is_verified_identical {
+                                "[verified identical]"
+                            } else {
+                                "[compatible candidate - differing ABI/RECORD]"
+                            };
+                            println!("    {:<25} == {:<12} ({:>2} copies, {:>7.1} MB wasted) {}",
+                                dup.package, dup.version, dup.instance_count, wasted_mb, flag);
                         }
                         println!("\nStorage Savings Model:");
-                        println!("  Conservative (exact package dedup)   : {:>6.2} GB ({:.1}% of workspace)",
+                        println!("  Conservative (verified identical dedup): {:>6.2} GB ({:.1}% of workspace)",
                             report.storage_savings.conservative.recoverable_gb, report.storage_savings.conservative.percentage_of_workspace);
-                        println!("  Realistic (uv cache + ephemeral envs): {:>6.2} GB ({:.1}% of workspace)",
+                        println!("    Confidence: {}", report.storage_savings.conservative.confidence);
+                        println!("  Realistic (ephemeral envs + persistent dedup): {:>6.2} GB ({:.1}% of workspace)",
                             report.storage_savings.realistic.recoverable_gb, report.storage_savings.realistic.percentage_of_workspace);
+                        println!("    Confidence: {}", report.storage_savings.realistic.confidence);
                         println!("  Theoretical (100% ephemeral venvs)  : {:>6.2} GB ({:.1}% of workspace)",
                             report.storage_savings.theoretical.recoverable_gb, report.storage_savings.theoretical.percentage_of_workspace);
+                        println!("    Confidence: {}", report.storage_savings.theoretical.confidence);
                     }
                 }
                 WorkspaceCommands::PythonEnvs { path } => {
@@ -316,8 +351,13 @@ fn run(cli: Cli) -> Result<(), String> {
                         println!("Duplicate Python Packages Across Environments ({}) [{}]:", path.display(), dups.len());
                         for dup in dups {
                             let wasted_mb = (dup.total_wasted_bytes as f64) / (1024.0 * 1024.0);
-                            println!("  {:<25} == {:<12} ({:>2} copies, {:>7.1} MB wasted)",
-                                dup.package, dup.version, dup.instance_count, wasted_mb);
+                            let flag = if dup.is_verified_identical {
+                                "[verified identical]"
+                            } else {
+                                "[compatible candidate]"
+                            };
+                            println!("  {:<25} == {:<12} ({:>2} copies, {:>7.1} MB wasted) {}",
+                                dup.package, dup.version, dup.instance_count, wasted_mb, flag);
                         }
                     }
                 }
@@ -337,12 +377,21 @@ fn run(cli: Cli) -> Result<(), String> {
                         println!("  Conservative (Package-Store Dedup)   : {:.2} GB ({:.1}%)",
                             savings.conservative.recoverable_gb, savings.conservative.percentage_of_workspace);
                         println!("    Confidence: {}", savings.conservative.confidence);
+                        for a in &savings.conservative.assumptions {
+                            println!("      - {}", a);
+                        }
                         println!("  Realistic (uv cache + ephemeral envs): {:.2} GB ({:.1}%)",
                             savings.realistic.recoverable_gb, savings.realistic.percentage_of_workspace);
                         println!("    Confidence: {}", savings.realistic.confidence);
+                        for a in &savings.realistic.assumptions {
+                            println!("      - {}", a);
+                        }
                         println!("  Theoretical (100% ephemeral venvs)  : {:.2} GB ({:.1}%)",
                             savings.theoretical.recoverable_gb, savings.theoretical.percentage_of_workspace);
                         println!("    Confidence: {}", savings.theoretical.confidence);
+                        for a in &savings.theoretical.assumptions {
+                            println!("      - {}", a);
+                        }
                     }
                 }
             }

@@ -2,6 +2,8 @@ pub mod vault_rust;
 pub use vault_rust::*;
 pub mod vault_python;
 pub use vault_python::*;
+pub mod fs_identity;
+pub use fs_identity::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

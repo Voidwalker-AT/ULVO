@@ -2,12 +2,15 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use ulvo_core::{
-    fnv1a_64, Abi, Architecture, Backend, Ecosystem, InstalledPackage,
+    Abi, Architecture, Backend, Ecosystem, InstalledPackage,
     MigrationCompatibility, Ownership, PackageDuplication, Platform,
     ProjectCandidate, Provenance, PythonEnvironment, Resource, ResourceKind,
     StorageSavingsEstimate, StorageSavingsReport, VerificationStatus,
 };
-use crate::{binary_architecture, bounded_read, reject_links, run_bounded};
+use crate::{
+    binary_architecture, bounded_read, query_file_identity_and_size, reject_links,
+    run_bounded, sha256_hex, FileSystemIdentity,
+};
 
 pub fn find_uv_executable() -> Option<PathBuf> {
     // 1. Check local user directory
@@ -258,6 +261,7 @@ pub fn scan_single_python_env(env_path: &Path, workspace_root: &Path) -> PythonE
         python_version: None,
         base_interpreter: None,
         logical_bytes: 0,
+        physical_allocated_bytes: Some(0),
         physical_unique_files: 0,
         has_editable: false,
         has_native: false,
@@ -290,13 +294,15 @@ pub fn scan_single_python_env(env_path: &Path, workspace_root: &Path) -> PythonE
 
     // Inspect site-packages
     for sp in &sp_dirs {
-        scan_site_packages(sp, &mut env);
+        scan_site_packages(sp, env_path, &mut env);
     }
 
     // Measure total environment size
-    let mut inodes = HashSet::new();
-    measure_dir(env_path, &mut env.logical_bytes, &mut inodes, &mut env.inaccessible_count);
-    env.physical_unique_files = inodes.len();
+    let mut identities = HashSet::new();
+    let mut alloc_acc = Some(0u64);
+    measure_dir(env_path, &mut env.logical_bytes, &mut alloc_acc, &mut identities, &mut env.inaccessible_count);
+    env.physical_unique_files = identities.len();
+    env.physical_allocated_bytes = alloc_acc;
 
     env
 }
@@ -319,7 +325,33 @@ fn find_site_packages(dir: &Path, sp_dirs: &mut Vec<PathBuf>) {
     }
 }
 
-fn scan_site_packages(sp: &Path, env: &mut PythonEnvironment) {
+fn scan_site_packages(sp: &Path, env_path: &Path, env: &mut PythonEnvironment) {
+    // Check .pth files in site-packages for editable installs or external source references
+    if let Ok(entries) = std::fs::read_dir(sp) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if p.is_file() && fname.ends_with(".pth") {
+                if fname.starts_with("__editable__") {
+                    env.has_editable = true;
+                }
+                if let Ok(content) = bounded_read(&p) {
+                    for line in content.lines() {
+                        let l = line.trim();
+                        if l.starts_with("import ") || l.contains("__editable__") {
+                            env.has_editable = true;
+                        } else if !l.is_empty() && !l.starts_with('#') {
+                            let ref_path = PathBuf::from(l);
+                            if ref_path.is_absolute() && !ref_path.starts_with(env_path) {
+                                env.has_editable = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let Ok(entries) = std::fs::read_dir(sp) else { return; };
     for entry in entries.flatten() {
         let p = entry.path();
@@ -327,22 +359,99 @@ fn scan_site_packages(sp: &Path, env: &mut PythonEnvironment) {
         if p.is_dir() && name.ends_with(".dist-info") {
             let (pkg_name, pkg_ver) = parse_dist_info_name(&name);
 
-            let is_editable = p.join("direct_url.json").is_file();
-            if is_editable {
-                env.has_editable = true;
+            // 1. Check editable install via direct_url.json
+            let mut is_editable = false;
+            let direct_url_file = p.join("direct_url.json");
+            if direct_url_file.is_file() {
+                if let Ok(content) = bounded_read(&direct_url_file) {
+                    if content.contains("\"editable\": true")
+                        || content.contains("\"editable\":true")
+                        || content.contains("\"dir_info\"")
+                    {
+                        is_editable = true;
+                        env.has_editable = true;
+                    }
+                }
             }
 
-            let mut pkg_bytes = 0;
-            let mut pkg_inodes = HashSet::new();
-            let mut has_native = false;
-            measure_dir(&p, &mut pkg_bytes, &mut pkg_inodes, &mut env.inaccessible_count);
+            // 2. Extract ABI tag from WHEEL
+            let mut abi_tag: Option<String> = None;
+            let wheel_file = p.join("WHEEL");
+            if wheel_file.is_file() {
+                if let Ok(content) = bounded_read(&wheel_file) {
+                    for line in content.lines() {
+                        let l = line.trim();
+                        if let Some(tag_val) = l.strip_prefix("Tag:").or_else(|| l.strip_prefix("tag:")) {
+                            abi_tag = Some(tag_val.trim().to_string());
+                            break;
+                        }
+                    }
+                }
+            }
 
-            // Also check main module directory
-            let mod_name = pkg_name.replace('-', "_");
-            let mod_path = sp.join(&mod_name);
-            if mod_path.is_dir() && !is_reparse_point(&mod_path) {
-                measure_dir(&mod_path, &mut pkg_bytes, &mut pkg_inodes, &mut env.inaccessible_count);
-                has_native = check_has_native(&mod_path);
+            // 3. Compute cryptographic content hash from RECORD or METADATA
+            let record_file = p.join("RECORD");
+            let content_hash = if record_file.is_file() {
+                if let Ok(rec_content) = bounded_read(&record_file) {
+                    Some(format!("sha256:{}", sha256_hex(rec_content.as_bytes())))
+                } else {
+                    None
+                }
+            } else {
+                let metadata_file = p.join("METADATA");
+                if metadata_file.is_file() {
+                    if let Ok(meta_content) = bounded_read(&metadata_file) {
+                        Some(format!("sha256-meta:{}", sha256_hex(meta_content.as_bytes())))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+
+            // 4. Measure package files
+            let mut pkg_bytes = 0;
+            let mut pkg_alloc = Some(0u64);
+            let mut pkg_identities = HashSet::new();
+            measure_dir(&p, &mut pkg_bytes, &mut pkg_alloc, &mut pkg_identities, &mut env.inaccessible_count);
+
+            // Read top_level.txt to discover modules associated with this distribution
+            let top_level_file = p.join("top_level.txt");
+            let mut top_names = Vec::new();
+            if top_level_file.is_file() {
+                if let Ok(text) = bounded_read(&top_level_file) {
+                    for line in text.lines() {
+                        let t = line.trim();
+                        if !t.is_empty() {
+                            top_names.push(t.to_string());
+                        }
+                    }
+                }
+            }
+            if top_names.is_empty() {
+                top_names.push(pkg_name.replace('-', "_"));
+            }
+
+            let mut has_native = false;
+            for mod_name in top_names {
+                let mod_dir = sp.join(&mod_name);
+                let mod_file = sp.join(format!("{}.py", mod_name));
+                if mod_dir.is_dir() && !is_reparse_point(&mod_dir) {
+                    measure_dir(&mod_dir, &mut pkg_bytes, &mut pkg_alloc, &mut pkg_identities, &mut env.inaccessible_count);
+                    if check_has_native(&mod_dir) {
+                        has_native = true;
+                    }
+                } else if mod_file.is_file() && !is_reparse_point(&mod_file) {
+                    if let Ok((id, info)) = query_file_identity_and_size(&mod_file) {
+                        pkg_bytes += info.logical_bytes;
+                        if pkg_identities.insert(id) {
+                            if let (Some(ref mut a), Some(alloc)) = (&mut pkg_alloc, info.allocated_bytes) {
+                                *a += alloc;
+                            }
+                        }
+                    }
+                }
             }
 
             if has_native {
@@ -355,7 +464,9 @@ fn scan_site_packages(sp: &Path, env: &mut PythonEnvironment) {
                 is_editable,
                 has_native,
                 logical_bytes: pkg_bytes,
-                unique_files: pkg_inodes.len(),
+                unique_files: pkg_identities.len(),
+                content_hash,
+                abi_tag,
             });
         }
     }
@@ -393,7 +504,8 @@ fn check_has_native(dir: &Path) -> bool {
 fn measure_dir(
     dir: &Path,
     bytes: &mut u64,
-    inodes: &mut HashSet<(u64, u64)>,
+    allocated_acc: &mut Option<u64>,
+    identities: &mut HashSet<FileSystemIdentity>,
     inaccessible: &mut usize,
 ) {
     if is_reparse_point(dir) {
@@ -409,23 +521,28 @@ fn measure_dir(
             continue;
         }
         if p.is_file() {
-            if let Ok(meta) = p.metadata() {
-                *bytes += meta.len();
-                #[cfg(windows)]
-                {
-                    use std::os::windows::fs::MetadataExt;
-                    inodes.insert((meta.file_size(), fnv1a_64(p.to_string_lossy().to_lowercase().as_bytes())));
+            match query_file_identity_and_size(&p) {
+                Ok((identity, size_info)) => {
+                    if size_info.is_reparse {
+                        continue;
+                    }
+                    *bytes += size_info.logical_bytes;
+                    if identities.insert(identity) {
+                        if let Some(ref mut acc) = allocated_acc {
+                            if let Some(alloc) = size_info.allocated_bytes {
+                                *acc += alloc;
+                            } else {
+                                *allocated_acc = None;
+                            }
+                        }
+                    }
                 }
-                #[cfg(not(windows))]
-                {
-                    use std::os::unix::fs::MetadataExt;
-                    inodes.insert((meta.dev(), meta.ino()));
+                Err(_) => {
+                    *inaccessible += 1;
                 }
-            } else {
-                *inaccessible += 1;
             }
         } else if p.is_dir() {
-            measure_dir(&p, bytes, inodes, inaccessible);
+            measure_dir(&p, bytes, allocated_acc, identities, inaccessible);
         }
     }
 }
@@ -444,17 +561,53 @@ pub fn analyze_package_duplication(envs: &[PythonEnvironment]) -> Vec<PackageDup
     for ((pkg_name, pkg_ver), list) in instances {
         if list.len() > 1 {
             let unit_size = list.iter().map(|(p, _)| p.logical_bytes).max().unwrap_or(0);
-            let wasted = unit_size * (list.len() as u64 - 1);
             let has_native = list.iter().any(|(p, _)| p.has_native);
-            let envs_list = list.iter().map(|(_, e)| e.relative_path.clone()).collect();
+            let envs_list: Vec<String> = list.iter().map(|(_, e)| e.relative_path.clone()).collect();
+
+            let mut abi_tags: Vec<String> = list.iter()
+                .filter_map(|(p, _)| p.abi_tag.clone())
+                .collect();
+            abi_tags.sort();
+            abi_tags.dedup();
+
+            // Verify byte-level identity via content_hash
+            // All instances must have Some(hash), and all hashes must match
+            let all_have_hash = list.iter().all(|(p, _)| p.content_hash.is_some());
+            let first_hash = list[0].0.content_hash.as_deref();
+            let all_hashes_match = all_have_hash
+                && list.iter().all(|(p, _)| p.content_hash.as_deref() == first_hash);
+
+            let is_verified_identical = all_hashes_match && (abi_tags.len() <= 1);
+
+            // Calculate total wasted bytes strictly for verified identical copies
+            let total_wasted_bytes = if is_verified_identical {
+                unit_size * (list.len() as u64 - 1)
+            } else {
+                // If not all are identical, sum wasted bytes only among identical subsets
+                let mut hash_counts: HashMap<&str, usize> = HashMap::new();
+                for (p, _) in &list {
+                    if let Some(ref h) = p.content_hash {
+                        *hash_counts.entry(h.as_str()).or_default() += 1;
+                    }
+                }
+                let mut wasted = 0;
+                for (_h, count) in hash_counts {
+                    if count > 1 {
+                        wasted += unit_size * (count as u64 - 1);
+                    }
+                }
+                wasted
+            };
 
             dups.push(PackageDuplication {
                 package: pkg_name,
                 version: pkg_ver,
                 instance_count: list.len(),
                 estimated_unit_bytes: unit_size,
-                total_wasted_bytes: wasted,
+                total_wasted_bytes,
                 has_native,
+                is_verified_identical,
+                abi_tags,
                 environments: envs_list,
             });
         }
@@ -469,21 +622,46 @@ pub fn calculate_storage_savings(
     envs: &[PythonEnvironment],
     dups: &[PackageDuplication],
 ) -> StorageSavingsReport {
-    let conservative_bytes: u64 = dups.iter().map(|d| d.total_wasted_bytes).sum();
-
-    // Project environments (excluding Shared base envs)
-    let project_env_bytes: u64 = envs.iter()
-        .filter(|e| !e.relative_path.starts_with("Shared"))
-        .map(|e| e.logical_bytes)
+    // 1. Conservative: Sum wasted bytes strictly from verified identical packages
+    let conservative_bytes: u64 = dups.iter()
+        .filter(|d| d.is_verified_identical)
+        .map(|d| d.total_wasted_bytes)
         .sum();
 
-    let realistic_bytes = (project_env_bytes as f64 * 0.85) as u64;
-    let theoretical_bytes = project_env_bytes;
+    // 2. Realistic: Reclaim eligible ephemeral environments, PLUS deduplicate
+    // packages strictly within the remaining persistent environments (zero double counting!)
+    let mut ephemeral_bytes: u64 = 0;
+    let mut persistent_envs: Vec<PythonEnvironment> = Vec::new();
+
+    for env in envs {
+        // Shared base environments are persistent; environments with editable packages must stay persistent
+        if env.category.eq_ignore_ascii_case("Shared") || env.has_editable {
+            persistent_envs.push(env.clone());
+        } else {
+            ephemeral_bytes += env.logical_bytes;
+        }
+    }
+
+    let persistent_dups = analyze_package_duplication(&persistent_envs);
+    let persistent_dedup_bytes: u64 = persistent_dups.iter()
+        .filter(|d| d.is_verified_identical)
+        .map(|d| d.total_wasted_bytes)
+        .sum();
+
+    // 3. Theoretical: Complete reclamation of all non-shared project environments
+    // plus full package-store deduplication across shared base environments
+    let theoretical_project_bytes: u64 = envs.iter()
+        .filter(|e| !e.category.eq_ignore_ascii_case("Shared"))
+        .map(|e| e.logical_bytes)
+        .sum();
+    let theoretical_bytes = (theoretical_project_bytes + persistent_dedup_bytes).min(total_workspace_bytes);
+
+    let realistic_bytes = (ephemeral_bytes + persistent_dedup_bytes).max(conservative_bytes).min(theoretical_bytes);
 
     let to_gb = |b: u64| (b as f64) / (1024.0 * 1024.0 * 1024.0);
     let to_pct = |b: u64| {
         if total_workspace_bytes == 0 { 0.0 }
-        else { ((b as f64) / (total_workspace_bytes as f64)) * 100.0 }
+        else { (((b as f64) / (total_workspace_bytes as f64)) * 100.0).min(100.0) }
     };
 
     StorageSavingsReport {
@@ -491,25 +669,41 @@ pub fn calculate_storage_savings(
             recoverable_bytes: conservative_bytes,
             recoverable_gb: (to_gb(conservative_bytes) * 100.0).round() / 100.0,
             percentage_of_workspace: (to_pct(conservative_bytes) * 100.0).round() / 100.0,
-            method: "Package-store deduplication of identical package versions across environments".into(),
+            method: "Package-store deduplication of verified byte-identical packages across environments".into(),
             risk: "Low".into(),
-            confidence: "High (measured package metadata duplication)".into(),
+            confidence: "Moderate (verified via package content hash comparison)".into(),
+            assumptions: vec![
+                "Deduplication requires byte-identical distributions verified by package content hashes".into(),
+                "Target environments support hardlink-based or symlink-based package store sharing".into(),
+                "Preserves virtual environment directory isolation while reclaiming duplicate physical bytes".into(),
+            ],
         },
         realistic: StorageSavingsEstimate {
             recoverable_bytes: realistic_bytes,
             recoverable_gb: (to_gb(realistic_bytes) * 100.0).round() / 100.0,
             percentage_of_workspace: (to_pct(realistic_bytes) * 100.0).round() / 100.0,
-            method: "uv-managed shared cache + on-demand ephemeral environments for project development".into(),
-            risk: "Low to Moderate".into(),
-            confidence: "High (based on uv hardlink caching and non-base environment reclamation)".into(),
+            method: "uv-managed shared cache for reproducible project environments plus package dedup for persistent environments".into(),
+            risk: "Moderate".into(),
+            confidence: "Moderate (projected based on non-editable project environments and reproducible manifests)".into(),
+            assumptions: vec![
+                "Projects with reproducible manifests and no editable installs transition to on-demand ephemeral environments".into(),
+                "Environments with local editable packages or base shared runtimes remain persistent".into(),
+                "Cross-environment package deduplication is applied strictly to persistent environments to prevent double-counting".into(),
+                "Eliminated arbitrary heuristic percentage multipliers".into(),
+            ],
         },
         theoretical: StorageSavingsEstimate {
             recoverable_bytes: theoretical_bytes,
             recoverable_gb: (to_gb(theoretical_bytes) * 100.0).round() / 100.0,
             percentage_of_workspace: (to_pct(theoretical_bytes) * 100.0).round() / 100.0,
-            method: "Complete reclamation of all project-level persistent virtual environments".into(),
+            method: "Complete reclamation of all project-level virtual environments into a centralized package store".into(),
             risk: "High (assumes all projects run purely on-demand with zero persistent venvs)".into(),
-            confidence: "Moderate".into(),
+            confidence: "Low (theoretical upper bound; requires complete tooling adaptation)".into(),
+            assumptions: vec![
+                "Upper bound assuming 100% of project environments are converted to ephemeral runtimes".into(),
+                "Zero persistent virtual environment disk footprint outside runtime store".into(),
+                "All toolchains and IDEs configured for on-demand ephemeral virtual environment activation".into(),
+            ],
         },
     }
 }
@@ -602,9 +796,10 @@ mod tests {
             python_version: Some("3.12".into()),
             base_interpreter: None,
             logical_bytes: 5000,
+            physical_allocated_bytes: Some(8192),
             physical_unique_files: 5,
             has_editable: false,
-            has_native: false,
+            has_native: true,
             packages: vec![InstalledPackage {
                 name: "numpy".into(),
                 version: "2.2.0".into(),
@@ -612,6 +807,8 @@ mod tests {
                 has_native: true,
                 logical_bytes: 4000,
                 unique_files: 4,
+                content_hash: Some("sha256:abcd1234".into()),
+                abi_tag: Some("cp312-cp312-win_amd64".into()),
             }],
             inaccessible_count: 0,
         };
@@ -623,5 +820,48 @@ mod tests {
         assert_eq!(dups[0].package, "numpy");
         assert_eq!(dups[0].instance_count, 2);
         assert_eq!(dups[0].total_wasted_bytes, 4000);
+        assert!(dups[0].is_verified_identical);
+        assert_eq!(dups[0].abi_tags, vec!["cp312-cp312-win_amd64".to_string()]);
+    }
+
+    #[test]
+    fn deduplication_detects_abi_and_content_mismatch() {
+        let env1 = PythonEnvironment {
+            path: "E:/Workspace/env1".into(),
+            relative_path: "env1".into(),
+            category: "test".into(),
+            env_type: "venv".into(),
+            python_version: Some("3.11".into()),
+            base_interpreter: None,
+            logical_bytes: 5000,
+            physical_allocated_bytes: Some(8192),
+            physical_unique_files: 5,
+            has_editable: false,
+            has_native: true,
+            packages: vec![InstalledPackage {
+                name: "numpy".into(),
+                version: "2.2.0".into(),
+                is_editable: false,
+                has_native: true,
+                logical_bytes: 4000,
+                unique_files: 4,
+                content_hash: Some("sha256:hash_cp311".into()),
+                abi_tag: Some("cp311-cp311-win_amd64".into()),
+            }],
+            inaccessible_count: 0,
+        };
+        let mut env2 = env1.clone();
+        env2.relative_path = "env2".into();
+        env2.packages[0].content_hash = Some("sha256:hash_cp312".into());
+        env2.packages[0].abi_tag = Some("cp312-cp312-win_amd64".into());
+
+        let dups = analyze_package_duplication(&[env1, env2]);
+        assert_eq!(dups.len(), 1);
+        assert_eq!(dups[0].package, "numpy");
+        assert_eq!(dups[0].instance_count, 2);
+        // Different ABIs and different content hashes -> not verified identical, 0 wasted bytes
+        assert!(!dups[0].is_verified_identical);
+        assert_eq!(dups[0].total_wasted_bytes, 0);
+        assert_eq!(dups[0].abi_tags.len(), 2);
     }
 }

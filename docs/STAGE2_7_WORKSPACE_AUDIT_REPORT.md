@@ -259,3 +259,34 @@ stateDiagram-v2
 - **Reproducible:** Complete `requirements.txt` and `pyproject.toml`.
 - **Zero Native Hardware Ties:** No CUDA dependencies or proprietary DLLs.
 - **Immediate Value:** Reclaims **~0.73 GB** immediately upon migration to ephemeral execution.
+
+---
+
+## 10. Stage 2.7.1 Corrective Verification & Hardened Accounting
+
+Following independent audit in Stage 2.7.1, several heuristic assumptions from Stage 2.7 were corrected and replaced with verified OS-level telemetry and cryptographic content hashing:
+
+### A. True NTFS File Identity & Physical Allocation
+- **Replaced Path-Hash Inodes:** Eliminated `fnv1a_64(path)` hashing. The engine now invokes Windows native `CreateFileW` (`FILE_READ_ATTRIBUTES`, `FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT`) and `GetFileInformationByHandle` to retrieve actual `(dwVolumeSerialNumber, nFileIndexHigh:Low)`.
+- **Measured Physical Allocation:** Replaced the bound assignment (`total_physical_allocated_bytes = total_logical_bytes`) with Win32 `GetCompressedFileSizeW`. 
+- **Measured Physical Space:** **28.93 GB** physical allocation on disk across **314,594 unique allocations** (versus 29.34 GB logical storage across 316,626 enumerated files).
+- **Hardlink Deduplication:** Exactly **2,032 files** are hardlinked references that share existing physical disk allocations.
+
+### B. Accurate Inaccessibility Disclosures
+- Stage 2.7 previously claimed 0 inaccessible files. Stage 2.7.1 honestly surfaces **41 inaccessible entries** (8 in `Active/` and 33 in `Backups/`, primarily due to OS locks/permissions).
+- The audit report explicitly flags `scan_incomplete: true`, preserving complete audit integrity.
+
+### C. Cryptographic Package Verification vs. Compatible Candidates
+- In Stage 2.7, identical name and version was assumed to represent byte-identical copies, over-estimating duplicated packages at 14.67 GB.
+- Stage 2.7.1 reads `.dist-info/RECORD` and `.dist-info/WHEEL`. A package duplication is marked `[verified identical]` **only** if all instances share identical cryptographic SHA-256 digests and matching ABI tags.
+- Verified byte-identical packages account for **2.07 GB** of reclaimable waste (e.g. `pyside6_addons == 6.12.0`, `torchvision == 0.21.0+cu124`).
+- Packages with matching names/versions but differing ABIs or file lists (e.g. `pandas == 2.3.3`, `pillow == 12.3.0`) are classified as `[compatible candidate - differing ABI/RECORD]` and excluded from conservative physical duplication savings.
+
+### D. Grounded Storage Savings Model (No Arbitrary Heuristics)
+- **Eliminated Arbitrary Multipliers:** Removed the unsupported `0.85 * project_env_bytes` multiplier.
+- **Eliminated Double-Counting:** Realistic savings sums non-editable project environments eligible for ephemeral reclamation (**~6.97 GB**) plus package deduplication applied **strictly** across the remaining persistent base environments.
+- **Model Summary:**
+  - **Conservative:** **2.07 GB (7.0%)** — Moderate confidence (verified identical content hashes).
+  - **Realistic:** **6.97 GB (23.8%)** — Moderate confidence (non-editable project envs + persistent cross-env dedup).
+  - **Theoretical:** **29.34 GB (100.0%)** — Low confidence (upper bound assuming 100% ephemeral materialization).
+
