@@ -1,0 +1,135 @@
+==========================================================
+ULVO Stage 2.4.1 Windows Rust Provisioning Security Tests
+Session ID   : 33c8b9af57134e5581b38a8be95a5682
+Fixture Root : E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682
+==========================================================
+[T01] Default dry-run on an absent vault -> PASS (ExitCode: 0)
+[T02] Dry-run with an existing vault and sentinel file -> PASS (ExitCode: 0)
+[T03] Sentinel hash unchanged after execution -> PASS (ExitCode: 0)
+[T04] External destination rejection -> PASS (ExitCode: 1)
+[T05] Identical RustupHome/CargoHome rejection -> PASS (ExitCode: 1)
+[T06] Nested destination rejection -> PASS (ExitCode: 1)
+[T07] Sibling-prefix collision handling -> PASS (ExitCode: 0)
+[T08] Parent traversal rejection -> PASS (ExitCode: 1)
+[T09] Relative and drive-relative path rejection -> PASS (ExitCode: 0)
+[T10] Junction and symlink rejection -> PASS (ExitCode: 1)
+[T11] Alternate Data Stream (ADS) path containment rejection -> PASS (ExitCode: 1)
+[T12] Missing parent handling -> PASS (ExitCode: 0)
+[T13] Invalid target/version arguments -> PASS (ExitCode: 0)
+[DIAG] Authenticode signature status: UnknownError
+[DIAG] Status message: The form specified for the subject is not one supported or known by the specified trust provider
+[T14] Installer authentication failure on inert binary -> PASS (ExitCode: 0)
+[DIAG] Installing Rust 1.96.0 with target x86_64-pc-windows-gnu
+[DIAG]   RUSTUP_HOME: E:\Workspace\Active\ULVO\vault\runtimes\rust\rustup
+[DIAG]   CARGO_HOME : E:\Workspace\Active\ULVO\vault\runtimes\rust\cargo
+[DIAG]   Arguments  : -y --default-host x86_64-pc-windows-gnu --default-toolchain 1.96.0 --profile minimal --no-modify-path -q
+[T15] Nonzero installer exit handling -> PASS (ExitCode: 0)
+[DIAG] Installing Rust 1.96.0 with target x86_64-pc-windows-gnu
+[DIAG]   RUSTUP_HOME: E:\Workspace\Active\ULVO\vault\runtimes\rust\rustup
+[DIAG]   CARGO_HOME : E:\Workspace\Active\ULVO\vault\runtimes\rust\cargo
+[DIAG]   Arguments  : -y --default-host x86_64-pc-windows-gnu --default-toolchain 1.96.0 --profile minimal --no-modify-path -q
+[T16] Environment restoration after simulated failure -> PASS (ExitCode: 0)
+[T17] No deletion of persistent resources -> PASS (ExitCode: 0)
+[T18] Deterministic SHA-256 integrity during dry-run -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Rejected deletion attempt on persistent vault: 'E:\Workspace\Active\ULVO\vault'
+WARNING: Cleanup-TestFixture: Refusing deletion; missing ownership marker in 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\unmarked-test-dir'
+WARNING: Cleanup-TestFixture: Refusing deletion; session ID/PID/path mismatch in marker for 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\foreign-test-dir'
+WARNING: Cleanup-TestFixture: Refusing unlinking; missing junction ownership sidecar for 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\unowned-junction'
+[T19] Test cleanup rejects paths not owned by current test -> PASS (ExitCode: 0)
+True
+[T20] PowerShell 5.1 compatibility -> PASS (ExitCode: 0)
+[T21] No regressions in supported CLI behavior -> PASS (ExitCode: 0)
+[T22] Missing artifact manifest rejection -> PASS (ExitCode: 0)
+[T23] Invalid TOML syntax rejection -> PASS (ExitCode: 0)
+[T24] Unsupported schema version rejection -> PASS (ExitCode: 0)
+[T25] Missing SHA-256 digest rejection -> PASS (ExitCode: 0)
+[T26] Malformed SHA-256 digest rejection -> PASS (ExitCode: 0)
+[DIAG] Evaluating installer provenance:
+[DIAG]   Verification Policy : manifest-sha256-pinned
+[DIAG]   Approval Status     : approved
+[DIAG]   Expected SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Computed SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Authenticode signature: UnknownError
+[DIAG]   Provenance verification SUCCESS.
+[T27] Manifest correct digest verification for harmless fixture -> PASS (ExitCode: 0)
+[DIAG] Evaluating installer provenance:
+[DIAG]   Verification Policy : manifest-sha256-pinned
+[DIAG]   Approval Status     : approved
+[DIAG]   Expected SHA-256    : 0000000000000000000000000000000000000000000000000000000000000000
+[DIAG]   Computed SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   FAIL: Computed SHA-256 does not match expected hash!
+[T28] Manifest incorrect digest rejection for harmless fixture -> PASS (ExitCode: 0)
+[T29] Artifact version mismatch rejection -> PASS (ExitCode: 0)
+[T30] Target / platform mismatch rejection -> PASS (ExitCode: 0)
+[T31] Unapproved artifact rejection -> PASS (ExitCode: 0)
+[T32] Untrusted download URL rejection -> PASS (ExitCode: 0)
+[T33] Unexpected redirect destination rejection -> PASS (ExitCode: 0)
+[DIAG] Evaluating installer provenance:
+[DIAG]   Verification Policy : authenticode-strict
+[DIAG]   Approval Status     : approved
+[DIAG]   Expected SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Computed SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Authenticode signature: UnknownError
+[DIAG]   FAIL: Policy 'authenticode-strict' requires valid Authenticode signature from Rust Foundation. Unsigned or invalid binary rejected.
+[T34] Unsigned artifact rejection under strict-signature policy -> PASS (ExitCode: 0)
+[DIAG] Evaluating installer provenance:
+[DIAG]   Verification Policy : manifest-sha256-pinned
+[DIAG]   Approval Status     : approved
+[DIAG]   Expected SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Computed SHA-256    : 631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769
+[DIAG]   Authenticode signature: UnknownError
+[DIAG]   Provenance verification SUCCESS.
+[T35] Unsigned artifact acceptance under explicitly approved hash policy -> PASS (ExitCode: 0)
+[T36] Caller hash override rejection -> PASS (ExitCode: 0)
+[T37] Artifact replacement after verification rejection (TOCTOU) -> PASS (ExitCode: 0)
+[T38] Destination collision handling -> PASS (ExitCode: 0)
+[T39] Production installation blocked on fixture root -> PASS (ExitCode: 0)
+[T40] Caller DownloadUrl substitution rejected -> PASS (ExitCode: 0)
+[DIAG]   Followed GET redirect: http://127.0.0.1:64599/start.exe -> http://127.0.0.1:64599/final.bin
+[DIAG]   Streaming payload from validated GET response: http://127.0.0.1:64599/final.bin
+[T41] Single GET redirect flow streaming and per-hop host validation -> PASS (ExitCode: 0)
+[T42] Duplicate TOML key rejection in manifest -> PASS (ExitCode: 0)
+[T43] Duplicate artifact identity rejection in manifest -> PASS (ExitCode: 0)
+[T44] Ambiguous artifact match rejection in Find-ToolchainArtifact -> PASS (ExitCode: 0)
+[T45] Production artifacts manifest approval gating -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; junction 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t46-fixture\escaped-junc' points outside 
+tests\tmp: 'E:\Workspace\Active\ULVO\tests\t46-external-33c8b9af57134e5581b38a8be95a5682'
+[T46] Nested directory junction pointing outside tests/tmp rejected -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; junction 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t47-vault-fixture\vault-junc' points to 
+persistent vault: 'E:\Workspace\Active\ULVO\vault'
+[T47] Junction pointing toward persistent ULVO vault rejected -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; unowned junction missing sidecar at 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t48-fixture\unowned-junc'
+[T48] Unowned junction inside an otherwise owned fixture -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; sidecar token mismatch for junction 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t49-fixture\unexpected-symlink-junc'
+[T49] Unexpected symbolic link inside a fixture rejected -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; marker token mismatch for directory 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t50-fixture\nested-foreign'
+[T50] Foreign-session ownership marker causes cleanup refusal -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; corrupt marker in directory 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t51-fixture\nested-corrupt': Invalid JSON 
+primitive: unterminated.
+[T51] Corrupt ownership marker causes cleanup refusal -> PASS (ExitCode: 0)
+[T52] Pre-existing directory collision fails closed -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Rejected deletion attempt on persistent vault: 'E:\Workspace\Active\ULVO\vault'
+WARNING: Cleanup-TestFixture: Rejected path outside tests\tmp: 'E:\Workspace\Active\ULVO\scripts'
+WARNING: Cleanup-TestFixture: Rejected path outside tests\tmp: 'E:\Workspace\Active\ULVO\tests\tmp'
+WARNING: Cleanup-TestFixture: Rejected path outside current session directory: 
+'E:\Workspace\Active\ULVO\tests\tmp\run-99999999999999999999999999999999'
+[T53] Fixture deletion outside current session rejected -> PASS (ExitCode: 0)
+[T54] Normal owned-fixture cleanup succeeds completely bottom-up -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Refusing cleanup; unowned junction missing sidecar at 
+'E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682\t55-fixture\unowned-junc'
+[T55] No modifications to external junction targets after cleanup refusal -> PASS (ExitCode: 0)
+
+Cleaning up session fixtures (E:\Workspace\Active\ULVO\tests\tmp\run-33c8b9af57134e5581b38a8be95a5682)...
+
+==========================================================
+Test Run Complete: 55 PASSED, 0 FAILED, 0 NOT RUN (Total: 55)
+==========================================================

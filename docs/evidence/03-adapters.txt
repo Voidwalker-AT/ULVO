@@ -1,0 +1,17 @@
+   Compiling ulvo-adapters v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-adapters)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.38s
+     Running unittests src/lib.rs (target-local/debug/deps/ulvo_adapters-b57927863dab7f20)
+
+running 3 tests
+test tests::clangd_not_compiler ... ok
+test tests::paths ... ok
+test tests::missing_and_untrusted ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests ulvo_adapters
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

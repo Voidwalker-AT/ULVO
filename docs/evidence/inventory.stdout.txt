@@ -1,0 +1,673 @@
+{
+  "schema_version": 1,
+  "host_backend": "wsl",
+  "toolchains": [
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot/bin/java.exe",
+      "file_identity": "69:7036874417988502",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "javac",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot/bin/javac.exe",
+      "file_identity": "69:12384898975491150",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Eclipse Adoptium/jdk-21.0.4.7-hotspot/bin/java.exe",
+      "file_identity": "69:2533274790591136",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "javac",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Eclipse Adoptium/jdk-21.0.4.7-hotspot/bin/javac.exe",
+      "file_identity": "69:2533274790591147",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "go",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Go/bin/go.exe",
+      "file_identity": "69:2814749768507232",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "/mnt/c/Program Files/Java/jre1.8.0_451/bin/java.exe",
+      "file_identity": "69:1970324837089004",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "nvcc",
+      "version": null,
+      "executable": "/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/bin/nvcc.exe",
+      "file_identity": "69:844424931150810",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "dotnet",
+      "version": null,
+      "executable": "/mnt/c/Program Files/dotnet/dotnet.exe",
+      "file_identity": "69:41376821576901257",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "sdk"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "ruby",
+      "version": null,
+      "executable": "/mnt/c/Ruby40-x64/bin/ruby.exe",
+      "file_identity": "69:3659174697911218",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "python",
+      "version": null,
+      "executable": "/mnt/c/Users/hp/AppData/Local/Programs/Python/Python313/python.exe",
+      "file_identity": "69:3096224743823847",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "node",
+      "version": null,
+      "executable": "/mnt/c/Users/hp/AppData/Roaming/nvm/v24.15.0/node.exe",
+      "file_identity": "69:55450570412185287",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cmake",
+      "version": null,
+      "executable": "/mnt/c/Users/hp/scoop/shims/cmake.exe",
+      "file_identity": "69:5910974511658442",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "ninja",
+      "version": null,
+      "executable": "/mnt/c/Users/hp/scoop/shims/ninja.exe",
+      "file_identity": "69:7599824372178602",
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.cargo/bin/rustup",
+      "file_identity": "2096:48354",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cargo",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-01-01-x86_64-unknown-linux-gnu/bin/cargo",
+      "file_identity": "2096:182002",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-01-01-x86_64-unknown-linux-gnu/bin/rustc",
+      "file_identity": "2096:219199",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cargo",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-02-15-x86_64-unknown-linux-gnu/bin/cargo",
+      "file_identity": "2096:267649",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-02-15-x86_64-unknown-linux-gnu/bin/rustc",
+      "file_identity": "2096:304874",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cargo",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-05-10-x86_64-unknown-linux-gnu/bin/cargo",
+      "file_identity": "2096:181772",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-2024-05-10-x86_64-unknown-linux-gnu/bin/rustc",
+      "file_identity": "2096:267455",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cargo",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo",
+      "file_identity": "2096:102065",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustc",
+      "file_identity": "2096:169143",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "cargo",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo",
+      "file_identity": "2096:48457",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "rustc",
+      "version": null,
+      "executable": "/home/anmol/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+      "file_identity": "2096:101950",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "node",
+      "version": null,
+      "executable": "/usr/bin/node",
+      "file_identity": "2096:316279",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "python3",
+      "version": null,
+      "executable": "/usr/bin/python3.14",
+      "file_identity": "2096:2088",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "g++",
+      "version": null,
+      "executable": "/usr/bin/x86_64-linux-gnu-g++-15",
+      "file_identity": "2096:44921",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "gcc",
+      "version": null,
+      "executable": "/usr/bin/x86_64-linux-gnu-gcc-15",
+      "file_identity": "2096:40572",
+      "backend": "wsl",
+      "distribution": "Ubuntu",
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "g++",
+      "version": null,
+      "executable": "/mnt/c/msys64/mingw64/bin/g++.exe",
+      "file_identity": "69:844424930606591",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "gcc",
+      "version": null,
+      "executable": "/mnt/c/msys64/mingw64/bin/gcc.exe",
+      "file_identity": "69:844424930606597",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "g++",
+      "version": null,
+      "executable": "/mnt/c/msys64/ucrt64/bin/g++.exe",
+      "file_identity": "69:14355223812513875",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "gcc",
+      "version": null,
+      "executable": "/mnt/c/msys64/ucrt64/bin/gcc.exe",
+      "file_identity": "69:844424930422966",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "python",
+      "version": null,
+      "executable": "/mnt/c/msys64/ucrt64/bin/python.exe",
+      "file_identity": "69:281474977024260",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    },
+    {
+      "tool": "python3",
+      "version": null,
+      "executable": "/mnt/c/msys64/ucrt64/bin/python3.exe",
+      "file_identity": "69:281474977024264",
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null
+    }
+  ],
+  "diagnostics": [
+    "Bounded discovery; absence from inventory does not prove absence from the machine.",
+    "Windows/MSYS2 paths on /mnt/c are read-only candidates; no foreign executable probes. E:-managed runtimes are not scanned.",
+    "Cross-distribution WSL enumeration is not implemented; only the current WSL distribution can be inventoried.",
+    "VS Code JSONC/comments, extension inventory and java.configuration.runtimes arrays are not supported yet."
+  ]
+}

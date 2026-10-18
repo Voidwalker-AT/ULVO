@@ -1,0 +1,49 @@
+# ULVO Toolchain Artifact Manifest
+# Schema Version 1.0.0
+# Authoritative registry of reviewed and approved toolchain bootstrap binaries.
+#
+# Non-negotiable security rules:
+# 1. Any artifact must have an exact 64-character lowercase hex SHA-256 digest.
+# 2. Canonical download URLs must be HTTPS from static.rust-lang.org or win.rustup.rs.
+# 3. Artifacts marked "unapproved" will be strictly rejected at provisioning gates.
+# 4. Bootstrap installer version (rustup) is distinct from the compiler toolchain version (rustc/cargo).
+# 5. Official Windows rustup-init binaries are NOT Authenticode-signed (rust-lang/rustup#1568).
+#    Under "manifest-sha256-pinned", an unsigned binary is accepted ONLY if approval_status is "approved"
+#    following independent operator verification.
+
+schema_version = "1.0.0"
+
+[[artifacts]]
+artifact_name = "rustup-init"
+installer_version = "1.29.0"
+toolchain_version = "1.96.0"
+platform = "windows"
+target = "x86_64-pc-windows-gnu"
+canonical_url = "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe"
+expected_sha256 = "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7"
+hash_provenance = "Official upstream static.rust-lang.org sha256 publication (SHA-256 companion file)"
+verification_policy = "manifest-sha256-pinned"
+approval_status = "approved"
+notes = "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+official_sources = [
+    "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe.sha256",
+    "https://github.com/rust-lang/rustup/releases/tag/1.29.0",
+    "https://github.com/rust-lang/rustup/blob/main/CHANGELOG.md"
+]
+
+[[artifacts]]
+artifact_name = "rustup-init"
+installer_version = "1.29.0"
+toolchain_version = "1.96.0"
+platform = "windows"
+target = "x86_64-pc-windows-msvc"
+canonical_url = "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-msvc/rustup-init.exe"
+expected_sha256 = "86478e53f769379d7f0ebfa7c9aa97cb76ca92233f79aa2cc0dbee2efaac73c7"
+hash_provenance = "Official upstream static.rust-lang.org sha256 publication (SHA-256 companion file)"
+verification_policy = "manifest-sha256-pinned"
+approval_status = "unapproved"
+notes = "Official upstream Windows binary is unsigned. Unattended execution blocked pending formal operator approval."
+official_sources = [
+    "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-msvc/rustup-init.exe.sha256",
+    "https://github.com/rust-lang/rustup/releases/tag/1.29.0"
+]

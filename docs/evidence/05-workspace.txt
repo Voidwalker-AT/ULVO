@@ -1,0 +1,99 @@
+ Downloading crates ...
+  Downloaded anstyle-query v1.1.5
+  Downloaded is_terminal_polyfill v1.70.2
+  Downloaded utf8parse v0.2.2
+  Downloaded strsim v0.11.1
+  Downloaded clap_derive v4.6.7
+  Downloaded anstyle v1.0.14
+  Downloaded clap v4.6.7
+  Downloaded anstream v1.0.0
+  Downloaded heck v0.5.0
+  Downloaded colorchoice v1.0.5
+  Downloaded clap_builder v4.6.7
+  Downloaded clap_lex v1.1.1
+  Downloaded anstyle-parse v1.0.0
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.154
+   Compiling utf8parse v0.2.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling heck v0.5.0
+   Compiling clap_lex v1.1.1
+   Compiling strsim v0.11.1
+   Compiling anstyle-parse v1.0.0
+   Compiling anstream v1.0.0
+   Compiling clap_builder v4.6.7
+   Compiling syn v3.0.9
+   Compiling serde_derive v1.0.229
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling serde v1.0.229
+   Compiling ulvo-core v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-core)
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.22.27
+   Compiling ulvo-adapters v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-adapters)
+   Compiling toml v0.8.23
+   Compiling ulvo-discovery v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-discovery)
+   Compiling ulvo-cli v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 52.36s
+     Running unittests src/lib.rs (target-local/debug/deps/ulvo_adapters-dad724b62935bad5)
+
+running 3 tests
+test tests::clangd_not_compiler ... ok
+test tests::paths ... ok
+test tests::missing_and_untrusted ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (target-local/debug/deps/ulvo-a8462506ff64b880)
+
+running 2 tests
+test tests::json_model ... ok
+test tests::arguments ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target-local/debug/deps/ulvo_core-868d00ff761a72ae)
+
+running 2 tests
+test tests::ownership_categories ... ok
+test tests::versions ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target-local/debug/deps/ulvo_discovery-3f19105c13c733be)
+
+running 7 tests
+test tests::missing_project ... ok
+test tests::duplicate_candidates ... ok
+test tests::vscode_unverified ... ok
+test tests::manifest_valid ... ok
+test tests::manifest_invalid ... ok
+test tests::invalid_project ... ok
+test tests::synthetic_project ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+   Doc-tests ulvo_adapters
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ulvo_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ulvo_discovery
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

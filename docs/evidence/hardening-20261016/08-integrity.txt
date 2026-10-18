@@ -1,0 +1,7 @@
+Baseline files: 54 Modified existing files: 6 Original evidence and Cargo.lock: SHA256 unchanged Staged files: 0 Ignored artifacts:
+.gitignore:4:target/	target/test
+.gitignore:4:target/	crates/ulvo-core/target/test
+.gitignore:5:__pycache__/	tests/__pycache__/x.pyc
+.gitignore:6:*.py[cod]	tests/x.pyo
+.gitignore:1:/.cargo-local/	.cargo-local/test
+.gitignore:2:/target-local/	target-local/test

@@ -1,0 +1,22 @@
+/.cargo-local/
+/target-local/
+/.gitconfig-local
+target/
+__pycache__/
+*.py[cod]
+
+# ULVO vault: runtime/toolchain/package/environment/registry resources
+/vault/
+
+# Windows build artifacts
+/.cargo-local-windows/
+/target-local-windows/
+
+# Development scripts temporary outputs
+/scripts/output/
+
+# Temporary test fixtures
+/tests/tmp/
+
+# Raw private workspace audit dumps
+/docs/evidence/stage2-7-workspace-audit/workspace_audit.json

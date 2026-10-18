@@ -1,0 +1,239 @@
+{
+  "stage": "2.6",
+  "description": "Universal Vault Registry Foundation Validation",
+  "binary": "E:\\Workspace\\Active\\ULVO\\target\\x86_64-pc-windows-gnu\\debug\\ulvo.exe",
+  "total_checks": 17,
+  "passed_checks": 17,
+  "failed_checks": 0,
+  "vault_files_monitored": 1770,
+  "vault_tampering_detected": false,
+  "config_tampering_detected": false,
+  "fixtures_tampering_detected": false,
+  "tests": [
+    {
+      "name": "version",
+      "args": [
+        "--version"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 11,
+      "stderr_len": 0
+    },
+    {
+      "name": "help",
+      "args": [
+        "--help"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 311,
+      "stderr_len": 0
+    },
+    {
+      "name": "inventory",
+      "args": [
+        "inventory",
+        "--all-backends",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 30072,
+      "stderr_len": 0,
+      "parsed_schema_version": 1
+    },
+    {
+      "name": "inspect-valid",
+      "args": [
+        "inspect",
+        "E:\\Workspace\\Active\\ULVO\\tests\\fixtures\\valid",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 381,
+      "stderr_len": 0,
+      "parsed_schema_version": 1
+    },
+    {
+      "name": "vault-list",
+      "args": [
+        "vault",
+        "list"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 1484,
+      "stderr_len": 0
+    },
+    {
+      "name": "vault-list-json",
+      "args": [
+        "vault",
+        "list",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 7551,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "discovered_resource_count": 6
+    },
+    {
+      "name": "vault-stats",
+      "args": [
+        "vault",
+        "stats"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 282,
+      "stderr_len": 0
+    },
+    {
+      "name": "vault-stats-json",
+      "args": [
+        "vault",
+        "stats",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 334,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "stats_total": 6
+    },
+    {
+      "name": "vault-inspect-rustc",
+      "args": [
+        "vault",
+        "inspect",
+        "rustc"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 822,
+      "stderr_len": 0
+    },
+    {
+      "name": "vault-inspect-rustc-json",
+      "args": [
+        "vault",
+        "inspect",
+        "rustc",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 1238,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "inspected_resource_id": "ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f"
+    },
+    {
+      "name": "vault-verify-rustc",
+      "args": [
+        "vault",
+        "verify",
+        "rustc"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 244,
+      "stderr_len": 0
+    },
+    {
+      "name": "vault-verify-rustc-json",
+      "args": [
+        "vault",
+        "verify",
+        "rustc",
+        "--json"
+      ],
+      "expected_code": 0,
+      "actual_code": 0,
+      "passed": true,
+      "stdout_len": 1305,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "verified_output": "rustc 1.96.0 (ac68faa20 2026-05-25)"
+    },
+    {
+      "name": "vault-inspect-invalid",
+      "args": [
+        "vault",
+        "inspect",
+        "nonexistent-id"
+      ],
+      "expected_code": 1,
+      "actual_code": 1,
+      "passed": true,
+      "stdout_len": 0,
+      "stderr_len": 54
+    },
+    {
+      "name": "vault-inspect-invalid-json",
+      "args": [
+        "vault",
+        "inspect",
+        "nonexistent-id",
+        "--json"
+      ],
+      "expected_code": 1,
+      "actual_code": 1,
+      "passed": true,
+      "stdout_len": 79,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "error_message": "resource 'nonexistent-id' not found in registry"
+    },
+    {
+      "name": "vault-verify-invalid",
+      "args": [
+        "vault",
+        "verify",
+        "nonexistent-id"
+      ],
+      "expected_code": 1,
+      "actual_code": 1,
+      "passed": true,
+      "stdout_len": 0,
+      "stderr_len": 54
+    },
+    {
+      "name": "vault-verify-invalid-json",
+      "args": [
+        "vault",
+        "verify",
+        "nonexistent-id",
+        "--json"
+      ],
+      "expected_code": 1,
+      "actual_code": 1,
+      "passed": true,
+      "stdout_len": 79,
+      "stderr_len": 0,
+      "parsed_schema_version": 1,
+      "error_message": "resource 'nonexistent-id' not found in registry"
+    },
+    {
+      "name": "empty-vault-isolation",
+      "passed": true,
+      "total_resources": 0
+    }
+  ]
+}

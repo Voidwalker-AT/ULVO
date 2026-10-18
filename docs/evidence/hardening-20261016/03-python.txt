@@ -1,0 +1,21 @@
+test_escape_rejected (__main__.HardeningTests.test_escape_rejected) ... ok
+test_helpers_parse_and_no_automatic_verify (__main__.HardeningTests.test_helpers_parse_and_no_automatic_verify) ... ok
+test_ignore_rules (__main__.HardeningTests.test_ignore_rules) ... ok
+test_link_and_collision_rejected (__main__.HardeningTests.test_link_and_collision_rejected) ... ok
+test_relocated_root_and_missing_sentinel (__main__.HardeningTests.test_relocated_root_and_missing_sentinel) ... FAIL
+test_report_dependency_table_matches_lock (__main__.HardeningTests.test_report_dependency_table_matches_lock) ... ok
+
+======================================================================
+FAIL: test_relocated_root_and_missing_sentinel (__main__.HardeningTests.test_relocated_root_and_missing_sentinel)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/e/Workspace/Active/ULVO/tests/test_hardening.py", line 23, in test_relocated_root_and_missing_sentinel
+    with self.assertRaises(RuntimeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: RuntimeError not raised
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.485s
+
+FAILED (failures=1)
+exit_code=1

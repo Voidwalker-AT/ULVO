@@ -1,0 +1,64 @@
+--- STATUS ---
+?? .gitignore
+?? Cargo.lock
+?? Cargo.toml
+?? README.md
+?? crates/
+?? docs/
+?? tests/
+--- DIFF CHECK ---
+--- STAGED ---
+--- UNTRACKED FILE LINE SUMMARY ---
+3 lines  .gitignore
+356 lines  Cargo.lock
+17 lines  Cargo.toml
+54 lines  README.md
+7 lines  crates/ulvo-adapters/Cargo.toml
+163 lines  crates/ulvo-adapters/src/lib.rs
+14 lines  crates/ulvo-cli/Cargo.toml
+77 lines  crates/ulvo-cli/src/main.rs
+7 lines  crates/ulvo-core/Cargo.toml
+94 lines  crates/ulvo-core/src/lib.rs
+11 lines  crates/ulvo-discovery/Cargo.toml
+210 lines  crates/ulvo-discovery/src/lib.rs
+30 lines  docs/ARCHITECTURE.md
+176 lines  docs/PHASE0_IMPLEMENTATION_REPORT.md
+36 lines  docs/PHASE0_VALIDATION.md
+25 lines  docs/REQUIREMENTS.md
+25 lines  docs/SECURITY.md
+13 lines  docs/decisions/ADR-001.md
+34 lines  docs/evidence/01-core.txt
+22 lines  docs/evidence/02-core.txt
+17 lines  docs/evidence/03-adapters.txt
+48 lines  docs/evidence/04-discovery.txt
+99 lines  docs/evidence/05-workspace.txt
+16 lines  docs/evidence/06-build.txt
+64 lines  docs/evidence/07-safety-tests.txt
+2 lines  docs/evidence/08-build.txt
+109 lines  docs/evidence/09-functional.json
+65 lines  docs/evidence/10-final-tests.txt
+2 lines  docs/evidence/11-final-build.txt
+109 lines  docs/evidence/12-functional.txt
+0 lines  docs/evidence/help.stderr.txt
+13 lines  docs/evidence/help.stdout.txt
+0 lines  docs/evidence/inspect-human.stderr.txt
+4 lines  docs/evidence/inspect-human.stdout.txt
+0 lines  docs/evidence/inspect.stderr.txt
+18 lines  docs/evidence/inspect.stdout.txt
+0 lines  docs/evidence/invalid.stderr.txt
+1 lines  docs/evidence/invalid.stdout.txt
+0 lines  docs/evidence/inventory-verified.stderr.txt
+673 lines  docs/evidence/inventory-verified.stdout.txt
+0 lines  docs/evidence/inventory.stderr.txt
+673 lines  docs/evidence/inventory.stdout.txt
+0 lines  docs/evidence/missing.stderr.txt
+1 lines  docs/evidence/missing.stdout.txt
+5 lines  docs/evidence/mutating-rejected.stderr.txt
+0 lines  docs/evidence/mutating-rejected.stdout.txt
+0 lines  docs/evidence/version.stderr.txt
+1 lines  docs/evidence/version.stdout.txt
+1 lines  tests/fixtures/invalid/.ulvo/manifest.toml
+5 lines  tests/fixtures/valid/.ulvo/manifest.toml
+1 lines  tests/fixtures/valid/package.json
+96 lines  tests/report.py
+57 lines  tests/validate.py

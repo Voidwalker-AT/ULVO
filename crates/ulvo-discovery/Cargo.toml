@@ -1,0 +1,11 @@
+[package]
+name = "ulvo-discovery"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ulvo-core.workspace = true
+ulvo-adapters.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true

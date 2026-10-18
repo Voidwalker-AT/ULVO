@@ -1,0 +1,17 @@
+[workspace]
+members = ["crates/ulvo-core", "crates/ulvo-adapters", "crates/ulvo-discovery", "crates/ulvo-cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+ulvo-core = { path = "crates/ulvo-core" }
+ulvo-adapters = { path = "crates/ulvo-adapters" }
+ulvo-discovery = { path = "crates/ulvo-discovery" }

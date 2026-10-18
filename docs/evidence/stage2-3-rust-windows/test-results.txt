@@ -1,0 +1,50 @@
+﻿==========================================================
+ULVO Stage 2.3 Windows Rust Provisioning Security Tests
+Session ID   : e69725c5ebea406ebcf4d52f4911d1e0
+Fixture Root : E:\Workspace\Active\ULVO\tests\tmp\run-e69725c5ebea406ebcf4d52f4911d1e0
+==========================================================
+[T01] Default dry-run on an absent vault -> PASS (ExitCode: 0)
+[T02] Dry-run with an existing vault and sentinel file -> PASS (ExitCode: 0)
+[T03] Sentinel hash unchanged after execution -> PASS (ExitCode: 0)
+[T04] External destination rejection -> PASS (ExitCode: 1)
+[T05] Identical RustupHome/CargoHome rejection -> PASS (ExitCode: 1)
+[T06] Nested destination rejection -> PASS (ExitCode: 1)
+[T07] Sibling-prefix collision handling -> PASS (ExitCode: 0)
+[T08] Parent traversal rejection -> PASS (ExitCode: 1)
+[T09] Relative and drive-relative path rejection -> PASS (ExitCode: 0)
+[T10] Junction and symlink rejection -> PASS (ExitCode: 1)
+[T11] Alternate Data Stream (ADS) path containment rejection -> PASS (ExitCode: 1)
+[T12] Missing parent handling -> PASS (ExitCode: 0)
+[T13] Invalid target/version arguments -> PASS (ExitCode: 0)
+[DIAG] Authenticode signature status: UnknownError
+[DIAG] Status message: The form specified for the subject is not one supported or known by the specified trust provider
+[T14] Installer authentication failure on inert binary -> PASS (ExitCode: 0)
+[DIAG] Installing Rust 1.96.0 with target x86_64-pc-windows-gnu
+[DIAG]   RUSTUP_HOME: E:\Workspace\Active\ULVO\vault\runtimes\rust\rustup
+[DIAG]   CARGO_HOME : E:\Workspace\Active\ULVO\vault\runtimes\rust\cargo
+[DIAG]   Arguments  : -y --default-host x86_64-pc-windows-gnu --default-toolchain 1.96.0 --profile minimal --no-modify-path -q
+[T15] Nonzero installer exit handling -> PASS (ExitCode: 0)
+[DIAG] Installing Rust 1.96.0 with target x86_64-pc-windows-gnu
+[DIAG]   RUSTUP_HOME: E:\Workspace\Active\ULVO\vault\runtimes\rust\rustup
+[DIAG]   CARGO_HOME : E:\Workspace\Active\ULVO\vault\runtimes\rust\cargo
+[DIAG]   Arguments  : -y --default-host x86_64-pc-windows-gnu --default-toolchain 1.96.0 --profile minimal --no-modify-path -q
+[T16] Environment restoration after simulated failure -> PASS (ExitCode: 0)
+[T17] No deletion of persistent resources -> PASS (ExitCode: 0)
+[T18] Deterministic SHA-256 integrity during dry-run -> PASS (ExitCode: 0)
+WARNING: Cleanup-TestFixture: Rejected deletion attempt on persistent vault: 'E:\Workspace\Active\ULVO\vault'
+WARNING: Cleanup-TestFixture: Refusing deletion; missing ownership marker in 
+'E:\Workspace\Active\ULVO\tests\tmp\run-e69725c5ebea406ebcf4d52f4911d1e0\unmarked-test-dir'
+WARNING: Cleanup-TestFixture: Refusing deletion; session ID mismatch (owner: FOREIGN-SESSION-9999, current: 
+e69725c5ebea406ebcf4d52f4911d1e0)
+WARNING: Cleanup-TestFixture: Refusing unlinking; missing junction ownership sidecar for 
+'E:\Workspace\Active\ULVO\tests\tmp\run-e69725c5ebea406ebcf4d52f4911d1e0\unowned-junction'
+[T19] Test cleanup rejects paths not owned by current test -> PASS (ExitCode: 0)
+True
+[T20] PowerShell 5.1 compatibility -> PASS (ExitCode: 0)
+[T21] No regressions in supported CLI behavior -> PASS (ExitCode: 0)
+
+Cleaning up session fixtures (E:\Workspace\Active\ULVO\tests\tmp\run-e69725c5ebea406ebcf4d52f4911d1e0)...
+
+==========================================================
+Test Run Complete: 21 PASSED, 0 FAILED, 0 NOT RUN (Total: 21)
+==========================================================

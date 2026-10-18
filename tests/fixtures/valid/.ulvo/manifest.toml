@@ -1,0 +1,5 @@
+schema_version = 1
+name = "synthetic-demo"
+[runtimes]
+python = "3.12"
+node = "22"

@@ -1,0 +1,16 @@
+ULVO Vault Statistics (vault):
+  Total resources: 6
+  By Kind:
+    compiler: 1
+    packagemanager: 1
+    sdk: 1
+    sharedlibrary: 1
+    toolchain: 2
+  By Ecosystem:
+    rust: 6
+  By Backend:
+    windows: 6
+  By Verification Status:
+    discovered: 6
+  By Ownership:
+    managed: 6

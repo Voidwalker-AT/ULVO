@@ -1,0 +1,15 @@
+[package]
+name = "ulvo-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ulvo"
+path = "src/main.rs"
+
+[dependencies]
+ulvo-core.workspace = true
+ulvo-adapters.workspace = true
+ulvo-discovery.workspace = true
+clap.workspace = true
+serde_json.workspace = true

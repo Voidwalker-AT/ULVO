@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "resource": {
+    "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f",
+    "resource_kind": "compiler",
+    "ecosystem": "rust",
+    "name": "rustc",
+    "version": "1.96.0",
+    "platform": "windows",
+    "architecture": "x86_64",
+    "backend": "windows",
+    "abi": "gnu",
+    "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu\\bin\\rustc.exe",
+    "manager": "rustup",
+    "ownership": "managed",
+    "verification_status": "discovered",
+    "provenance": {
+      "source_type": "manifest-sha256-pinned",
+      "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+      "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+      "actual_sha256": null,
+      "manifest_path": "config\\toolchain-artifacts.toml",
+      "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+    },
+    "capabilities": [
+      "compiler",
+      "codegen",
+      "x86_64-pc-windows-gnu"
+    ],
+    "created_at": null,
+    "last_verified_at": null
+  }
+}

@@ -1,0 +1,1 @@
+{"error":"resource 'nonexistent-id' not found in registry","schema_version":1}

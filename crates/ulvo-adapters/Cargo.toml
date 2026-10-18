@@ -1,0 +1,7 @@
+[package]
+name = "ulvo-adapters"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ulvo-core.workspace = true

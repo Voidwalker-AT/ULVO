@@ -1,0 +1,1103 @@
+{
+  "schema_version": 1,
+  "host_backend": "windows",
+  "toolchains": [
+    {
+      "tool": "clangd",
+      "version": null,
+      "executable": "c:\\Users\\hp\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\19.1.2\\clangd_19.1.2\\bin\\clangd.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": null,
+      "vendor": null,
+      "sources": [
+        "C:\\Users\\hp\\AppData\\Roaming\\Code/User\\profiles\\793a6be8\\settings.json:clangd.path"
+      ],
+      "ownership": "unknown",
+      "verification": "configured",
+      "capabilities": [
+        "configuration_reference"
+      ],
+      "diagnostic": "Configuration may refer to a directory, placeholder, or nonexistent path; never probed.",
+      "evidence": [
+        {
+          "tool": "clangd",
+          "version": null,
+          "executable": "c:\\Users\\hp\\AppData\\Roaming\\Code\\User\\globalStorage\\llvm-vs-code-extensions.vscode-clangd\\install\\19.1.2\\clangd_19.1.2\\bin\\clangd.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": null,
+          "vendor": null,
+          "sources": [
+            "C:\\Users\\hp\\AppData\\Roaming\\Code/User\\profiles\\793a6be8\\settings.json:clangd.path"
+          ],
+          "ownership": "unknown",
+          "verification": "configured",
+          "capabilities": [
+            "configuration_reference"
+          ],
+          "diagnostic": "Configuration may refer to a directory, placeholder, or nonexistent path; never probed.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "cmake",
+      "version": null,
+      "executable": "\\\\?\\C:\\Users\\hp\\scoop\\shims\\cmake.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "cmake",
+          "version": null,
+          "executable": "\\\\?\\C:\\Users\\hp\\scoop\\shims\\cmake.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "build_tool"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "dotnet",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\dotnet\\dotnet.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "sdk"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "dotnet",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\dotnet\\dotnet.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "sdk"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "dotnet",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\dotnet\\dotnet.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "sdk"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "g++",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\mingw64\\bin\\g++.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "g++",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\mingw64\\bin\\g++.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "g++",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\g++.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "g++",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\g++.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "g++",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\g++.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "gcc",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\mingw64\\bin\\gcc.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "gcc",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\mingw64\\bin\\gcc.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "gcc",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\gcc.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "gcc",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\gcc.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "gcc",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\gcc.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "go",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Go\\bin\\go.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "go",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Go\\bin\\go.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "go",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Go\\bin\\go.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\java.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "java",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\java.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "runtime"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "java",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "runtime"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "java",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "runtime"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "java",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Java\\jre1.8.0_451\\bin\\java.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "runtime"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "java",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Java\\jre1.8.0_451\\bin\\java.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "runtime"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "javac",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\javac.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "javac",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.16.8-hotspot\\bin\\javac.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "javac",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\javac.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "javac",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\javac.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "javac",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\javac.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "ninja",
+      "version": null,
+      "executable": "\\\\?\\C:\\Users\\hp\\scoop\\shims\\ninja.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "build_tool"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "ninja",
+          "version": null,
+          "executable": "\\\\?\\C:\\Users\\hp\\scoop\\shims\\ninja.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "build_tool"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "node",
+      "version": null,
+      "executable": "\\\\?\\C:\\Users\\hp\\AppData\\Roaming\\nvm\\v24.15.0\\node.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "node",
+          "version": null,
+          "executable": "\\\\?\\C:\\Users\\hp\\AppData\\Roaming\\nvm\\v24.15.0\\node.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "node",
+          "version": null,
+          "executable": "\\\\?\\C:\\Users\\hp\\AppData\\Roaming\\nvm\\v24.15.0\\node.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "nvcc",
+      "version": null,
+      "executable": "\\\\?\\C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\bin\\nvcc.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "compiler"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "nvcc",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\bin\\nvcc.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "nvcc",
+          "version": null,
+          "executable": "\\\\?\\C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\bin\\nvcc.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "compiler"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "python",
+      "version": null,
+      "executable": "\\\\?\\C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "python",
+          "version": null,
+          "executable": "\\\\?\\C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "python",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "python",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "python",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "python",
+      "version": null,
+      "executable": "c:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": null,
+      "vendor": null,
+      "sources": [
+        "C:\\Users\\hp\\AppData\\Roaming\\Code/User\\profiles\\-286115e9\\settings.json:python.defaultInterpreterPath"
+      ],
+      "ownership": "unknown",
+      "verification": "configured",
+      "capabilities": [
+        "configuration_reference"
+      ],
+      "diagnostic": "Configuration may refer to a directory, placeholder, or nonexistent path; never probed.",
+      "evidence": [
+        {
+          "tool": "python",
+          "version": null,
+          "executable": "c:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": null,
+          "vendor": null,
+          "sources": [
+            "C:\\Users\\hp\\AppData\\Roaming\\Code/User\\profiles\\-286115e9\\settings.json:python.defaultInterpreterPath"
+          ],
+          "ownership": "unknown",
+          "verification": "configured",
+          "capabilities": [
+            "configuration_reference"
+          ],
+          "diagnostic": "Configuration may refer to a directory, placeholder, or nonexistent path; never probed.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "python3",
+      "version": null,
+      "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python3.exe",
+      "file_identity": null,
+      "backend": "msys2",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "python3",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python3.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "python3",
+          "version": null,
+          "executable": "\\\\?\\C:\\msys64\\ucrt64\\bin\\python3.exe",
+          "file_identity": null,
+          "backend": "msys2",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "tool": "ruby",
+      "version": null,
+      "executable": "\\\\?\\C:\\Ruby40-x64\\bin\\ruby.exe",
+      "file_identity": null,
+      "backend": "windows",
+      "distribution": null,
+      "architecture": "x86_64",
+      "vendor": null,
+      "sources": [
+        "known_location",
+        "path"
+      ],
+      "ownership": "unknown",
+      "verification": "present",
+      "capabilities": [
+        "interpreter"
+      ],
+      "diagnostic": null,
+      "evidence": [
+        {
+          "tool": "ruby",
+          "version": null,
+          "executable": "\\\\?\\C:\\Ruby40-x64\\bin\\ruby.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "known_location"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        },
+        {
+          "tool": "ruby",
+          "version": null,
+          "executable": "\\\\?\\C:\\Ruby40-x64\\bin\\ruby.exe",
+          "file_identity": null,
+          "backend": "windows",
+          "distribution": null,
+          "architecture": "x86_64",
+          "vendor": null,
+          "sources": [
+            "path"
+          ],
+          "ownership": "unknown",
+          "verification": "present",
+          "capabilities": [
+            "interpreter"
+          ],
+          "diagnostic": null,
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    "Bounded discovery; absence from inventory does not prove absence from the machine.",
+    "Cross-distribution WSL enumeration is not implemented; only the current WSL distribution can be inventoried.",
+    "VS Code JSONC/comments, extension inventory and java.configuration.runtimes arrays are not supported yet."
+  ]
+}

@@ -1,0 +1,5 @@
+Verified Resource: ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f
+  Name:           rustc
+  Status:         Verified
+  Verified At:    2026-10-18T17:46:58Z
+  Probe Output:   rustc 1.96.0 (ac68faa20 2026-05-25)

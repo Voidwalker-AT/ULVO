@@ -1,0 +1,4 @@
+Project: /mnt/e/Workspace/Active/ULVO/tests/fixtures/valid
+Native manifests: package.json
+ULVO manifest: valid
+Note: Native manifests are detected, not resolved or executed.

@@ -1,0 +1,91 @@
+{
+  "results": [
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "--help"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "--version"
+      ],
+      "exit_code": 0
+    },
+    {
+      "inventory": "inventory",
+      "records": 34,
+      "backends": [
+        "msys2",
+        "windows",
+        "wsl"
+      ]
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "inventory",
+        "--all-backends",
+        "--json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "inspect",
+        "/mnt/e/Workspace/Active/ULVO/tests/fixtures/valid"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "inspect",
+        "/mnt/e/Workspace/Active/ULVO/tests/fixtures/valid",
+        "--json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "inspect",
+        "/mnt/e/Workspace/Active/ULVO/tests/fixtures/invalid",
+        "--json"
+      ],
+      "exit_code": 1
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "inspect",
+        "/mnt/e/Workspace/Active/ULVO/tests/fixtures/missing",
+        "--json"
+      ],
+      "exit_code": 1
+    },
+    {
+      "command": [
+        "/mnt/e/Workspace/Active/ULVO/target-local/debug/ulvo",
+        "install",
+        "anything"
+      ],
+      "exit_code": 2
+    }
+  ],
+  "fixture_hashes_before": {
+    "tests/fixtures/valid/package.json": "e12bb30ee2b2e42cd9158259701a300fee9489c18503ce8024590d049600fed6",
+    "tests/fixtures/valid/.ulvo/manifest.toml": "91e81c9d6932d70b3b81d922a1866e27b04f38caf481f11e8d5a7475af122780",
+    "tests/fixtures/invalid/.ulvo/manifest.toml": "7012c145372a7081198dcd9e6328548b2d49a79749dc7d8e90a4bf2deb89a1e0"
+  },
+  "fixture_hashes_after": {
+    "tests/fixtures/valid/package.json": "e12bb30ee2b2e42cd9158259701a300fee9489c18503ce8024590d049600fed6",
+    "tests/fixtures/valid/.ulvo/manifest.toml": "91e81c9d6932d70b3b81d922a1866e27b04f38caf481f11e8d5a7475af122780",
+    "tests/fixtures/invalid/.ulvo/manifest.toml": "7012c145372a7081198dcd9e6328548b2d49a79749dc7d8e90a4bf2deb89a1e0"
+  },
+  "fixtures_unchanged": true
+}
+exit_code=0

@@ -1,0 +1,16 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.9
+   Compiling serde_derive v1.0.229
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling serde v1.0.229
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling ulvo-core v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-core)
+   Compiling toml_edit v0.22.27
+   Compiling ulvo-adapters v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-adapters)
+   Compiling toml v0.8.23
+   Compiling ulvo-discovery v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-discovery)
+   Compiling ulvo-cli v0.1.0 (/mnt/e/Workspace/Active/ULVO/crates/ulvo-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 36.99s

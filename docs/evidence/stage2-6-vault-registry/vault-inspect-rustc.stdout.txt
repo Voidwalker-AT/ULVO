@@ -1,0 +1,19 @@
+Resource: ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f
+  Kind:           Compiler
+  Ecosystem:      Rust
+  Name:           rustc
+  Version:        1.96.0
+  Platform:       Windows
+  Architecture:   X86_64
+  Backend:        Windows
+  ABI:            Gnu
+  Installation:   vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu\bin\rustc.exe
+  Manager:        rustup
+  Ownership:      Managed
+  Status:         Discovered
+  Capabilities:   compiler, codegen, x86_64-pc-windows-gnu
+  Provenance:
+    Source:       manifest-sha256-pinned
+    URL:          https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe
+    Expected SHA: 03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7
+    Manifest:     config\toolchain-artifacts.toml

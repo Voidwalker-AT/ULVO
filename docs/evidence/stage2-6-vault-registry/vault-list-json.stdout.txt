@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "total_resources": 6,
+  "resources": [
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f",
+      "resource_kind": "compiler",
+      "ecosystem": "rust",
+      "name": "rustc",
+      "version": "1.96.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu\\bin\\rustc.exe",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "compiler",
+        "codegen",
+        "x86_64-pc-windows-gnu"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    },
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::packagemanager::cargo@1.96.0#36d3578d2f9534fc",
+      "resource_kind": "package_manager",
+      "ecosystem": "rust",
+      "name": "cargo",
+      "version": "1.96.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu\\bin\\cargo.exe",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "package_manager",
+        "build_tool"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    },
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::sdk::rust-mingw@1.96.0#9e21e89f2210d9a0",
+      "resource_kind": "sdk",
+      "ecosystem": "rust",
+      "name": "rust-mingw",
+      "version": "1.96.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu\\lib/rustlib\\x86_64-pc-windows-gnu\\bin",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "c_runtime",
+        "linker_support"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    },
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::sharedlibrary::rust-std@1.96.0#18e3529f6804441a",
+      "resource_kind": "shared_library",
+      "ecosystem": "rust",
+      "name": "rust-std",
+      "version": "1.96.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu\\lib/rustlib\\x86_64-pc-windows-gnu\\lib",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "standard_library",
+        "sysroot"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    },
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::toolchain::rust@1.96.0#256412987b875457",
+      "resource_kind": "toolchain",
+      "ecosystem": "rust",
+      "name": "rust",
+      "version": "1.96.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\rustup\\toolchains\\1.96.0-x86_64-pc-windows-gnu",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "toolchain",
+        "1.96.0-x86_64-pc-windows-gnu"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    },
+    {
+      "resource_id": "ulvo::rust::windows::windows-x86_64-gnu::toolchain::rustup@1.29.0#08910323bd7e6187",
+      "resource_kind": "toolchain",
+      "ecosystem": "rust",
+      "name": "rustup",
+      "version": "1.29.0",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "backend": "windows",
+      "abi": "gnu",
+      "installation_path": "vault\\runtimes\\rust\\cargo\\bin\\rustup.exe",
+      "manager": "rustup",
+      "ownership": "managed",
+      "verification_status": "discovered",
+      "provenance": {
+        "source_type": "manifest-sha256-pinned",
+        "canonical_url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-pc-windows-gnu/rustup-init.exe",
+        "expected_sha256": "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+        "actual_sha256": null,
+        "manifest_path": "config\\toolchain-artifacts.toml",
+        "notes": "Official upstream Windows binary is unsigned. Approved for execution under manifest-sha256-pinned policy following operator authorization."
+      },
+      "capabilities": [
+        "toolchain_manager",
+        "installer"
+      ],
+      "created_at": null,
+      "last_verified_at": null
+    }
+  ]
+}

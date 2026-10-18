@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "total_resources": 6,
+  "by_kind": {
+    "compiler": 1,
+    "packagemanager": 1,
+    "sdk": 1,
+    "sharedlibrary": 1,
+    "toolchain": 2
+  },
+  "by_ecosystem": {
+    "rust": 6
+  },
+  "by_backend": {
+    "windows": 6
+  },
+  "by_status": {
+    "discovered": 6
+  },
+  "by_ownership": {
+    "managed": 6
+  }
+}

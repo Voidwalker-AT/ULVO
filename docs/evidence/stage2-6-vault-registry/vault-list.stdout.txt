@@ -1,0 +1,19 @@
+ULVO Vault Managed Resources (vault) [6]:
+  Windows Compiler rustc 1.96.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::compiler::rustc@1.96.0#aa7126ae9b17132f
+    Path: vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu\bin\rustc.exe
+  Windows PackageManager cargo 1.96.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::packagemanager::cargo@1.96.0#36d3578d2f9534fc
+    Path: vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu\bin\cargo.exe
+  Windows Sdk rust-mingw 1.96.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::sdk::rust-mingw@1.96.0#9e21e89f2210d9a0
+    Path: vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu\lib/rustlib\x86_64-pc-windows-gnu\bin
+  Windows SharedLibrary rust-std 1.96.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::sharedlibrary::rust-std@1.96.0#18e3529f6804441a
+    Path: vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu\lib/rustlib\x86_64-pc-windows-gnu\lib
+  Windows Toolchain rust 1.96.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::toolchain::rust@1.96.0#256412987b875457
+    Path: vault\runtimes\rust\rustup\toolchains\1.96.0-x86_64-pc-windows-gnu
+  Windows Toolchain rustup 1.29.0 [Discovered, Managed]
+    ID:   ulvo::rust::windows::windows-x86_64-gnu::toolchain::rustup@1.29.0#08910323bd7e6187
+    Path: vault\runtimes\rust\cargo\bin\rustup.exe
