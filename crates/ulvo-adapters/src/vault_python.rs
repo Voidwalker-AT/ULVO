@@ -289,7 +289,7 @@ pub fn scan_single_python_env(env_path: &Path, workspace_root: &Path) -> PythonE
     let target_lib = if lib_candidate.is_dir() { lib_candidate } else { lib_candidate_lower };
 
     if target_lib.is_dir() {
-        find_site_packages(&target_lib, &mut sp_dirs);
+        find_site_packages(&target_lib, &mut sp_dirs, &mut env.inaccessible_count);
     }
 
     // Inspect site-packages
@@ -307,7 +307,7 @@ pub fn scan_single_python_env(env_path: &Path, workspace_root: &Path) -> PythonE
     env
 }
 
-fn find_site_packages(dir: &Path, sp_dirs: &mut Vec<PathBuf>) {
+fn find_site_packages(dir: &Path, sp_dirs: &mut Vec<PathBuf>, inaccessible: &mut usize) {
     if is_reparse_point(dir) {
         return;
     }
@@ -315,12 +315,17 @@ fn find_site_packages(dir: &Path, sp_dirs: &mut Vec<PathBuf>) {
         sp_dirs.push(dir.to_path_buf());
         return;
     }
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.is_dir() && !is_reparse_point(&p) {
-                find_site_packages(&p, sp_dirs);
+    match std::fs::read_dir(dir) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() && !is_reparse_point(&p) {
+                    find_site_packages(&p, sp_dirs, inaccessible);
+                }
             }
+        }
+        Err(_) => {
+            *inaccessible += 1;
         }
     }
 }
@@ -352,7 +357,13 @@ fn scan_site_packages(sp: &Path, env_path: &Path, env: &mut PythonEnvironment) {
         }
     }
 
-    let Ok(entries) = std::fs::read_dir(sp) else { return; };
+    let entries = match std::fs::read_dir(sp) {
+        Ok(e) => e,
+        Err(_) => {
+            env.inaccessible_count += 1;
+            return;
+        }
+    };
     for entry in entries.flatten() {
         let p = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
@@ -389,7 +400,10 @@ fn scan_site_packages(sp: &Path, env_path: &Path, env: &mut PythonEnvironment) {
                 }
             }
 
-            // 3. Compute cryptographic content hash from RECORD or METADATA
+            // 3. Compute cryptographic distribution catalog digest from RECORD or METADATA.
+            // Note: This hashes the wheel's file catalog / metadata manifest (RECORD),
+            // verifying distribution package manifest equality rather than performing
+            // an expensive whole-disk payload file read during discovery.
             let record_file = p.join("RECORD");
             let content_hash = if record_file.is_file() {
                 if let Ok(rec_content) = bounded_read(&record_file) {
@@ -675,7 +689,7 @@ pub fn calculate_storage_savings(
             assumptions: vec![
                 "Deduplication requires byte-identical distributions verified by package content hashes".into(),
                 "Target environments support hardlink-based or symlink-based package store sharing".into(),
-                "Preserves virtual environment directory isolation while reclaiming duplicate physical bytes".into(),
+                "Assumes independent copies; if packages are pre-hardlinked to a shared cache (e.g. uv), physical savings will be lower than logical duplicate estimates".into(),
             ],
         },
         realistic: StorageSavingsEstimate {

@@ -276,8 +276,10 @@ mod tests {
     impl Drop for SafeTestFixture {
         fn drop(&mut self) {
             let sentinel = self.path.join(".ulvo_test_sentinel");
-            if sentinel.is_file() {
-                let _ = std::fs::remove_dir_all(&self.path);
+            if let Ok(content) = std::fs::read_to_string(&sentinel) {
+                if content.contains(&format!("pid={}", std::process::id())) {
+                    let _ = std::fs::remove_dir_all(&self.path);
+                }
             }
         }
     }
