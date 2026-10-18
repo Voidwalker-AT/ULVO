@@ -362,5 +362,35 @@ mod tests {
         let missing = fixture.path.join("does_not_exist.bin");
         assert!(query_file_identity_and_size(&missing).is_err());
     }
+
+    #[test]
+    fn test_ntfs_identity_stability() {
+        let fixture = SafeTestFixture::new("stability");
+        let file = fixture.path.join("stable.txt");
+        std::fs::write(&file, b"NTFS Identity Stability Verification").unwrap();
+
+        let (id1, info1) = query_file_identity_and_size(&file).unwrap();
+        let (id2, info2) = query_file_identity_and_size(&file).unwrap();
+
+        assert_eq!(id1, id2, "Querying the same file must yield identical filesystem identity");
+        assert_eq!(info1, info2, "Querying the same file must yield identical FileSizeInfo");
+    }
+
+    #[test]
+    fn test_fixture_cleanup_ownership_safety() {
+        let path = {
+            let fixture = SafeTestFixture::new("ownership_guard");
+            let p = fixture.path.clone();
+            assert!(p.join(".ulvo_test_sentinel").is_file());
+            // Intentionally remove sentinel to simulate an unowned or external directory
+            std::fs::remove_file(p.join(".ulvo_test_sentinel")).unwrap();
+            p
+            // fixture dropped here
+        };
+
+        // Because sentinel was removed, SafeTestFixture::drop must refuse to delete the directory
+        assert!(path.is_dir(), "Unowned directory without sentinel must NOT be deleted by fixture cleanup");
+        let _ = std::fs::remove_dir_all(&path);
+    }
 }
 

@@ -864,4 +864,65 @@ mod tests {
         assert_eq!(dups[0].total_wasted_bytes, 0);
         assert_eq!(dups[0].abi_tags.len(), 2);
     }
+
+    #[test]
+    fn test_native_wheel_incompatibility() {
+        let env_native = PythonEnvironment {
+            path: "E:/Workspace/env_native".into(),
+            relative_path: "env_native".into(),
+            category: "test".into(),
+            env_type: "venv".into(),
+            python_version: Some("3.11".into()),
+            base_interpreter: None,
+            logical_bytes: 20000,
+            physical_allocated_bytes: Some(24576),
+            physical_unique_files: 10,
+            has_editable: false,
+            has_native: true,
+            packages: vec![InstalledPackage {
+                name: "cffi".into(),
+                version: "1.17.1".into(),
+                is_editable: false,
+                has_native: true,
+                logical_bytes: 18000,
+                unique_files: 8,
+                content_hash: Some("sha256:native_cffi_binary_hash".into()),
+                abi_tag: Some("cp311-cp311-win_amd64".into()),
+            }],
+            inaccessible_count: 0,
+        };
+
+        let env_pure = PythonEnvironment {
+            path: "E:/Workspace/env_pure".into(),
+            relative_path: "env_pure".into(),
+            category: "test".into(),
+            env_type: "venv".into(),
+            python_version: Some("3.12".into()),
+            base_interpreter: None,
+            logical_bytes: 10000,
+            physical_allocated_bytes: Some(12288),
+            physical_unique_files: 6,
+            has_editable: false,
+            has_native: false,
+            packages: vec![InstalledPackage {
+                name: "cffi".into(),
+                version: "1.17.1".into(),
+                is_editable: false,
+                has_native: false,
+                logical_bytes: 8000,
+                unique_files: 5,
+                content_hash: Some("sha256:pure_cffi_wheel_hash".into()),
+                abi_tag: Some("py3-none-any".into()),
+            }],
+            inaccessible_count: 0,
+        };
+
+        let dups = analyze_package_duplication(&[env_native, env_pure]);
+        assert_eq!(dups.len(), 1);
+        assert_eq!(dups[0].package, "cffi");
+        assert!(dups[0].has_native);
+        assert!(!dups[0].is_verified_identical, "Native wheel and pure wheel cannot be verified identical");
+        assert_eq!(dups[0].total_wasted_bytes, 0, "Incompatible wheels must not be claimed as reclaimable duplicate bytes");
+        assert_eq!(dups[0].abi_tags, vec!["cp311-cp311-win_amd64".to_string(), "py3-none-any".to_string()]);
+    }
 }

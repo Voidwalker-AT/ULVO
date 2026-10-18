@@ -476,4 +476,57 @@ mod tests {
         assert_eq!(savings.realistic.assumptions.len(), 4);
         assert_eq!(savings.theoretical.assumptions.len(), 3);
     }
+
+    #[test]
+    fn synthetic_reparse_point_detection() {
+        let fixture = SafeTestFixture::new("reparse");
+        let normal_dir = fixture.ws.join("normal_dir");
+        let normal_file = fixture.ws.join("normal_file.txt");
+        std::fs::create_dir_all(&normal_dir).unwrap();
+        std::fs::write(&normal_file, b"content").unwrap();
+
+        assert!(!is_reparse_point(&normal_dir));
+        assert!(!is_reparse_point(&normal_file));
+
+        // reject_links succeeds on normal directory and file
+        assert!(reject_links(&normal_dir).is_ok());
+        assert!(reject_links(&normal_file).is_ok());
+    }
+
+    #[test]
+    fn synthetic_inaccessible_entry_triggers_incomplete_scan() {
+        let fixture = SafeTestFixture::new("inaccessible");
+        let cat_dir = fixture.ws.join("CategoryA");
+        std::fs::create_dir_all(&cat_dir).unwrap();
+
+        // Simulate an inaccessible entry encountered during walk
+        let mut cat_bytes = 0u64;
+        let mut cat_alloc = Some(0u64);
+        let mut cat_files = 0usize;
+        let mut cat_identities = HashSet::new();
+        let mut inaccessible = 0usize;
+        let mut global_identities = HashSet::new();
+        let mut global_alloc = Some(0u64);
+        let mut envs = Vec::new();
+        let mut projects = Vec::new();
+
+        // Walking a missing/unreadable subdirectory simulates an inaccessible entry (std::fs::read_dir fails)
+        let unreadable = cat_dir.join("locked_or_unreadable_subdir");
+        walk_category(
+            &unreadable,
+            &fixture.ws,
+            "CategoryA",
+            &mut cat_bytes,
+            &mut cat_alloc,
+            &mut cat_files,
+            &mut cat_identities,
+            &mut inaccessible,
+            &mut global_identities,
+            &mut global_alloc,
+            &mut envs,
+            &mut projects,
+        );
+
+        assert_eq!(inaccessible, 1, "Unreadable directory must increment inaccessible count");
+    }
 }
