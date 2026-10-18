@@ -15,6 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-10-19
+
+### Stage 2.8.2 — Legacy .venv Safe Retirement & Reclamation Hardening
+
+#### Added
+- **Verified Legacy Environment Retirement**: Safely retired legacy `NexusNode/server/.venv` after independently passing all 11 pre-deletion gates, recovering 34.8 MB (34,807,808 bytes) of physical disk storage across 1,828 files and 147 directories.
+- **Post-Deletion Independence Verification**: Independently verified NexusNode/server executes its 40-test suite and `nexus.bat --version` cleanly through ULVO without regenerating or depending on `.venv`.
+- **Fail-Closed Lease Metadata Validation**: Hardened `reclaim_internal` so unreadable, corrupted, or malformed `.ulvo_lease.json` metadata strictly aborts reclamation instead of falling through.
+- **Full Structural Ownership Record Validation**: Enforced multi-field ownership verification (sentinel, schema version, vault root, environment ID, canonical project path, specification hash) in `reclaim_internal` and `ensure_environment_ready`.
+- **Environment Reuse Verification**: Added pre-reuse validation checking ownership record integrity, specification file matching, runtime path consistency, and presence of the environment Python executable.
+- **Process Supervisor & Child Lifecycle Hardening**: Process assignment errors from Win32 `JobSupervisor` and child registration failures in `on_spawn` now immediately terminate child processes and propagate errors, preventing unmonitored process leaks.
+- **Strict Read-Only Queries**: Eliminated filesystem mutations from `ulvo env status`, `ulvo project doctor`, and inspection workflows when cleaning dead PIDs in memory.
+- **Comprehensive Regression Tests**: Added 5 new unit and integration tests bringing workspace total to 83 passing native tests.
+
+---
+
 ## [0.2.1] - 2026-10-19
 
 ### Stage 2.8.1 — Project-Local .venv Independence: Ephemeral Lifecycle Safety & Concurrency Hardening

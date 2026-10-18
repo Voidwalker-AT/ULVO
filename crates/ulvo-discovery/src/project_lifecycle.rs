@@ -305,7 +305,7 @@ impl ProjectOrchestrator {
         let env_id = env_path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
 
         let is_materialized = env_path.is_dir() && env_path.join(".ulvo_ownership.json").is_file();
-        let (active_pids, leased_processes, spec_hash) = self.inspect_lease_and_active(&env_path);
+        let (active_pids, leased_processes, spec_hash) = self.inspect_lease_and_active_read_only(&env_path);
         let state = self.get_current_state(&env_path);
         let is_quiescent = leased_processes.is_empty();
         let can_reclaim = is_materialized && is_quiescent && state.is_reclaimable();
@@ -358,37 +358,56 @@ impl ProjectOrchestrator {
         let spec_file = env_path.join(".ulvo_spec.json");
         let lock_file = env_path.join(".ulvo_lease.lock");
 
-        // Fast path: if materialized and valid ownership + spec, return immediately
-        if env_path.is_dir() && ownership_file.is_file() && spec_file.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&ownership_file) {
-                if let Ok(record) = serde_json::from_str::<EnvironmentOwnershipRecord>(&content) {
-                    if record.validate(
-                        &project_root.to_string_lossy(),
-                        &self.vault_root.to_string_lossy(),
-                        &env_id,
-                    ).is_ok() && record.specification_hash == spec_hash {
-                        return Ok(env_path);
-                    }
-                }
+        let can_reuse_environment = |env_dir: &Path| -> bool {
+            let o_file = env_dir.join(".ulvo_ownership.json");
+            let s_file = env_dir.join(".ulvo_spec.json");
+            if !env_dir.is_dir() || !o_file.is_file() || !s_file.is_file() {
+                return false;
             }
+            let o_content = match std::fs::read_to_string(&o_file) {
+                Ok(c) => c,
+                Err(_) => return false,
+            };
+            let record: EnvironmentOwnershipRecord = match serde_json::from_str(&o_content) {
+                Ok(r) => r,
+                Err(_) => return false,
+            };
+            if record.validate(
+                &project_root.to_string_lossy(),
+                &self.vault_root.to_string_lossy(),
+                &env_id,
+            ).is_err() || record.specification_hash != spec_hash {
+                return false;
+            }
+            let s_content = match std::fs::read_to_string(&s_file) {
+                Ok(c) => c,
+                Err(_) => return false,
+            };
+            let existing_spec: EnvironmentSpecification = match serde_json::from_str(&s_content) {
+                Ok(s) => s,
+                Err(_) => return false,
+            };
+            if existing_spec.runtime_resolved_path != resolved_py {
+                return false;
+            }
+            let env_py = ulvo_adapters::get_env_python(env_dir);
+            if !env_py.is_file() {
+                return false;
+            }
+            true
+        };
+
+        // Fast path: if materialized and valid ownership + spec + python executable, return immediately
+        if can_reuse_environment(&env_path) {
+            return Ok(env_path);
         }
 
         // Needs materialization. Acquire lock first.
         let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 30000)?;
 
         // Re-check under lock in case another process materialized while waiting
-        if env_path.is_dir() && ownership_file.is_file() && spec_file.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&ownership_file) {
-                if let Ok(record) = serde_json::from_str::<EnvironmentOwnershipRecord>(&content) {
-                    if record.validate(
-                        &project_root.to_string_lossy(),
-                        &self.vault_root.to_string_lossy(),
-                        &env_id,
-                    ).is_ok() && record.specification_hash == spec_hash {
-                        return Ok(env_path);
-                    }
-                }
-            }
+        if can_reuse_environment(&env_path) {
+            return Ok(env_path);
         }
 
         let mut req_files = Vec::new();
@@ -500,21 +519,22 @@ impl ProjectOrchestrator {
         let exit_code = self.uv.execute_in_environment_with_callback(&env_path, &root, command_args, |child_pid| {
             // Register child PID in lease under lock
             let child_creation = ulvo_adapters::get_process_creation_time(child_pid);
-            if let Ok(_lock) = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file_clone, 5000) {
-                let mut lease = self.read_or_create_lease(&env_path_clone, &root);
-                if !lease.active_pids.contains(&child_pid) {
-                    lease.active_pids.push(child_pid);
-                }
-                if !lease.leased_processes.iter().any(|p| p.pid == child_pid) {
-                    lease.leased_processes.push(LeasedProcess {
-                        pid: child_pid,
-                        process_creation_time: child_creation,
-                        owner_token: format!("child_pid_{child_pid}"),
-                        registered_at_unix: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
-                    });
-                }
-                let _ = self.write_lease(&env_path_clone, &lease);
+            let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file_clone, 5000)
+                .map_err(|e| format!("failed to acquire lease lock for child process registration: {e}"))?;
+            let mut lease = self.read_or_create_lease(&env_path_clone, &root);
+            if !lease.active_pids.contains(&child_pid) {
+                lease.active_pids.push(child_pid);
             }
+            if !lease.leased_processes.iter().any(|p| p.pid == child_pid) {
+                lease.leased_processes.push(LeasedProcess {
+                    pid: child_pid,
+                    process_creation_time: child_creation,
+                    owner_token: format!("child_pid_{child_pid}"),
+                    registered_at_unix: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                });
+            }
+            self.write_lease(&env_path_clone, &lease)
+                .map_err(|e| format!("failed to write lease metadata for child process registration: {e}"))?;
             Ok(())
         })?;
 
@@ -542,7 +562,7 @@ impl ProjectOrchestrator {
             .unwrap_or(false);
 
         if (force_reclaim || auto_reclaim) && is_quiescent {
-            let _ = self.reclaim_internal(&env_path);
+            let _ = self.reclaim_internal_with_project(&env_path, Some(&root));
         }
 
         Ok(exit_code)
@@ -571,7 +591,7 @@ impl ProjectOrchestrator {
         let disk_before = ulvo_adapters::get_disk_free_bytes(&self.vault_root).ok();
         let (phys_bytes, file_count) = ulvo_adapters::calculate_physical_dir_size(&env_path);
 
-        self.reclaim_internal(&env_path)?;
+        self.reclaim_internal_with_project(&env_path, Some(&root))?;
 
         let disk_after = ulvo_adapters::get_disk_free_bytes(&self.vault_root).ok();
         let volume_free_delta = match (disk_before, disk_after) {
@@ -594,6 +614,10 @@ impl ProjectOrchestrator {
     }
 
     pub fn reclaim_internal(&self, env_path: &Path) -> Result<(), String> {
+        self.reclaim_internal_with_project(env_path, None)
+    }
+
+    pub fn reclaim_internal_with_project(&self, env_path: &Path, expected_project: Option<&Path>) -> Result<(), String> {
         if !env_path.exists() {
             return Ok(()); // Already reclaimed
         }
@@ -613,7 +637,9 @@ impl ProjectOrchestrator {
             return Err("refusing to delete vault environments directory itself".to_string());
         }
 
-        // Safety gate 2: Verify ownership record with Serde
+        let env_id = env_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+        // Safety gate 2: Verify full ownership record
         let ownership_file = env_path.join(".ulvo_ownership.json");
         if !ownership_file.is_file() {
             return Err("refusing to delete directory lacking ULVO ownership record".into());
@@ -623,25 +649,58 @@ impl ProjectOrchestrator {
         let record = serde_json::from_str::<EnvironmentOwnershipRecord>(&content)
             .map_err(|e| format!("ownership sentinel mismatch: refusing deletion ({e})"))?;
 
-        if record.sentinel != ulvo_core::EPHEMERAL_OWNERSHIP_SENTINEL {
-            return Err("ownership sentinel mismatch: refusing deletion".into());
+        if let Some(proj) = expected_project {
+            let canon_proj = proj.canonicalize().unwrap_or_else(|_| proj.to_path_buf());
+            record.validate(
+                &canon_proj.to_string_lossy(),
+                &self.vault_root.to_string_lossy(),
+                env_id,
+            ).map_err(|e| format!("ownership record validation failed: refusing deletion ({e})"))?;
+        } else {
+            // Validate all structural fields without a specific expected project
+            if record.sentinel != ulvo_core::EPHEMERAL_OWNERSHIP_SENTINEL {
+                return Err("ownership sentinel mismatch: refusing deletion".into());
+            }
+            if record.schema_version != 1 {
+                return Err(format!("unsupported ownership schema version {}: refusing deletion", record.schema_version));
+            }
+            if !ulvo_core::canonical_paths_equal(&record.vault_root, &self.vault_root.to_string_lossy()) {
+                return Err(format!(
+                    "ownership vault root mismatch (recorded '{}' != expected '{}'): refusing deletion",
+                    record.vault_root, self.vault_root.display()
+                ));
+            }
+            if record.environment_id != env_id {
+                return Err(format!(
+                    "ownership environment_id mismatch (recorded '{}' != expected '{}'): refusing deletion",
+                    record.environment_id, env_id
+                ));
+            }
+            if record.project_canonical_path.trim().is_empty() {
+                return Err("ownership project_canonical_path is empty: refusing deletion".into());
+            }
+            if record.specification_hash.trim().is_empty() {
+                return Err("ownership specification_hash is empty: refusing deletion".into());
+            }
         }
 
-        // Safety gate 3: Check active processes and lock
+        // Safety gate 3: Check active processes and lock. Malformed lease MUST fail closed!
         let lock_file = env_path.join(".ulvo_lease.lock");
         {
             let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 5000)?;
             let lease_file = env_path.join(".ulvo_lease.json");
-            if let Ok(lcontent) = std::fs::read_to_string(&lease_file) {
-                if let Ok(mut lease) = serde_json::from_str::<EnvironmentLease>(&lcontent) {
-                    self.clean_dead_processes(&mut lease);
-                    if !lease.leased_processes.is_empty() {
-                        return Err(format!(
-                            "cannot reclaim environment: {} active process(es) still running (PIDs: {:?})",
-                            lease.leased_processes.len(),
-                            lease.leased_processes.iter().map(|p| p.pid).collect::<Vec<_>>()
-                        ));
-                    }
+            if lease_file.is_file() {
+                let lcontent = std::fs::read_to_string(&lease_file)
+                    .map_err(|e| format!("cannot read lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
+                let mut lease = serde_json::from_str::<EnvironmentLease>(&lcontent)
+                    .map_err(|e| format!("corrupted or malformed lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
+                self.clean_dead_processes(&mut lease);
+                if !lease.leased_processes.is_empty() {
+                    return Err(format!(
+                        "cannot reclaim environment: {} active process(es) still running (PIDs: {:?})",
+                        lease.leased_processes.len(),
+                        lease.leased_processes.iter().map(|p| p.pid).collect::<Vec<_>>()
+                    ));
                 }
             }
         } // Lock is dropped here before deletion so .ulvo_lease.lock is not held open!
@@ -663,10 +722,13 @@ impl ProjectOrchestrator {
         }
         let lease_file = env_path.join(".ulvo_lease.json");
         if let Ok(content) = std::fs::read_to_string(&lease_file) {
-            if let Ok(lease) = serde_json::from_str::<EnvironmentLease>(&content) {
-                let active = self.clean_dead_pids_and_get_active(env_path);
-                if !active.is_empty() {
+            if let Ok(mut lease) = serde_json::from_str::<EnvironmentLease>(&content) {
+                self.clean_dead_processes(&mut lease);
+                if !lease.leased_processes.is_empty() {
                     return EnvironmentLifecycleState::Executing;
+                }
+                if lease.state == EnvironmentLifecycleState::Executing {
+                    return EnvironmentLifecycleState::Reclaimable;
                 }
                 return lease.state;
             }
@@ -678,18 +740,11 @@ impl ProjectOrchestrator {
         }
     }
 
-    fn inspect_lease_and_active(&self, env_path: &Path) -> (Vec<u32>, Vec<LeasedProcess>, Option<String>) {
+    fn inspect_lease_and_active_read_only(&self, env_path: &Path) -> (Vec<u32>, Vec<LeasedProcess>, Option<String>) {
         let lease_file = env_path.join(".ulvo_lease.json");
         if let Ok(content) = std::fs::read_to_string(&lease_file) {
             if let Ok(mut lease) = serde_json::from_str::<EnvironmentLease>(&content) {
-                let initial_len = lease.leased_processes.len();
                 self.clean_dead_processes(&mut lease);
-                if lease.leased_processes.len() != initial_len {
-                    if lease.leased_processes.is_empty() && lease.state == EnvironmentLifecycleState::Executing {
-                        lease.state = EnvironmentLifecycleState::Reclaimable;
-                    }
-                    let _ = self.write_lease(env_path, &lease);
-                }
                 return (lease.active_pids, lease.leased_processes, lease.specification_hash);
             }
         }
@@ -697,7 +752,7 @@ impl ProjectOrchestrator {
     }
 
     fn clean_dead_pids_and_get_active(&self, env_path: &Path) -> Vec<u32> {
-        let (pids, _, _) = self.inspect_lease_and_active(env_path);
+        let (pids, _, _) = self.inspect_lease_and_active_read_only(env_path);
         pids
     }
 
@@ -885,4 +940,145 @@ requirements = ["requirements.txt"]
 
         assert_ne!(hash1, hash2, "specification hash must change when requirements change!");
     }
+
+    #[test]
+    fn test_reclaim_internal_corrupted_lease_rejected() {
+        let fixture = SafeFixture::new("corrupt_lease_test");
+        let vault_root = fixture.path.join("vault");
+        let envs_dir = vault_root.join("environments").join("python");
+        std::fs::create_dir_all(&envs_dir).unwrap();
+
+        let orch = ProjectOrchestrator::new(vault_root.clone()).unwrap();
+        let target_env = envs_dir.join("env_test");
+        std::fs::create_dir_all(&target_env).unwrap();
+
+        let ownership_file = target_env.join(".ulvo_ownership.json");
+        let record = EnvironmentOwnershipRecord::new(
+            "env_test".to_string(),
+            fixture.path.to_string_lossy().to_string(),
+            vault_root.to_string_lossy().to_string(),
+            "sha256_mock_hash".to_string(),
+            std::process::id(),
+            1000,
+        );
+        std::fs::write(&ownership_file, serde_json::to_string(&record).unwrap()).unwrap();
+
+        // Corrupted lease
+        let lease_file = target_env.join(".ulvo_lease.json");
+        std::fs::write(&lease_file, "{ malformed json").unwrap();
+
+        let res = orch.reclaim_internal(&target_env);
+        assert!(res.is_err(), "must fail closed on corrupted lease metadata");
+        assert!(res.unwrap_err().contains("corrupted or malformed lease metadata"));
+    }
+
+    #[test]
+    fn test_reclaim_internal_mismatched_vault_root_rejected() {
+        let fixture = SafeFixture::new("mismatch_vault_test");
+        let vault_root = fixture.path.join("vault");
+        let envs_dir = vault_root.join("environments").join("python");
+        std::fs::create_dir_all(&envs_dir).unwrap();
+
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+        let target_env = envs_dir.join("env_test");
+        std::fs::create_dir_all(&target_env).unwrap();
+
+        let ownership_file = target_env.join(".ulvo_ownership.json");
+        let record = EnvironmentOwnershipRecord::new(
+            "env_test".to_string(),
+            fixture.path.to_string_lossy().to_string(),
+            r"C:\foreign\vault".to_string(),
+            "sha256_mock_hash".to_string(),
+            std::process::id(),
+            1000,
+        );
+        std::fs::write(&ownership_file, serde_json::to_string(&record).unwrap()).unwrap();
+
+        let res = orch.reclaim_internal(&target_env);
+        assert!(res.is_err(), "must reject when ownership vault root does not match");
+        assert!(res.unwrap_err().contains("vault root mismatch"));
+    }
+
+    #[test]
+    fn test_reclaim_internal_mismatched_env_id_rejected() {
+        let fixture = SafeFixture::new("mismatch_envid_test");
+        let vault_root = fixture.path.join("vault");
+        let envs_dir = vault_root.join("environments").join("python");
+        std::fs::create_dir_all(&envs_dir).unwrap();
+
+        let orch = ProjectOrchestrator::new(vault_root.clone()).unwrap();
+        let target_env = envs_dir.join("env_actual_dir");
+        std::fs::create_dir_all(&target_env).unwrap();
+
+        let ownership_file = target_env.join(".ulvo_ownership.json");
+        let record = EnvironmentOwnershipRecord::new(
+            "env_recorded_different".to_string(),
+            fixture.path.to_string_lossy().to_string(),
+            vault_root.to_string_lossy().to_string(),
+            "sha256_mock_hash".to_string(),
+            std::process::id(),
+            1000,
+        );
+        std::fs::write(&ownership_file, serde_json::to_string(&record).unwrap()).unwrap();
+
+        let res = orch.reclaim_internal(&target_env);
+        assert!(res.is_err(), "must reject when recorded environment_id does not match directory");
+        assert!(res.unwrap_err().contains("environment_id mismatch"));
+    }
+
+    #[test]
+    fn test_status_is_strictly_readonly() {
+        let fixture = SafeFixture::new("readonly_status_test");
+        let project_dir = fixture.path.join("my_proj");
+        std::fs::create_dir_all(project_dir.join(".ulvo")).unwrap();
+        std::fs::write(
+            project_dir.join(".ulvo").join("manifest.toml"),
+            r#"
+schema_version = 1
+name = "my_proj"
+[runtimes]
+python = ">=3.8"
+"#,
+        ).unwrap();
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+        let env_path = orch.environment_path(&project_dir);
+        std::fs::create_dir_all(&env_path).unwrap();
+
+        let lease_file = env_path.join(".ulvo_lease.json");
+        let dead_pid = 99999999u32;
+        let initial_lease = EnvironmentLease {
+            lease_id: "test_lease".to_string(),
+            environment_id: env_path.file_name().unwrap().to_string_lossy().to_string(),
+            project_path: project_dir.to_string_lossy().to_string(),
+            environment_path: env_path.to_string_lossy().to_string(),
+            state: EnvironmentLifecycleState::Executing,
+            active_pids: vec![dead_pid],
+            leased_processes: vec![LeasedProcess {
+                pid: dead_pid,
+                process_creation_time: None,
+                owner_token: "test".to_string(),
+                registered_at_unix: 1000,
+            }],
+            created_at_unix: 1000,
+            updated_at_unix: 1000,
+            lease_timeout_seconds: 300,
+            owner_token: "test".to_string(),
+            python_version: None,
+            specification_hash: None,
+        };
+
+        std::fs::write(&lease_file, serde_json::to_string_pretty(&initial_lease).unwrap()).unwrap();
+        let bytes_before = std::fs::read(&lease_file).unwrap();
+
+        // Run status check
+        let report = orch.status(&project_dir).unwrap();
+        assert!(report.leased_processes.is_empty(), "dead process filtered in memory");
+
+        // Verify lease file on disk was NOT mutated
+        let bytes_after = std::fs::read(&lease_file).unwrap();
+        assert_eq!(bytes_before, bytes_after, "status() must not mutate .ulvo_lease.json on disk");
+    }
 }
+

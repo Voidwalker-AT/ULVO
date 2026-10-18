@@ -233,9 +233,17 @@ impl UvManager {
         let mut child = cmd.spawn().map_err(|e| format!("failed to spawn child command: {e}"))?;
 
         let child_pid = child.id();
-        let _ = job_supervisor.assign_process(&child);
+        if let Err(e) = job_supervisor.assign_process(&child) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("failed to assign child process {child_pid} to job supervisor: {e}"));
+        }
 
-        on_spawn(child_pid)?;
+        if let Err(e) = on_spawn(child_pid) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("failed during on_spawn callback for child PID {child_pid}: {e}"));
+        }
 
         let status = child.wait().map_err(|e| format!("failed waiting for child command: {e}"))?;
 
@@ -1301,6 +1309,37 @@ mod tests {
         }
 
         assert_eq!(*counter.lock().unwrap(), num_threads * 3);
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    #[test]
+    fn test_execute_in_environment_on_spawn_failure_kills_child() {
+        let temp = std::env::temp_dir().join(format!("ulvo_spawn_fail_test_{}", std::process::id()));
+        let vault_root = temp.join("vault");
+        std::fs::create_dir_all(&vault_root).unwrap();
+
+        if let Ok(uv_mgr) = UvManager::new(vault_root.clone()) {
+            let env_dir = temp.join("fake_env");
+            let scripts_dir = get_env_scripts(&env_dir);
+            std::fs::create_dir_all(&scripts_dir).unwrap();
+
+            let cmd_args = if cfg!(windows) {
+                vec!["cmd.exe".to_string(), "/c".to_string(), "ping".to_string(), "-n".to_string(), "5".to_string(), "127.0.0.1".to_string()]
+            } else {
+                vec!["sleep".to_string(), "5".to_string()]
+            };
+
+            let res = uv_mgr.execute_in_environment_with_callback(
+                &env_dir,
+                &temp,
+                &cmd_args,
+                |_spawned_pid| Err("simulated on_spawn failure".to_string()),
+            );
+
+            assert!(res.is_err(), "execute_in_environment_with_callback must propagate on_spawn error");
+            assert!(res.unwrap_err().contains("simulated on_spawn failure"));
+        }
+
         let _ = std::fs::remove_dir_all(&temp);
     }
 }
