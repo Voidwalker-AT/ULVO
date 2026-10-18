@@ -5,12 +5,16 @@ pub mod registry;
 pub mod workspace;
 pub mod lifecycle;
 pub mod migration;
+pub mod gpu;
+pub mod adoption;
 
 pub use resource::*;
 pub use registry::*;
 pub use workspace::*;
 pub use lifecycle::*;
 pub use migration::*;
+pub use gpu::*;
+pub use adoption::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -228,6 +232,8 @@ pub struct ProjectManifest {
     pub lifecycle: Option<LifecycleConfig>,
     #[serde(default)]
     pub execution: Option<ExecutionConfig>,
+    #[serde(default)]
+    pub gpu: Option<GpuManifestConfig>,
 }
 
 impl ProjectManifest {

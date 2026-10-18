@@ -8,6 +8,8 @@ pub mod vault_uv;
 pub use vault_uv::*;
 pub mod migration_ops;
 pub use migration_ops::*;
+pub mod gateway;
+pub use gateway::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

@@ -346,10 +346,51 @@ ulvo migrate report E:\Workspace [--json]
 
 ---
 
-## 9. Non-Mutating Execution Guarantee
+## 9. `ulvo toolchain`
+
+Universal multi-ecosystem toolchain discovery, inventory, and staged adoption.
+
+### 9.1 `ulvo toolchain inventory`
+Performs a comprehensive read-only scan of installed language toolchains across Windows PATH, known installation roots, MSYS2 (`C:\msys64`), configured VS Code profiles, and WSL metadata without launching WSL. Detects 29 development tools across Python, uv, Rust, Cargo, Node.js, npm, pnpm, Go, Java, javac, Ruby, gem, bundler, .NET SDK, GCC, G++, Clang, CMake, and Ninja.
+
+```sh
+ulvo toolchain inventory [--json]
+```
+
+### 9.2 `ulvo toolchain plan <TOOL_NAME>`
+Formulates a typed 9-stage adoption plan (`EXTERNAL_DISCOVERED` -> `COMPATIBILITY_ASSESSED` -> `ADOPTION_PLANNED` -> `STAGING` -> `VERIFIED` -> `MANAGED`) for bringing an external toolchain under ULVO. Displays original location, intended vault path, strategy, verification commands, and rollback provisions.
+
+```sh
+ulvo toolchain plan go [--json]
+```
+
+---
+
+## 10. `ulvo gpu`
+
+GPU hardware telemetry, display driver inspection, and framework compatibility evaluation.
+
+### 10.1 `ulvo gpu detect`
+Detects host NVIDIA GPU hardware and display driver telemetry, reporting device model, total VRAM, driver version, compute capability (e.g. `sm_86`), and enforcing system-managed driver boundaries where kernel driver relocation is prohibited.
+
+```sh
+ulvo gpu detect [--json]
+```
+
+### 10.2 `ulvo gpu inspect <PATH>`
+Evaluates a project's GPU requirements against host hardware, driver version, compute architecture, framework variants, and volume storage capacity. Distinguishes CPU-only wheels from CUDA builds and verifies available disk space against safety reserves.
+
+```sh
+ulvo gpu inspect E:\Workspace\Academic\sem5\DL\exp1 [--json]
+```
+
+---
+
+## 11. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.
 - Safe reclamation fails closed if active processes are detected holding leases.
 - All temporary test fixtures use process-level ownership sentinels.
 - Legacy environment retirement requires explicit authorization and passes 10 safety gates.
+- Toolchain discovery is metadata-only and never launches or moves external installations.

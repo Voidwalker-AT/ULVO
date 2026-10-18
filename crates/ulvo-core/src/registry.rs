@@ -116,10 +116,17 @@ pub trait VaultRegistry {
     fn stats(&self) -> RegistryStats;
 }
 
+use crate::adoption::ToolchainAdoptionPlan;
+use crate::gpu::SystemGpuDriver;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryVaultRegistry {
     pub schema_version: u32,
     pub resources: BTreeMap<ResourceId, Resource>,
+    #[serde(default)]
+    pub adoption_plans: BTreeMap<String, ToolchainAdoptionPlan>,
+    #[serde(default)]
+    pub host_gpu: Option<SystemGpuDriver>,
 }
 
 impl MemoryVaultRegistry {
@@ -127,7 +134,21 @@ impl MemoryVaultRegistry {
         Self {
             schema_version: 1,
             resources: BTreeMap::new(),
+            adoption_plans: BTreeMap::new(),
+            host_gpu: None,
         }
+    }
+
+    pub fn add_adoption_plan(&mut self, plan: ToolchainAdoptionPlan) {
+        self.adoption_plans.insert(plan.plan_id.clone(), plan);
+    }
+
+    pub fn get_adoption_plan(&self, plan_id: &str) -> Option<&ToolchainAdoptionPlan> {
+        self.adoption_plans.get(plan_id)
+    }
+
+    pub fn set_host_gpu(&mut self, driver: SystemGpuDriver) {
+        self.host_gpu = Some(driver);
     }
 
     pub fn get_by_str(&self, identifier: &str) -> Option<&Resource> {
@@ -412,5 +433,31 @@ mod tests {
         assert!(reg.get_by_str(&full_id).is_some());
         assert!(reg.get_by_str("rustc").is_some());
         assert!(reg.get_by_str("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_registry_adoption_plan_and_gpu_driver() {
+        let mut reg = MemoryVaultRegistry::new();
+        let plan = ToolchainAdoptionPlan::new(
+            "rustc",
+            Ecosystem::Rust,
+            "C:\\cargo\\bin\\rustc.exe",
+            "vault\\runtimes\\rust\\bin\\rustc.exe",
+            "rustup",
+            Some("1.96.0".into()),
+            Architecture::X86_64,
+            Abi::Gnu,
+            crate::adoption::AdoptionStrategy::ReferenceExternal,
+        );
+        reg.add_adoption_plan(plan);
+        assert!(reg.get_adoption_plan("plan_rustc").is_some());
+
+        let driver = SystemGpuDriver::new(
+            crate::gpu::NvidiaDriverVersion::parse("596.49").unwrap(),
+            vec![],
+        );
+        reg.set_host_gpu(driver);
+        assert!(reg.host_gpu.is_some());
+        assert!(reg.host_gpu.as_ref().unwrap().is_system_managed);
     }
 }

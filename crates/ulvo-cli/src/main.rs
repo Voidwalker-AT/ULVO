@@ -59,6 +59,36 @@ enum Commands {
         #[command(subcommand)]
         subcommand: MigrateCommands,
     },
+    /// Universal multi-ecosystem toolchain inventory and staged adoption
+    Toolchain {
+        #[command(subcommand)]
+        subcommand: ToolchainCommands,
+    },
+    /// GPU hardware, driver, and framework compatibility inspection
+    Gpu {
+        #[command(subcommand)]
+        subcommand: GpuCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum ToolchainCommands {
+    /// Comprehensive metadata-only scan across Windows PATH, known roots, MSYS2, VS Code, and WSL
+    Inventory,
+    /// View or formulate a typed 9-stage adoption plan for an external toolchain
+    Plan {
+        tool_name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum GpuCommands {
+    /// Detect host physical GPU devices and driver configuration
+    Detect,
+    /// Inspect a project's GPU framework compatibility and storage requirements
+    Inspect {
+        project_path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -830,6 +860,152 @@ fn run(cli: Cli) -> Result<i32, String> {
                 }
             }
         }
+        Commands::Toolchain { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            match subcommand {
+                ToolchainCommands::Inventory => {
+                    let scanner = ulvo_discovery::UniversalToolchainScanner::new(vault_path);
+                    let toolchains = scanner.scan_all();
+                    if cli.json {
+                        let json_arr: Vec<_> = toolchains.iter().map(|t| serde_json::json!({
+                            "name": t.name,
+                            "executable": t.executable_path,
+                            "backend": t.backend,
+                            "ecosystem": t.ecosystem,
+                            "kind": t.kind,
+                            "ownership": t.ownership,
+                            "source": t.discovery_source,
+                            "capabilities": t.capabilities,
+                        })).collect();
+                        println!("{}", serde_json::to_string_pretty(&json_arr).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Universal Toolchain Inventory ({} discovered)", toolchains.len());
+                        println!("  {:<16} | {:<8} | {:<10} | {:<12} | {}",
+                            "TOOL", "BACKEND", "ECOSYSTEM", "OWNERSHIP", "EXECUTABLE PATH");
+                        println!("  {}", "-".repeat(85));
+                        for t in &toolchains {
+                            println!("  {:<16} | {:<8?} | {:<10?} | {:<12?} | {}",
+                                t.name, t.backend, t.ecosystem, t.ownership, t.executable_path.display());
+                        }
+                    }
+                    Ok(0)
+                }
+                ToolchainCommands::Plan { tool_name } => {
+                    let scanner = ulvo_discovery::UniversalToolchainScanner::new(vault_path.clone());
+                    let toolchains = scanner.scan_all();
+                    let found = toolchains.into_iter().find(|t| t.name.eq_ignore_ascii_case(&tool_name));
+                    match found {
+                        Some(t) => {
+                            let plan = ulvo_core::ToolchainAdoptionPlan::new(
+                                &t.name,
+                                t.ecosystem.clone(),
+                                t.executable_path.to_string_lossy(),
+                                format!("{}\\{}", vault_path.join("runtimes").display(), t.name),
+                                t.discovery_source.clone(),
+                                t.version.clone(),
+                                ulvo_core::Architecture::X86_64,
+                                match t.backend {
+                                    ulvo_core::Backend::Msys2 => ulvo_core::Abi::Gnu,
+                                    _ => ulvo_core::Abi::None,
+                                },
+                                ulvo_core::AdoptionStrategy::ReferenceExternal,
+                            );
+                            if cli.json {
+                                println!("{}", serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?);
+                            } else {
+                                println!("ULVO Toolchain Adoption Plan ({})", plan.tool_id);
+                                println!("  Plan ID:             {}", plan.plan_id);
+                                println!("  Ecosystem:           {:?}", plan.ecosystem);
+                                println!("  Original Location:   {}", plan.original_location);
+                                println!("  Intended Vault Path: {}", plan.intended_ulvo_location);
+                                println!("  Lifecycle State:     {}", plan.state);
+                                println!("  Adoption Strategy:   {:?}", plan.strategy);
+                                println!("  Ownership:           {:?}", plan.ownership_classification);
+                                println!("  Rollback Available:  {}", plan.rollback_plan.can_rollback_automatically);
+                            }
+                            Ok(0)
+                        }
+                        None => {
+                            Err(format!("Tool '{tool_name}' not found in discovered inventory. Run 'ulvo toolchain inventory' to view detected tools."))
+                        }
+                    }
+                }
+            }
+        }
+        Commands::Gpu { subcommand } => {
+            match subcommand {
+                GpuCommands::Detect => {
+                    let gpu_opt = ulvo_discovery::ProjectOrchestrator::detect_host_gpu();
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&gpu_opt).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Host GPU Device Telemetry");
+                        match gpu_opt {
+                            Some(gpu) => {
+                                println!("  Device Name:        {}", gpu.name);
+                                println!("  Driver Version:     {}", gpu.driver_version);
+                                println!("  Total VRAM:         {} MiB ({:.2} GB)", gpu.vram_mib, gpu.vram_mib as f64 / 1024.0);
+                                println!("  Compute Capability: {}", gpu.compute_capability);
+                                println!("  Classification:     SYSTEM_MANAGED (Kernel display driver relocation prohibited)");
+                            }
+                            None => {
+                                println!("  No NVIDIA GPU or display driver detected on host system.");
+                            }
+                        }
+                    }
+                    Ok(0)
+                }
+                GpuCommands::Inspect { project_path } => {
+                    let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+                    let orch = ulvo_discovery::ProjectOrchestrator::new(vault_path.clone())?;
+                    let root = orch.resolve_project_root(&project_path)?;
+                    let manifest_res = orch.load_manifest(&root);
+                    let host_gpu = ulvo_discovery::ProjectOrchestrator::detect_host_gpu();
+                    let free_bytes = ulvo_adapters::get_disk_free_bytes(&vault_path).unwrap_or(0);
+
+                    if cli.json {
+                        let payload = serde_json::json!({
+                            "project_path": root.to_string_lossy(),
+                            "manifest_found": manifest_res.is_ok(),
+                            "host_gpu": host_gpu,
+                            "vault_free_bytes": free_bytes,
+                        });
+                        println!("{}", serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO GPU Environment Inspector ({})", root.display());
+                        if let Ok(ref m) = manifest_res {
+                            if let Some(ref g) = m.gpu {
+                                println!("  GPU Required:       {}", g.required.unwrap_or(false));
+                                println!("  Target Framework:   {}", g.framework.as_deref().unwrap_or("none"));
+                                println!("  Framework Version:  {}", g.framework_version.as_deref().unwrap_or("none"));
+                                println!("  Target CUDA:        {}", g.cuda_version.as_deref().unwrap_or("none"));
+                                println!("  Min Compute Arch:   {}", g.min_compute_capability.as_deref().unwrap_or("none"));
+                            } else {
+                                println!("  GPU Configuration:  None declared in manifest (CPU execution mode)");
+                            }
+                        } else {
+                            println!("  Manifest:           Not found or invalid");
+                        }
+
+                        println!("\n  Host GPU Telemetry:");
+                        if let Some(gpu) = host_gpu {
+                            println!("    Device:           {}", gpu.name);
+                            println!("    Driver Version:   {}", gpu.driver_version);
+                            println!("    VRAM:             {} MiB", gpu.vram_mib);
+                            println!("    Compute Arch:     {}", gpu.compute_capability);
+                        } else {
+                            println!("    No NVIDIA GPU detected");
+                        }
+
+                        println!("\n  Storage Capacity:");
+                        println!("    Vault Free Bytes: {} ({:.2} GB)", free_bytes, free_bytes as f64 / 1_073_741_824.0);
+                        let can_fit = free_bytes >= 629_145_600;
+                        println!("    Capacity Verdict: {}", if can_fit { "SUFFICIENT_SPACE" } else { "BLOCKED_CAPACITY" });
+                    }
+                    Ok(0)
+                }
+            }
+        }
     }
 }
 
@@ -879,6 +1055,11 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "run", "/fixture", "--reclaim", "--", "python", "app.py"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "env", "status", "/fixture"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "env", "reclaim", "/fixture"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "toolchain", "inventory"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "toolchain", "inventory", "--json"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "toolchain", "plan", "python"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "gpu", "detect"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "gpu", "inspect", "/fixture"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "install", "evil"]).is_err());
     }
 

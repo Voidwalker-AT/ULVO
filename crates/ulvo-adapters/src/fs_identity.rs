@@ -249,6 +249,52 @@ pub fn sha256_hex(data: &[u8]) -> String {
     )
 }
 
+/// Recursively hardlinks (or copies on cross-volume failure) an immutable tree from `src` to `dst`.
+/// Returns (number of files linked, total bytes).
+pub fn hardlink_or_copy_tree(src: &Path, dst: &Path) -> Result<(usize, u64), String> {
+    if !src.is_dir() {
+        return Err(format!("source '{}' is not a directory", src.display()));
+    }
+    std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+
+    let mut total_files = 0;
+    let mut total_bytes = 0;
+
+    fn walk_dir(current_src: &Path, current_dst: &Path, files: &mut usize, bytes: &mut u64) -> Result<(), String> {
+        let entries = std::fs::read_dir(current_src).map_err(|e| e.to_string())?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let dest_path = current_dst.join(entry.file_name());
+
+            if path.is_dir() {
+                std::fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
+                walk_dir(&path, &dest_path, files, bytes)?;
+            } else if path.is_file() {
+                let meta = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+                let file_len = meta.len();
+
+                // If dest exists, remove it first
+                if dest_path.exists() {
+                    let _ = std::fs::remove_file(&dest_path);
+                }
+
+                // Attempt hardlink first (fast, zero storage allocation on same volume)
+                if std::fs::hard_link(&path, &dest_path).is_err() {
+                    // Fallback to copy if hard link fails (e.g., cross-volume)
+                    std::fs::copy(&path, &dest_path).map_err(|e| e.to_string())?;
+                }
+
+                *files += 1;
+                *bytes += file_len;
+            }
+        }
+        Ok(())
+    }
+
+    walk_dir(src, dst, &mut total_files, &mut total_bytes)?;
+    Ok((total_files, total_bytes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

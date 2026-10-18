@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
 
+## [0.2.4] - 2026-10-19
+
+### Stage 2.9.1 — GPU-Aware Python Environment Orchestration & Universal Toolchain Adoption
+
+#### Added
+- **GPU Environment Compatibility Model (`ulvo-core::gpu`)**: Implemented typed metadata structures for GPU devices, compute capability (`sm_86`), NVIDIA driver version (`596.49`), deep-learning frameworks (PyTorch), framework build variants (`+cu124` vs `+cpu`), CUDA runtime dependencies (`torch_cuda.dll`), native wheel platform tags (`cp311-cp311-win_amd64`), and storage capacity verdicts (`CapacityVerdict::SufficientSpace` vs `BlockedCapacity`).
+- **Strict Kernel Driver Boundary Enforcement**: Prohibited copying or relocating system NVIDIA kernel drivers into the vault (`SystemGpuDriver::kernel_driver_relocation_prohibited`), explicitly distinguishing system display drivers from ULVO user-space runtimes.
+- **Typed 9-Stage Toolchain Adoption State Machine (`ulvo-core::adoption`)**: Established formal adoption lifecycle (`EXTERNAL_DISCOVERED` -> `COMPATIBILITY_ASSESSED` -> `ADOPTION_PLANNED` -> `STAGING` -> `VERIFIED` -> `MANAGED`, with branches to `EXTERNAL_RETAINED` and `BLOCKED`), enforcing verification command requirements and rejecting direct toolchain relocation without proven relocatability.
+- **Universal Multi-Ecosystem Toolchain Inventory (`ulvo-discovery::toolchain_inventory`)**: Implemented read-only metadata scanning across Windows PATH, known install roots, MSYS2 (`C:\msys64`), configured VS Code profiles, and WSL metadata without booting WSL, discovering 29 toolchains across Python, uv, Rust, Cargo, Node.js, npm, pnpm, Go, Java, javac, Ruby, gem, bundler, .NET SDK, GCC, G++, Clang, CMake, and Ninja.
+- **Unified Execution Gateway Foundation (`ulvo-adapters::gateway`)**: Built `GatewayResolver` for resolving tools via Vault Registry identities and constructing process-local PATHs and ecosystem environments without altering system PATH, user registry, or deploying global shims.
+- **Shared GPU Dependency Storage Engine (`ulvo-adapters::fs_identity`)**: Implemented `hardlink_or_copy_tree` to establish single-instance immutable package stores (`vault/packages/python/shared`), enabling zero-copy hardlink materialization into ephemeral environments on NTFS volumes and avoiding multi-gigabyte wheel re-downloads.
+- **Real GPU Pilot Verification (`Academic\sem5\DL\exp1`)**: Executed real GPU deep learning workload (`SimpleNeuralNetwork` MNIST MLP) under ULVO on physical NVIDIA GeForce RTX 2050 (4 GB VRAM) running PyTorch 2.6.0+cu124 on CUDA 12.4; verified all 9 GPU gates including tensor allocation, CUDA forward pass, loss calculation, backprop, numerical parity with CPU (max diff `4.47e-08`), and zero imports from legacy `.venv`.
+- **GPU Pilot Retirement Readiness Report**: Evaluated `exp1` across reproducibility, execution equivalence, ownership, and inactive consumers, classifying it as `READY_FOR_RETIREMENT` while preserving the multi-gigabyte environment until separate operator approval.
+- **GUI Architecture and Visual Branding Specification (`docs/GUI_AND_BRANDING_SPECIFICATION.md`)**: Authored comprehensive design specification detailing the hexagonal vault symbol, dark-first visual system, cockpit dashboard modules, Rust core IPC bindings, and Tauri 2.0 Windows build feasibility.
+- **Expanded Test Suite (104 Native Tests)**: Added 15 new unit and integration tests across `ulvo-core`, `ulvo-adapters`, and `ulvo-discovery`, achieving 100% pass rate on `x86_64-pc-windows-gnu`.
+
+---
+
 ## [0.2.3] - 2026-10-19
 
 ### Stage 2.9 — Automated Workspace-Wide Python Virtual-Environment Migration & Storage Reclamation

@@ -107,18 +107,44 @@ flowchart LR
 
 ---
 
+### Stage 2.9: Workspace-Wide Python Migration & Storage Reclamation
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - `ulvo migrate` CLI suite (`scan`, `plan`, `verify`, `apply`, `retire`, `status`, `report`).
+  - 10 formal verification gates (Gates A–J) enforcing fail-closed safety before retirement.
+  - Prioritized migration planning with 500 MB volume safety reserve.
+  - Safe retirement of legacy environments for `Tools\whichllm` and `Active\ProofStack`, recovering 100.98 MB physical disk space.
+  - 89 passing automated native tests across the workspace.
+
+### Stage 2.9.1: GPU-Aware Python Environment Orchestration & Universal Toolchain Adoption
+- **Status**: `COMPLETED`
+- **Pilot Target**: `Academic\sem5\DL\exp1` (NVIDIA GeForce RTX 2050 GPU, PyTorch 2.6.0+cu124 on CUDA 12.4)
+- **Deliverables**:
+  - GPU compatibility domain model (`ulvo-core::gpu`) with typed compute capabilities (`sm_86`), framework build variants, and capacity gates.
+  - System GPU driver boundary enforcement strictly prohibiting kernel driver relocation into vault.
+  - Typed 9-stage toolchain adoption state machine (`ulvo-core::adoption`) with transition verification and relocation rejection.
+  - Universal multi-ecosystem toolchain inventory (`ulvo-discovery::toolchain_inventory`) discovering 29 toolchains across Windows, MSYS2, VS Code, and WSL.
+  - Unified Execution Gateway foundation (`ulvo-adapters::gateway`) constructing process-local PATHs without global state modification.
+  - Shared GPU package-store hardlink engine (`vault/packages/python/shared`) achieving zero-copy materialization on NTFS volumes.
+  - End-to-end verified real GPU execution of `Academic\sem5\DL\exp1` without legacy `.venv` dependencies, passing all 9 GPU verification gates.
+  - Project-specific retirement readiness report classifying `exp1` as `READY_FOR_RETIREMENT`.
+  - Non-executable GUI architecture and visual branding specification (`docs/GUI_AND_BRANDING_SPECIFICATION.md`).
+  - 104/104 passing automated regression tests across the workspace.
+
+---
+
 ## Future Roadmap
 
-### Stage 2.9: Multi-Ecosystem Adapters
+### Stage 2.9.2: Active Ecosystem Execution Adapters
 - **Status**: `PLANNED` (Recommended Next Milestone)
 - **Ecosystems**:
   - **Node.js / JavaScript**: Integration with `pnpm` content-addressable store and `package.json` manifest parsing.
   - **Go**: Integration with `GOPATH`/`GOMODCACHE` and `go.mod` module management.
   - **Java / JVM**: Integration with Maven/Gradle caches and JDK toolchain management.
 
-### Stage 3.0: Desktop Control Plane (GUI)
+### Stage 3.0: Desktop Control Center (Tauri 2.0 GUI)
 - **Status**: `PLANNED`
 - **Objectives**:
-  - Native Windows desktop application providing interactive workspace storage visualization.
-  - Visual dependency graph explorer.
-  - One-click ephemeral environment lifecycle controls.
+  - Native Windows desktop application consuming the Rust core via Tauri 2.0.
+  - Interactive cockpit for GPU telemetry, active leases, storage deduplication, and staged toolchain adoption.
+  - Implementation based on [docs/GUI_AND_BRANDING_SPECIFICATION.md](GUI_AND_BRANDING_SPECIFICATION.md).

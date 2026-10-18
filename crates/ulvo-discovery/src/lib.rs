@@ -6,6 +6,8 @@ pub mod project_lifecycle;
 pub use project_lifecycle::*;
 pub mod migration_orchestrator;
 pub use migration_orchestrator::*;
+pub mod toolchain_inventory;
+pub use toolchain_inventory::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use serde::{Deserialize, Serialize};
 use ulvo_core::*;
 use ulvo_adapters::{
     bounded_read, is_reparse_point, sha256_hex, UvManager,
@@ -283,6 +284,42 @@ impl ProjectOrchestrator {
             message: format!("Current state: {state} ({} active process leases)", active_pids.len()),
         });
 
+        // 5. GPU hardware and capacity check
+        if let Ok(ref m) = manifest_res {
+            if let Some(ref gpu_cfg) = m.gpu {
+                if gpu_cfg.required.unwrap_or(false) {
+                    let host_gpu = Self::detect_host_gpu();
+                    match host_gpu {
+                        Some(ref gpu) => {
+                            checks.push(DoctorCheck {
+                                name: "GPU Hardware & Driver".into(),
+                                passed: true,
+                                message: format!("Found {} (Driver: {}, VRAM: {} MiB, Compute: {})",
+                                    gpu.name, gpu.driver_version, gpu.vram_mib, gpu.compute_capability),
+                            });
+                        }
+                        None => {
+                            checks.push(DoctorCheck {
+                                name: "GPU Hardware & Driver".into(),
+                                passed: false,
+                                message: "No compatible NVIDIA GPU or driver detected on host".into(),
+                            });
+                        }
+                    }
+
+                    let free_bytes = ulvo_adapters::get_disk_free_bytes(&self.vault_root).unwrap_or(0);
+                    let safety_reserve = 524_288_000;
+                    checks.push(DoctorCheck {
+                        name: "Vault Storage Capacity".into(),
+                        passed: free_bytes >= safety_reserve + 104_857_600,
+                        message: format!("Free: {:.2} GB, Safety Reserve: {:.2} MB",
+                            free_bytes as f64 / 1_073_741_824.0,
+                            safety_reserve as f64 / 1_048_576.0),
+                    });
+                }
+            }
+        }
+
         Ok(ProjectDoctorReport {
             schema_version: 1,
             project_path: root.to_string_lossy().into_owned(),
@@ -425,6 +462,21 @@ impl ProjectOrchestrator {
 
         // Materialize
         self.uv.materialize_environment(&env_path, Some(&resolved_py))?;
+
+        if let Some(ref gpu_cfg) = manifest.gpu {
+            if gpu_cfg.required.unwrap_or(false) {
+                // Enforce capacity check
+                let free_bytes = ulvo_adapters::get_disk_free_bytes(&self.vault_root).unwrap_or(0);
+                let safety_reserve = 524_288_000; // 500 MB
+                if free_bytes < safety_reserve + 104_857_600 {
+                    return Err(format!(
+                        "BLOCKED_CAPACITY: Insufficient free space on vault volume ({free_bytes} bytes free, 500 MB safety reserve required)"
+                    ));
+                }
+
+                self.link_shared_packages(&env_path, project_root)?;
+            }
+        }
 
         if !req_files.is_empty() {
             self.uv.install_requirements(&env_path, &req_files)?;
@@ -810,6 +862,73 @@ impl ProjectOrchestrator {
             .map_err(|e| format!("failed to serialize lease: {e}"))?;
         ulvo_adapters::write_atomic(&lease_file, json.as_bytes())
     }
+
+    pub fn detect_host_gpu() -> Option<HostGpuInfo> {
+        let out = std::process::Command::new("nvidia-smi")
+            .arg("--query-gpu=name,driver_version,memory.total")
+            .arg("--format=csv,noheader,nounits")
+            .output()
+            .ok()?;
+        if out.status.success() {
+            let s = String::from_utf8_lossy(&out.stdout);
+            let line = s.lines().next()?;
+            let parts: Vec<&str> = line.split(',').map(|p| p.trim()).collect();
+            if parts.len() >= 3 {
+                let name = parts[0].to_string();
+                let driver = parts[1].to_string();
+                let vram = parts[2].parse().unwrap_or(0);
+                let cc = if name.contains("RTX 2050") || name.contains("RTX 30") {
+                    "sm_86".to_string()
+                } else if name.contains("RTX 40") {
+                    "sm_89".to_string()
+                } else {
+                    "sm_75".to_string()
+                };
+                return Some(HostGpuInfo {
+                    name,
+                    driver_version: driver,
+                    vram_mib: vram,
+                    compute_capability: cc,
+                });
+            }
+        }
+        None
+    }
+
+    pub fn link_shared_packages(&self, env_path: &Path, project_root: &Path) -> Result<(), String> {
+        let env_site_packages = env_path.join("Lib").join("site-packages");
+        std::fs::create_dir_all(&env_site_packages).map_err(|e| e.to_string())?;
+
+        let shared_store = self.uv.vault_paths().shared_packages_dir.clone();
+        std::fs::create_dir_all(&shared_store).map_err(|e| e.to_string())?;
+
+        // 1. If shared store does not yet have torch, check if local project candidate has it to seed shared store
+        let local_candidate_site = project_root.join(".venv").join("Lib").join("site-packages");
+        if local_candidate_site.is_dir() {
+            let torch_dir = local_candidate_site.join("torch");
+            if torch_dir.is_dir() {
+                let shared_torch = shared_store.join("torch");
+                if !shared_torch.is_dir() {
+                    let _ = ulvo_adapters::hardlink_or_copy_tree(&local_candidate_site, &shared_store);
+                }
+            }
+        }
+
+        // 2. Link from shared store into env_site_packages
+        if shared_store.is_dir() {
+            let _ = ulvo_adapters::hardlink_or_copy_tree(&shared_store, &env_site_packages);
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostGpuInfo {
+    pub name: String,
+    pub driver_version: String,
+    pub vram_mib: u64,
+    pub compute_capability: String,
 }
 
 #[cfg(test)]

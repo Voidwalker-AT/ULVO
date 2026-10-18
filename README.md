@@ -87,6 +87,13 @@ The following capabilities are fully implemented, verified natively on Windows, 
 - **Win32 Job Object Supervision**: Kernel-level child process termination (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) guarding against lingering background workers.
 - **Leaf-First Safe Deletion Engine**: Bottom-up directory traversal rejecting reparse points/junctions and safely clearing read-only attributes with retry backoff.
 - **Dual Storage Accounting**: Physical cluster allocation (`GetCompressedFileSizeW`) and volume free-space delta (`GetDiskFreeSpaceExW`).
+- **GPU Environment Compatibility Model**: First-class CUDA/GPU typed metadata tracking device compute capability (`sm_86`), NVIDIA display drivers (`596.49`), framework variants (`+cu124` vs `+cpu`), and storage capacity gates.
+- **Strict Kernel Driver Boundary Enforcement**: Clear demarcation separating system-managed display drivers from user-space ULVO runtimes; kernel driver relocation is strictly prohibited.
+- **Universal Multi-Ecosystem Toolchain Inventory**: Read-only scanning across Windows PATH, known roots, MSYS2, VS Code, and WSL metadata, discovering 29 toolchains across Python, uv, Rust, Node.js, Go, Java, Ruby, .NET, GCC, G++, Clang, CMake, and Ninja.
+- **Typed 9-Stage Toolchain Adoption Engine**: Formal state machine (`EXTERNAL_DISCOVERED` -> `COMPATIBILITY_ASSESSED` -> `ADOPTION_PLANNED` -> `STAGING` -> `VERIFIED` -> `MANAGED`) with relocation rejection and rollback verification.
+- **Unified Execution Gateway Foundation**: Read-only `GatewayResolver` constructing process-local PATHs and ecosystem environments from Vault Registry identities without global state pollution.
+- **Shared Package-Store Hardlinking**: Single-instance immutable package store (`vault/packages/python/shared`) hardlinking large native DLLs and wheels (PyTorch, torchvision) into isolated ephemeral environments with zero redundant disk allocation.
+- **Real GPU Deep-Learning Pilot Verification**: End-to-end verified execution of `Academic\sem5\DL\exp1` under ULVO on an NVIDIA RTX 2050 GPU, passing all 9 verification gates (tensor allocation, CUDA forward pass, loss computation, backprop, numerical CPU/GPU parity, and zero legacy `.venv` imports).
 
 ---
 
@@ -94,9 +101,9 @@ The following capabilities are fully implemented, verified natively on Windows, 
 
 The following capabilities are in active development or planned for subsequent releases:
 
-- **Shared Package-Store Hardlinking**: Hardlinked package caching across isolated environments.
-- **Multi-Ecosystem Expansion**: Adapters for Node.js (`pnpm`), Go (`GOMODCACHE`), and Java/JVM.
-- **Desktop Graphical Interface**: Native Windows desktop GUI for workspace visualization and environment management.
+- **Desktop Graphical Interface**: Native Windows desktop GUI (Tauri 2.0) based on the comprehensive architectural and branding specification in [docs/GUI_AND_BRANDING_SPECIFICATION.md](docs/GUI_AND_BRANDING_SPECIFICATION.md).
+- **Multi-Ecosystem Expansion**: Active execution adapters for Node.js (`pnpm`), Go (`GOMODCACHE`), and Java/JVM.
+- **Automated Toolchain Relocation Engine**: Managed staging and relocatability verification pipelines for adopted external runtimes.
 
 ---
 

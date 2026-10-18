@@ -10,6 +10,7 @@ pub struct VaultPaths {
     pub packages_dir: PathBuf,
     pub environments_dir: PathBuf,
     pub uv_cache_dir: PathBuf,
+    pub shared_packages_dir: PathBuf,
 }
 
 impl VaultPaths {
@@ -18,6 +19,7 @@ impl VaultPaths {
         let packages_dir = vault_root.join("packages").join("python");
         let environments_dir = vault_root.join("environments").join("python");
         let uv_cache_dir = packages_dir.join("uv-cache");
+        let shared_packages_dir = packages_dir.join("shared");
 
         Self {
             vault_root,
@@ -25,6 +27,7 @@ impl VaultPaths {
             packages_dir,
             environments_dir,
             uv_cache_dir,
+            shared_packages_dir,
         }
     }
 
@@ -33,6 +36,7 @@ impl VaultPaths {
         std::fs::create_dir_all(&self.packages_dir)?;
         std::fs::create_dir_all(&self.environments_dir)?;
         std::fs::create_dir_all(&self.uv_cache_dir)?;
+        std::fs::create_dir_all(&self.shared_packages_dir)?;
         Ok(())
     }
 }
