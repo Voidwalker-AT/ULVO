@@ -225,9 +225,75 @@ ulvo workspace savings ./workspace --json
 
 ---
 
-## 5. Non-Mutating Execution Guarantee
+## 5. `ulvo project`
 
-All current `ulvo` CLI commands operate in **read-only mode**:
-- No files are created, modified, or deleted within inspected project directories.
-- No global environment variables (e.g. `PATH`, `PYTHONPATH`) or Windows registry keys are altered.
-- All temporary test fixtures are created in isolated directories with explicit process-level ownership sentinels.
+Commands for inspecting, resolving, and diagnosing project configuration and runtime dependencies.
+
+### 5.1 `ulvo project inspect <path>`
+Inspects a project directory for recognized native manifests and `.ulvo/manifest.toml` declarations.
+
+```sh
+ulvo project inspect E:\Workspace\Active\NexusNode\server [--json]
+```
+
+### 5.2 `ulvo project resolve <path>`
+Resolves runtime requirements and computes the deterministic environment identifier (`env_<hash>`) and vault target directory.
+
+```sh
+ulvo project resolve E:\Workspace\Active\NexusNode\server [--json]
+```
+
+### 5.3 `ulvo project doctor <path>`
+Executes preflight health and dependency checks, verifying manifest syntax, `uv` package manager availability, runtime resolution, and dependency manifest presence.
+
+```sh
+ulvo project doctor E:\Workspace\Active\NexusNode\server [--json]
+```
+
+---
+
+## 6. `ulvo run`
+
+Executes a command inside an isolated, ULVO-managed project environment. If the environment is not yet materialized, ULVO provisions it on demand inside the vault with PATH sanitization (preventing leakage from local `.venv`).
+
+### Syntax
+```sh
+ulvo run <PATH> [--reclaim] -- <COMMAND>...
+```
+
+### Options
+- `--reclaim`: Automatically reclaim and unlink the environment after command execution quiesces.
+
+### Example
+```sh
+ulvo run E:\Workspace\Active\NexusNode\server -- python -m unittest tests/test_package.py
+```
+
+---
+
+## 7. `ulvo env`
+
+Manages the lifecycle and reclamation of ULVO project environments.
+
+### 7.1 `ulvo env status <path>`
+Queries the current 9-state lifecycle (`DEFINED`, `RESOLVED`, `MATERIALIZING`, `READY`, `EXECUTING`, `RELEASED`, `RECLAIMABLE`, `RECLAIMED`, `FAILED`), active process leases, and quiescence.
+
+```sh
+ulvo env status E:\Workspace\Active\NexusNode\server [--json]
+```
+
+### 7.2 `ulvo env reclaim <path>`
+Safely reclaims an environment if quiescent. Enforces fail-closed safety gates (Win32 process liveness checking, ownership sentinel verification, reparse point rejection).
+
+```sh
+ulvo env reclaim E:\Workspace\Active\NexusNode\server [--json]
+```
+
+---
+
+## 8. Non-Mutating Execution Guarantee
+
+- Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
+- All temporary environments and package caches reside exclusively inside `vault/`.
+- Safe reclamation fails closed if active processes are detected holding leases.
+- All temporary test fixtures use process-level ownership sentinels.

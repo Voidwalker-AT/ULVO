@@ -215,7 +215,7 @@ pub fn discover_python_resources(vault_root: &Path) -> Result<Vec<Resource>, Str
     Ok(resources)
 }
 
-fn is_reparse_point(path: &Path) -> bool {
+pub fn is_reparse_point(path: &Path) -> bool {
     if let Ok(meta) = std::fs::symlink_metadata(path) {
         if meta.file_type().is_symlink() {
             return true;

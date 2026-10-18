@@ -72,6 +72,13 @@ pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
         }
     }
 
+    if let Ok(env_val) = std::env::var("ULVO_VAULT_ROOT") {
+        let env_p = PathBuf::from(env_val);
+        if env_p.is_dir() && reject_links(&env_p).is_ok() {
+            return Ok(env_p);
+        }
+    }
+
     let direct = PathBuf::from("vault");
     if direct.is_dir() {
         reject_links(&direct)?;
@@ -98,6 +105,11 @@ pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
                 }
             }
         }
+    }
+
+    let well_known = PathBuf::from(r"E:\Workspace\Active\ULVO\vault");
+    if well_known.is_dir() && reject_links(&well_known).is_ok() {
+        return Ok(well_known);
     }
 
     Ok(PathBuf::from("vault"))

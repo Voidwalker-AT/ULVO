@@ -10,9 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- **Stage 2.8 Ephemeral Python Environment Pilot**: Controlled ephemeral virtual environment orchestration for `Active\NexusNode\server`.
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
+
+---
+
+## [0.2.0] - 2026-10-19
+
+### Stage 2.8 — Project-to-ULVO Ephemeral Python Environment Integration
+
+#### Added
+- **9-State Environment Lifecycle Engine**: Implemented complete state model (`DEFINED`, `RESOLVED`, `MATERIALIZING`, `READY`, `EXECUTING`, `RELEASED`, `RECLAIMABLE`, `RECLAIMED`, `FAILED`) in `ulvo-core` with persistent ownership records (`.ulvo_ownership.json`) and lease tracking (`.ulvo_lease.json`).
+- **uv Package & Environment Adapter**: Built `UvManager` in `ulvo-adapters` supporting isolated `--cache-dir` (`vault/packages/python/uv-cache`) and isolated target environments (`vault/environments/python/env_<hash>`).
+- **Fail-Closed Process Protection**: Added Win32 `OpenProcess`/`GetExitCodeProcess` liveness checks to prevent environment deletion while active leased processes or child processes exist.
+- **PATH Sanitization**: Implemented strict `PATH` filtering removing any references to project-local `.venv` to enforce complete vault execution isolation.
+- **CLI Subcommands**: Added `ulvo project inspect`, `ulvo project resolve`, `ulvo project doctor`, `ulvo run [--reclaim]`, `ulvo env status`, and `ulvo env reclaim` with full `--json` support.
+- **Pilot Project Integration**: Integrated and verified `NexusNode/server` pilot running 40/40 tests cleanly through ULVO without accessing the old `.venv`.
+- **Reclamation Telemetry**: Implemented directory size calculation and verified safe reclamation of 29.25 MB (30,669,189 bytes) upon quiescence.
 
 ---
 

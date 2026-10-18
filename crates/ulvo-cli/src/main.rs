@@ -33,6 +33,55 @@ enum Commands {
         #[command(subcommand)]
         subcommand: WorkspaceCommands,
     },
+    /// Project commands for inspecting, resolving, and diagnosing projects
+    Project {
+        #[command(subcommand)]
+        subcommand: ProjectCommands,
+    },
+    /// Run a command inside an ephemeral or managed ULVO project environment
+    Run {
+        /// Project directory path
+        project_path: PathBuf,
+        /// Automatically reclaim the environment after execution quiesces
+        #[arg(long)]
+        reclaim: bool,
+        /// Command and arguments to execute
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<String>,
+    },
+    /// Environment lifecycle management commands
+    Env {
+        #[command(subcommand)]
+        subcommand: EnvCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum ProjectCommands {
+    /// Inspect a project's ULVO manifest and environment configuration
+    Inspect {
+        project_path: PathBuf,
+    },
+    /// Resolve project runtime requirements and determine environment ID
+    Resolve {
+        project_path: PathBuf,
+    },
+    /// Validate prerequisites, runtimes, package managers, and directories
+    Doctor {
+        project_path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum EnvCommands {
+    /// Check current environment state, leases, processes, and storage
+    Status {
+        project_path: PathBuf,
+    },
+    /// Safely reclaim environment if quiesced
+    Reclaim {
+        project_path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -80,7 +129,7 @@ enum WorkspaceCommands {
     },
 }
 
-fn run(cli: Cli) -> Result<(), String> {
+fn run(cli: Cli) -> Result<i32, String> {
     match cli.command {
         Commands::Inventory { all_backends, verify } => {
             let result = ulvo_discovery::inventory(all_backends, verify);
@@ -96,6 +145,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 }
                 for diagnostic in result.diagnostics { println!("Note: {diagnostic}"); }
             }
+            Ok(0)
         }
         Commands::Inspect { project_path } => {
             let result = ulvo_discovery::inspect(&project_path)?;
@@ -107,6 +157,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("ULVO manifest: {}", if result.ulvo_manifest.is_some() { "valid" } else { "absent" });
                 for diagnostic in result.diagnostics { println!("Note: {diagnostic}"); }
             }
+            Ok(0)
         }
         Commands::Vault { vault_root, subcommand } => {
             let vault_path = ulvo_discovery::resolve_vault_root(vault_root.as_deref())?;
@@ -243,6 +294,7 @@ fn run(cli: Cli) -> Result<(), String> {
                     }
                 }
             }
+            Ok(0)
         }
         Commands::Workspace { subcommand } => {
             match subcommand {
@@ -395,21 +447,153 @@ fn run(cli: Cli) -> Result<(), String> {
                     }
                 }
             }
+            Ok(0)
+        }
+        Commands::Project { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
+            match subcommand {
+                ProjectCommands::Inspect { project_path } => {
+                    let result = orchestrator.inspect(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Project Inspection ({})", result.path);
+                        println!("  Native manifests: {}", if result.native_manifests.is_empty() { "none".to_string() } else { result.native_manifests.join(", ") });
+                        if let Some(ref m) = result.ulvo_manifest {
+                            println!("  ULVO manifest:    valid (name: '{}', schema: {})", m.project_name().unwrap_or("unnamed"), m.schema_version);
+                            println!("  Runtimes:         {:?}", m.runtimes);
+                            if let Some(ref pm) = m.package_manager {
+                                println!("  Package Manager:  {} (reqs: {:?})", pm.name.as_deref().unwrap_or("unknown"), pm.requirements);
+                            }
+                            if let Some(ref lc) = m.lifecycle {
+                                println!("  Lifecycle:        {} (timeout: {}s, auto_reclaim: {:?})",
+                                    lc.policy.as_deref().unwrap_or("ephemeral"),
+                                    lc.lease_timeout_seconds.unwrap_or(300),
+                                    lc.allow_reclaim_on_quiescence.unwrap_or(false)
+                                );
+                            }
+                        } else {
+                            println!("  ULVO manifest:    absent");
+                        }
+                        for diagnostic in result.diagnostics { println!("  Note: {diagnostic}"); }
+                    }
+                    Ok(0)
+                }
+                ProjectCommands::Resolve { project_path } => {
+                    let result = orchestrator.resolve(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Project Resolution ({})", result.project_path);
+                        println!("  Project Name:            {}", result.project_name);
+                        println!("  Runtime Requested:       {}", result.runtime_requested);
+                        println!("  Runtime Resolved:        {}", result.runtime_resolved);
+                        println!("  Package Manager:         {}", result.package_manager);
+                        println!("  Requirement Files:       {}", if result.requirement_files.is_empty() { "none".to_string() } else { result.requirement_files.join(", ") });
+                        println!("  Environment Target:      {}", result.environment_target_path);
+                        println!("  Lifecycle State:         {}", result.state);
+                    }
+                    Ok(0)
+                }
+                ProjectCommands::Doctor { project_path } => {
+                    let result = orchestrator.doctor(&project_path)?;
+                    let all_passed = result.checks.iter().all(|c| c.passed);
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Project Doctor ({})", result.project_path);
+                        println!("  Overall Status:          {}", if all_passed { "PASSED" } else { "ATTENTION REQUIRED" });
+                        println!("  Manifest Valid:          {}", result.manifest_valid);
+                        println!("  uv Available:            {} ({})", result.uv_available, result.uv_version.as_deref().unwrap_or("not found"));
+                        println!("  Runtime Available:       {} (requested: {}, resolved: {})",
+                            result.runtime_available,
+                            result.runtime_requested.as_deref().unwrap_or("none"),
+                            result.runtime_resolved.as_deref().unwrap_or("none")
+                        );
+                        println!("  Dependencies Resolvable: {}", result.dependencies_resolvable);
+                        println!("  Environment State:       {} ({} active processes)", result.environment_state, result.active_processes);
+                        println!("\n  Diagnostic Checks:");
+                        for check in &result.checks {
+                            let flag = if check.passed { "[PASS]" } else { "[FAIL]" };
+                            println!("    {:<7} {}: {}", flag, check.name, check.message);
+                        }
+                    }
+                    Ok(if all_passed { 0 } else { 1 })
+                }
+            }
+        }
+        Commands::Run { project_path, reclaim, command } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
+            let exit_code = orchestrator.run(&project_path, &command, reclaim)?;
+            Ok(exit_code)
+        }
+        Commands::Env { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
+            match subcommand {
+                EnvCommands::Status { project_path } => {
+                    let result = orchestrator.status(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Environment Status ({})", result.project_path);
+                        println!("  Environment ID:     {}", result.environment_id);
+                        println!("  Environment Path:   {}", result.environment_path);
+                        println!("  Lifecycle State:    {}", result.state);
+                        println!("  Materialized:       {}", result.is_materialized);
+                        println!("  Quiescent:          {}", result.is_quiescent);
+                        println!("  Can Reclaim:        {}", result.can_reclaim);
+                        println!("  Active Processes:   {}", result.active_pids.len());
+                        if !result.active_pids.is_empty() {
+                            println!("    PIDs:             {:?}", result.active_pids);
+                        }
+                        if let Some(ref exe) = result.python_executable {
+                            println!("  Python Executable:  {}", exe);
+                        }
+                        if let Some(ref ver) = result.python_version {
+                            println!("  Python Version:     {}", ver);
+                        }
+                    }
+                    Ok(0)
+                }
+                EnvCommands::Reclaim { project_path } => {
+                    let result = orchestrator.reclaim(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Environment Reclaim ({})", result.project_path);
+                        println!("  Environment ID:     {}", result.environment_id);
+                        println!("  Environment Path:   {}", result.environment_path);
+                        println!("  Reclaimed:          {}", result.reclaimed);
+                        println!("  Bytes Freed:        {} ({:.2} MB)", result.bytes_reclaimed, (result.bytes_reclaimed as f64) / (1024.0 * 1024.0));
+                        println!("  Status:             {}", result.message);
+                    }
+                    Ok(0)
+                }
+            }
         }
     }
-    Ok(())
 }
 
 fn main() {
     let cli = Cli::parse();
     let json = cli.json;
-    if let Err(error) = run(cli) {
-        if json {
-            println!("{}", serde_json::json!({"schema_version": 1, "error": error}));
-        } else {
-            eprintln!("ulvo: {error}");
+    match run(cli) {
+        Ok(code) => {
+            if code != 0 {
+                std::process::exit(code);
+            }
         }
-        std::process::exit(1);
+        Err(error) => {
+            if json {
+                println!("{}", serde_json::json!({"schema_version": 1, "error": error}));
+            } else {
+                eprintln!("ulvo: {error}");
+            }
+            std::process::exit(1);
+        }
     }
 }
 
@@ -432,6 +616,13 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "workspace", "python-envs"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "duplicates"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "savings", "--json"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "project", "inspect", "/fixture", "--json"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "project", "resolve", "/fixture"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "project", "doctor", "/fixture"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "run", "/fixture", "--", "python", "-m", "unittest"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "run", "/fixture", "--reclaim", "--", "python", "app.py"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "env", "status", "/fixture"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "env", "reclaim", "/fixture"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "install", "evil"]).is_err());
     }
 

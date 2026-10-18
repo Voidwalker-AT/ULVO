@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: ULVO is an active engineering foundation. It is **not yet** a complete universal package manager or automatic ephemeral environment provisioner. It currently provides a native Windows CLI, a deterministic Universal Vault Registry, a Windows-native Rust toolchain inside a single-root vault, and a read-only Python/uv workspace storage intelligence and deduplication engine.
+> **Current Development Status**: ULVO is an active engineering foundation. It provides a native Windows CLI, a deterministic Universal Vault Registry, a Windows-native Rust toolchain inside a single-root vault, read-only workspace storage intelligence, and on-demand ephemeral Python environment orchestration with lease tracking and safe reclamation.
 
 ---
 
@@ -194,6 +194,22 @@ Calculate conservative, realistic, and theoretical storage reclamation opportuni
 List all tracked development resources in the Universal Vault Registry:
 ```powershell
 .\target\x86_64-pc-windows-gnu\debug\ulvo.exe vault list --json
+```
+
+### Project Diagnostics & Ephemeral Execution
+Diagnose project requirements, run commands in an isolated on-demand environment, and reclaim storage safely:
+```powershell
+# Diagnose manifest syntax, runtimes, and dependencies
+ulvo project doctor <PROJECT_PATH>
+
+# Execute command inside vault-managed ephemeral environment
+ulvo run <PROJECT_PATH> -- python app.py
+
+# Check environment lifecycle state and process leases
+ulvo env status <PROJECT_PATH>
+
+# Reclaim environment storage when quiescent
+ulvo env reclaim <PROJECT_PATH>
 ```
 
 For complete command-line documentation, see [docs/CLI.md](docs/CLI.md).

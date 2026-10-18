@@ -12,9 +12,9 @@ flowchart LR
     S24["Stage 2.4 - 2.5<br/>Windows Toolchain Provisioning<br/>(COMPLETED)"]
     S26["Stage 2.6<br/>Vault Registry Foundation<br/>(COMPLETED)"]
     S27["Stage 2.7 - 2.7.1<br/>Workspace Intelligence & NTFS Identity<br/>(COMPLETED)"]
-    PUB["GitHub Publication<br/>Public Checkpoint<br/>(ACTIVE)"]
-    S28["Stage 2.8<br/>Controlled Ephemeral Venv Pilot<br/>(UP NEXT)"]
-    S29["Stage 2.9+<br/>Multi-Language Orchestration & GUI<br/>(PLANNED)"]
+    PUB["GitHub Publication<br/>Public Checkpoint<br/>(COMPLETED)"]
+    S28["Stage 2.8<br/>Ephemeral Python Environment Pilot<br/>(COMPLETED)"]
+    S29["Stage 2.9+<br/>Multi-Language Orchestration & GUI<br/>(UP NEXT)"]
 
     P0 --> S24
     S24 --> S26
@@ -78,29 +78,25 @@ flowchart LR
   - Process-level ownership sentinels (`.ulvo_test_sentinel`) for test fixtures.
   - 60/60 passing automated unit and integration tests.
 
-### GitHub Publication Milestone (Current)
-- **Status**: `ACTIVE`
+### Stage 2.8: Project-to-ULVO Ephemeral Python Environment Integration
+- **Status**: `COMPLETED`
+- **Pilot Target**: `Active\NexusNode\server`
 - **Deliverables**:
-  - Professional, comprehensive `README.md` and `CHANGELOG.md`.
-  - Fully organized architecture, CLI, registry, security, roadmap, and development documentation.
-  - Security and privacy audit of commit history and working tree.
-  - Master branch push to `origin` (`https://github.com/Voidwalker-AT/ULVO.git`).
+  - 9-state environment lifecycle engine (`DEFINED` → `RESOLVED` → `MATERIALIZING` → `READY` → `EXECUTING` → `RELEASED` → `RECLAIMABLE` → `RECLAIMED` / `FAILED`) in `ulvo-core`.
+  - `UvManager` in `ulvo-adapters` for isolated package caching (`vault/packages/python/uv-cache`) and environment materialization (`vault/environments/python/env_<hash>`).
+  - Fail-closed Win32 process liveness checking preventing deletion while active processes exist.
+  - Subprocess `PATH` sanitization preventing local `.venv` leakage.
+  - Full CLI integration: `ulvo project inspect`, `resolve`, `doctor`, `ulvo run [--reclaim]`, `ulvo env status`, and `ulvo env reclaim`.
+  - NexusNode pilot verification with 40/40 tests passing.
+  - Safe reclamation telemetry recording 29.25 MB freed upon quiescence.
+  - 67/67 automated tests passing across the workspace.
 
 ---
 
 ## Future Roadmap
 
-### Stage 2.8: Controlled Ephemeral Python Environment Pilot
-- **Status**: `PLANNED` (Recommended Next Milestone)
-- **Target Candidate**: `Active\NexusNode\server`
-- **Objectives**:
-  - Parse project requirements / manifest (`pyproject.toml` or `requirements.txt`).
-  - Materialize an isolated ephemeral environment via junction projection from the ULVO package store.
-  - Execute project scripts via `ulvo run -- ...` with process-local environment variables.
-  - Safely reclaim the ephemeral projection without touching the project source or persistent vault.
-
 ### Stage 2.9: Multi-Ecosystem Adapters
-- **Status**: `PLANNED`
+- **Status**: `PLANNED` (Recommended Next Milestone)
 - **Ecosystems**:
   - **Node.js / JavaScript**: Integration with `pnpm` content-addressable store and `package.json` manifest parsing.
   - **Go**: Integration with `GOPATH`/`GOMODCACHE` and `go.mod` module management.

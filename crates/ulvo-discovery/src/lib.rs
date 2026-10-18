@@ -2,6 +2,8 @@ pub mod vault;
 pub use vault::*;
 pub mod workspace_audit;
 pub use workspace_audit::*;
+pub mod project_lifecycle;
+pub use project_lifecycle::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;
