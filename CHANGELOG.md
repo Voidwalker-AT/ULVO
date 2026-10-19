@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-10-19
 
+### Stage 3.1.3 — Final Production Reliability, Real-World Dogfooding, Performance Profiling & Release Preparation
+
+#### Transactional Installer & Uninstaller Security Hardening
+- **Atomic Directory Swapping & Journaling**:
+  - Rewrote `scripts/install-ulvo.ps1` with sibling staging (`.ulvo_stage_<txnId>`) and atomic `[System.IO.Directory]::Move` directory swaps.
+  - Implemented state journaling (`.ulvo_txn_<txnId>.journal.json`) and automated interrupted transaction crash recovery.
+  - Automated migration and preservation of user custom settings (`config\preferences.json`) across upgrades.
+- **Two-Phase Uninstaller Security & Cryptographic Validation**:
+  - Rewrote `scripts/uninstall-ulvo.ps1` with mandatory `.ulvo-install-manifest.json` ownership validation.
+  - Phase 1 security invariants check: Rejects directory traversal (`..`), alternate data streams (`:`), rooted paths, and sibling-prefix escapes before touching disk.
+  - Per-file SHA-256 validation preserves user-modified files; vault data and user projects are strictly preserved.
+- **7-Suite Installer Lifecycle Verification (`scripts/test-installer-lifecycle.ps1`)**:
+  - Verified clean install, execution, transactional upgrade with separate staging, crash recovery at `STAGED` and `BACKUP_CREATED`, 4 manifest attack vectors blocked, hash mismatch preservation, and clean uninstallation.
+
+#### Real Isolated Provisioning Lifecycle Engine (`scripts/test-real-provisioning.ps1`)
+- **10-Step Transaction Validation**:
+  - Catalog lookup -> version selection -> download -> SHA-256 validation -> staging -> validation -> registry commit -> launch -> rollback -> removal.
+  - Eliminated fake `.exe` files containing batch text in favor of properly named `.cmd` wrappers and bounded execution timeouts.
+  - Verified atomic registry update and automatic rollback on SHA-256 corruption.
+
+#### Deep Performance & Full Process-Tree Profiling (`scripts/benchmark-deep-performance.ps1`)
+- **Multi-Run Latency Baselines**:
+  - Direct Native Python: Min 1009 ms, Median 1011 ms, P95 1054 ms
+  - ULVO Cold Start: Min 2015 ms, Median 2016 ms, P95 2017 ms
+  - ULVO Warm & Repeated: Min 2020 ms, Median 2027 ms, P95 2032 ms
+  - Environment Reclamation: Min 1009 ms, Median 1016 ms, P95 1057 ms
+- **Full Process-Tree Memory Profiling**:
+  - CLI Execution: Peak parent `ulvo.exe` WorkingSet = 6.80 MB, child `python.exe` = 5.05 MB (Total: 11.85 MB).
+  - Desktop GUI: Main window WorkingSet = 37.16 MB, WebView2 child = 120.21 MB (Total: 157.46 MB).
+  - GPU Telemetry: NVIDIA GeForce RTX 2050 (4096 MiB VRAM, 518 MiB used, Driver 596.49).
+  - Stored machine-readable evidence to `docs/evidence/stage3-1-3/deep-performance-benchmark.json`.
+
+#### Multi-Language Regression Suite (`scripts/test-multilang-regression.ps1`)
+- Verified 6/6 test suites across:
+  - Python standard library & math calculations
+  - `NexusNode/server` (Python 3.11.16)
+  - `CrossModalLab` (PIL 12.3.0)
+  - `Academic/sem5/DL/exp1` (PyTorch 2.6.0+cu124 with NVIDIA GeForce RTX 2050 CUDA acceleration)
+  - Universal Gateway multi-language execution (Go 1.26.5, Ruby 4.0.1, MSYS2 GCC 14.2.0)
+  - Invariant assertion: Zero project-local `.venv` folders and zero lingering active environments.
+
+#### Real Installed Desktop GUI Dogfooding (`scripts/test-real-installed-gui.ps1`)
+- Verified isolated installation into `$env:TEMP\ulvo_gui_installed`.
+- Launched real installed `bin\ulvo-desktop.exe`, located Win32 HWND, verified `ULVO Control Center` title, window geometry (1214x858), and responsive state.
+- Verified all 8 desktop backend data views (Doctor, Inventory, Catalog, Project Connector, Lifecycle Leases, Package Cache, Storage Intelligence, Background Agent).
+- Verified graceful exit upon `WM_CLOSE` and clean uninstallation without vault data deletion.
+
+#### Human Acceptance Gate & Release Artifacts
+- **Human Acceptance Protocol (`USER_ACCEPTANCE_TEST.md`)**:
+  - Detailed 15-step manual testing protocol with exact PowerShell actions, expected outcomes, red-flag indicators, and human sign-off template.
+- **Deterministic Distribution Package**:
+  - `dist/ulvo-v1.2.0-windows-x64-portable.zip` (11.72 MB, SHA-256: `63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618`)
+  - `dist/SHA256SUMS.txt`
+
 ### Stage 3.1.2 — Real Desktop GUI Dogfooding, Safety Hardening, Gateway Benchmarks & Release Candidate Validation
 
 #### Critical Safety Repairs

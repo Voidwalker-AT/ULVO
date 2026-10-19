@@ -1,0 +1,88 @@
+﻿{
+    "process_tree_memory_mb":  {
+                                   "desktop_gui":  {
+                                                       "combined_gui_ws":  166.05,
+                                                       "webview2_children_count":  1,
+                                                       "webview2_children_pb":  35.47,
+                                                       "clean_exit":  false,
+                                                       "main_window_ws":  50.78,
+                                                       "main_window_pb":  6.93,
+                                                       "webview2_children_ws":  115.27,
+                                                       "startup_latency_ms":  2285
+                                                   },
+                                   "cli_execution":  {
+                                                         "child_python_pb":  0.92,
+                                                         "child_python_ws":  5.05,
+                                                         "parent_ulvo_pb":  1.36,
+                                                         "parent_ulvo_ws":  6.8,
+                                                         "total_tree_ws":  11.85
+                                                     }
+                               },
+    "execution_latencies_ms":  {
+                                   "environment_reclamation":  {
+                                                                   "median":  1016,
+                                                                   "mean":  1027.33,
+                                                                   "min":  1009,
+                                                                   "samples":  [
+                                                                                   1009,
+                                                                                   1016,
+                                                                                   1057
+                                                                               ],
+                                                                   "max":  1057,
+                                                                   "p95":  1057
+                                                               },
+                                   "ulvo_cold":  {
+                                                     "median":  2016,
+                                                     "mean":  2016,
+                                                     "min":  2015,
+                                                     "samples":  [
+                                                                     2015,
+                                                                     2016,
+                                                                     2017
+                                                                 ],
+                                                     "max":  2017,
+                                                     "p95":  2017
+                                                 },
+                                   "ulvo_warm":  {
+                                                     "median":  2027,
+                                                     "mean":  2026.4,
+                                                     "min":  2020,
+                                                     "samples":  [
+                                                                     2020,
+                                                                     2023,
+                                                                     2027,
+                                                                     2030,
+                                                                     2032
+                                                                 ],
+                                                     "max":  2032,
+                                                     "p95":  2032
+                                                 },
+                                   "native_python":  {
+                                                         "median":  1011,
+                                                         "mean":  1019.8,
+                                                         "min":  1009,
+                                                         "samples":  [
+                                                                         1009,
+                                                                         1009,
+                                                                         1011,
+                                                                         1016,
+                                                                         1054
+                                                                     ],
+                                                         "max":  1054,
+                                                         "p95":  1054
+                                                     }
+                               },
+    "timestamp_utc":  "2026-10-19T17:58:12.1316577+00:00",
+    "schema_version":  1,
+    "host_os":  "Windows 11 x64",
+    "hardware_profile":  {
+                             "gpu":  {
+                                         "used_vram":  "518 MiB",
+                                         "device_name":  "NVIDIA GeForce RTX 2050",
+                                         "free_vram":  "3445 MiB",
+                                         "driver_version":  "596.49",
+                                         "gpu_utilization":  "29 %",
+                                         "total_vram":  "4096 MiB"
+                                     }
+                         }
+}

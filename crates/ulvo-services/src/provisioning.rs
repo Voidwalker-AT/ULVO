@@ -238,20 +238,20 @@ impl ProvisioningEngine {
         fs::create_dir_all(&bin_dir)
             .map_err(|e| format!("cannot create bin directory in staging: {e}"))?;
 
-        let exe_name = format!("{}.exe", plan.entry_id);
-        let staged_exe = bin_dir.join(&exe_name);
+        let cmd_name = format!("{}.cmd", plan.entry_id);
+        let staged_cmd = bin_dir.join(&cmd_name);
         let script_content = format!(
             "@echo off\r\necho {} {}\r\n",
             plan.entry_id, plan.version
         );
-        fs::write(&staged_exe, script_content)
-            .map_err(|e| format!("cannot create binary wrapper in staging: {e}"))?;
+        fs::write(&staged_cmd, script_content)
+            .map_err(|e| format!("cannot create script wrapper in staging: {e}"))?;
 
         // 7. VALIDATE (Run execution check inside private staging before committing!)
         progress(&ProvisioningStage::Validate, 0.75);
         let validation_output = format!("{} {} (ulvo-managed-x86_64-pc-windows)", plan.entry_id, plan.version);
-        if !staged_exe.is_file() {
-            let err = "Validation failure: staged executable was not created".to_string();
+        if !staged_cmd.is_file() {
+            let err = "Validation failure: staged command wrapper was not created".to_string();
             self.rollback(plan, &err);
             return Err(err);
         }

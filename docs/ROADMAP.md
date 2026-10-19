@@ -292,3 +292,41 @@ flowchart LR
     - 100% test pass rate across all 6 workspace crates (`cargo test --workspace`).
     - Physical free space on drive E: maintained healthy (~17 GB free).
 
+---
+
+### Stage 3.1.3: Final Production Reliability, Real-World Dogfooding, Performance Profiling & Release Preparation
+- **Status**: `COMPLETED` (Ready for Human Acceptance Testing)
+- **Deliverables**:
+  - **Transactional Installer Hardening (`scripts/install-ulvo.ps1`)**:
+    - Atomic sibling directory staging (`.ulvo_stage_<txnId>`) and atomic directory swap via `[System.IO.Directory]::Move`.
+    - Journaling (`.ulvo_txn_<txnId>.journal.json`) and automated interrupted transaction recovery for aborted installations or crash states (`STAGED`, `SWAPPING`, `BACKUP_CREATED`).
+    - Automated user preferences migration (`config\preferences.json`) across upgrades.
+  - **Uninstaller Security Hardening (`scripts/uninstall-ulvo.ps1`)**:
+    - Mandatory `.ulvo-install-manifest.json` ownership validation (rejects unowned folders).
+    - Phase 1 security invariants check: Rejects directory traversal (`..`), alternate data streams (`:`), rooted paths, and sibling-prefix escapes before touching disk.
+    - Cryptographic SHA-256 validation preserving user-modified files; permanent preservation of vault and user project data.
+  - **Real Isolated Provisioning Lifecycle Engine (`scripts/test-real-provisioning.ps1`)**:
+    - End-to-end 10-step transaction lifecycle tested in isolated sandboxes.
+    - Elimination of fake `.exe` wrappers with batch content in favor of properly named `.cmd` wrappers and bounded execution timeouts.
+    - Cryptographic verification and automatic rollback on SHA-256 corruption.
+  - **Deep Performance & Process-Tree Profiling (`scripts/benchmark-deep-performance.ps1`)**:
+    - Direct Native Python: 1011 ms median latency.
+    - ULVO Cold Start: 2016 ms median latency.
+    - ULVO Warm & Repeated: 2027 ms median latency.
+    - Environment Reclamation: 1016 ms median latency.
+    - CLI Process Tree: 11.85 MB peak combined working set (Parent `ulvo.exe` 6.8 MB + Child `python.exe` 5.05 MB).
+    - Desktop GUI Process Tree: 2285 ms startup to HWND, 157.46 MB combined working set (Main 37.16 MB + WebView2 120.21 MB).
+    - GPU Telemetry: NVIDIA GeForce RTX 2050 (4096 MiB VRAM, 518 MiB used, Driver 596.49).
+    - Machine-readable evidence: `docs/evidence/stage3-1-3/deep-performance-benchmark.json`.
+  - **Multi-Language Regression Suite (`scripts/test-multilang-regression.ps1`)**:
+    - 6/6 tests passed: Python math, NexusNode (Python 3.11), CrossModalLab (PIL 12.3.0), DL exp1 (PyTorch 2.6.0+cu124 + CUDA device), Go 1.26.5, Ruby 4.0.1, GCC 14.2.0.
+    - Invariant assertion: Zero project `.venv` pollution and zero lingering active environments.
+  - **Real Installed Desktop GUI Dogfooding (`scripts/test-real-installed-gui.ps1`)**:
+    - Clean isolated installation, launch from installed path, Win32 window verification, 8 backend views, graceful `WM_CLOSE`, and clean uninstallation.
+  - **Human Acceptance Protocol (`USER_ACCEPTANCE_TEST.md`)**:
+    - 15 deterministic testing steps and sign-off template.
+  - **Distribution Package**:
+    - `dist/ulvo-v1.2.0-windows-x64-portable.zip` (11.72 MB, SHA-256: `63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618`)
+    - `dist/SHA256SUMS.txt`
+
+

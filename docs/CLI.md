@@ -14,6 +14,18 @@ Commands:
   inspect    Inspect a project directory and its manifest configuration
   vault      Manage the Universal Vault Registry and inspect managed resources
   workspace  Analyze workspace storage, Python environments, and deduplication
+  project    Project commands for inspecting, resolving, and diagnosing projects
+  run        Run a command inside an ephemeral or managed ULVO project environment
+  env        Environment lifecycle management commands
+  migrate    Automated workspace-wide Python virtual-environment migration system
+  toolchain  Universal multi-ecosystem toolchain inventory and staged adoption
+  gpu        GPU hardware, driver, and framework compatibility inspection
+  exec       Execute a tool or command through the ULVO Unified Execution Gateway
+  doctor     System-wide diagnostic check verifying vault durability, gateway, runtimes, GPU and storage
+  catalog    Universal catalog of managed and available language runtimes, compilers, and toolchains
+  agent      Background reconciliation agent management
+  cache      Package-cache governance, audit, and storage budgets
+  storage    Universal storage intelligence, vault accounting, and deduplication reporting
   help       Print this message or the help of the given subcommand(s)
 
 Options:
