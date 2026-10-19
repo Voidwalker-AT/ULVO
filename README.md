@@ -98,6 +98,11 @@ The following capabilities are fully implemented, verified natively on Windows, 
 - **Unified Execution Gateway**: Production CLI gateway (`ulvo exec [--toolchain <name>] -- <cmd...>`) providing process-local PATH and environment isolation with deterministic collision ranking (`Managed` > `External` > `Unknown`).
 - **Durable Vault Registry Schema v2**: Persistent registry envelope with cryptographic SHA-256 checksums, cross-process file locking (`vault_registry.lock`), atomic writing, append-only journal (`journal.jsonl`), and corruption detection.
 - **Workspace-Wide Storage Recovery Milestone**: Automated retirement of legacy `.venv`s across 5 workspace projects (`exp1`, `exp2`, `server`, `ProofStack`, `whichllm`), recovering **9,791,592,159 bytes (~9.79 GB / 9,337.99 MB)** of verified physical disk space with zero regression in project functionality.
+- **Universal Content-Addressable Dependency Store (Stage 2.9.4)**: Immutable cryptographic SHA-256 CAS object storage (`vault/packages/cas`) with pure-Rust zero-dependency streaming hasher (FIPS 180-4), atomic staging, fail-safe reference tracking, and garbage collection of unreferenced artifacts.
+- **Coordinated Native Package Caching**: Unified telemetry across 7 native package stores (`uv-cache`, `shared wheels`, `cargo registry`, `pnpm-store`, `GOMODCACHE`, `gems`, `pacman pkg`).
+- **Machine-Wide Language & Toolchain Adoption**: Discovery of 41 development tools across Windows, MSYS2, and WSL; first-class non-destructive adoption of **Ruby 4.0.1** and **Go 1.26.5** governed by the Vault Registry.
+- **Unified Execution Gateway Hardening**: Multi-tool execution (`ulvo exec --tool <name>`) with Windows verbatim path (`\\?\`) normalization preventing MinGW/GCC `cannot execute 'cc1'` errors, and process-local environment injection for Ruby, Go, and Java.
+- **Transactional GPU Package Sharing**: ABI tag and CUDA capability verification for GPU packages with support for single-file modules (`typing_extensions.py`) and verified PyTorch CUDA execution on NVIDIA RTX 2050.
 
 ---
 

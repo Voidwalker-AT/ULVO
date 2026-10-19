@@ -8,6 +8,7 @@ pub mod migration;
 pub mod gpu;
 pub mod adoption;
 pub mod manifest;
+pub mod cas;
 
 pub use resource::*;
 pub use registry::*;
@@ -17,6 +18,22 @@ pub use migration::*;
 pub use gpu::*;
 pub use adoption::*;
 pub use manifest::*;
+pub use cas::*;
+
+use std::path::{Path, PathBuf};
+
+/// Strips Windows verbatim/extended-length path prefix (`\\?\` or `\\?\UNC\`) from a path.
+/// Many external tools (GCC, MinGW, Python subcommands, Make) cannot parse `\\?\`.
+pub fn strip_unc_prefix(path: &Path) -> PathBuf {
+    let s = path.to_string_lossy();
+    if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{stripped}"))
+    } else if let Some(stripped) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(stripped)
+    } else {
+        path.to_path_buf()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

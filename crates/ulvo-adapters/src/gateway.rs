@@ -50,7 +50,8 @@ impl<'a> GatewayResolver<'a> {
             format!("resource '{}' does not have an associated executable or installation path", resource.resource_id)
         })?;
 
-        let exe_path = PathBuf::from(exe_path_str);
+        let raw_exe = PathBuf::from(exe_path_str);
+        let exe_path = ulvo_core::strip_unc_prefix(&raw_exe);
         if !exe_path.is_file() {
             return Err(format!(
                 "resolved executable for '{}' does not exist at '{}'",
@@ -65,7 +66,8 @@ impl<'a> GatewayResolver<'a> {
 
         // Step 2a: Tool's own parent directory at head of PATH
         if let Some(parent) = exe_path.parent() {
-            path_entries.push(parent.to_string_lossy().to_string());
+            let p_clean = ulvo_core::strip_unc_prefix(parent);
+            path_entries.push(p_clean.to_string_lossy().to_string());
         }
 
         // Step 2b: Companion ecosystem directories (e.g. MSYS2 usr\bin, Python Scripts)
@@ -98,8 +100,8 @@ impl<'a> GatewayResolver<'a> {
                     }
                 }
 
-                let ucrt_bin = msys2_root.join("ucrt64").join("bin");
-                let usr_bin = msys2_root.join("usr").join("bin");
+                let ucrt_bin = ulvo_core::strip_unc_prefix(&msys2_root.join("ucrt64").join("bin"));
+                let usr_bin = ulvo_core::strip_unc_prefix(&msys2_root.join("usr").join("bin"));
                 if ucrt_bin.is_dir() {
                     let s = ucrt_bin.to_string_lossy().to_string();
                     if !path_entries.contains(&s) {
@@ -124,7 +126,7 @@ impl<'a> GatewayResolver<'a> {
                 if let Some(parent) = exe_path.parent() {
                     let scripts = parent.join("Scripts");
                     if scripts.is_dir() {
-                        let s = scripts.to_string_lossy().to_string();
+                        let s = ulvo_core::strip_unc_prefix(&scripts).to_string_lossy().to_string();
                         if !path_entries.contains(&s) {
                             path_entries.push(s);
                         }
@@ -141,6 +143,53 @@ impl<'a> GatewayResolver<'a> {
                         process_env.insert("RUSTUP_HOME".into(), rust_root.join("rustup").to_string_lossy().to_string());
                     }
                 }
+            }
+            ulvo_core::Ecosystem::Ruby => {
+                if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
+                if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
+                if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
+                if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
+                // Companion MSYS2 UCRT64 toolchain directory for compiling native Ruby gem C extensions
+                let default_msys = PathBuf::from(r"E:\Workspace\Active\ULVO\vault\toolchains\msys2\ucrt64\bin");
+                let fallback_msys = PathBuf::from(r"C:\msys64\ucrt64\bin");
+                if default_msys.is_dir() {
+                    let s = default_msys.to_string_lossy().to_string();
+                    if !path_entries.contains(&s) { path_entries.push(s); }
+                } else if fallback_msys.is_dir() {
+                    let s = fallback_msys.to_string_lossy().to_string();
+                    if !path_entries.contains(&s) { path_entries.push(s); }
+                }
+            }
+            ulvo_core::Ecosystem::Go => {
+                if let Some(parent) = exe_path.parent() {
+                    if parent.file_name().and_then(|n| n.to_str()) == Some("bin") {
+                        if let Some(goroot) = parent.parent() {
+                            process_env.insert("GOROOT".into(), goroot.to_string_lossy().to_string());
+                        }
+                    }
+                }
+                // Managed Go module cache under vault or user
+                let vault_go_mod = PathBuf::from(r"E:\Workspace\Active\ULVO\vault\packages\go\mod");
+                if vault_go_mod.is_dir() {
+                    process_env.insert("GOMODCACHE".into(), vault_go_mod.to_string_lossy().to_string());
+                }
+                if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
+                if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
+                if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
+                if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
+            }
+            ulvo_core::Ecosystem::Java => {
+                if let Some(parent) = exe_path.parent() {
+                    if parent.file_name().and_then(|n| n.to_str()) == Some("bin") {
+                        if let Some(java_home) = parent.parent() {
+                            process_env.insert("JAVA_HOME".into(), java_home.to_string_lossy().to_string());
+                        }
+                    }
+                }
+                if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
+                if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
+                if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
+                if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
             }
             _ => {}
         }

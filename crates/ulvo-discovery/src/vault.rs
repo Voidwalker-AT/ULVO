@@ -165,6 +165,16 @@ pub fn discover_fresh_vault_registry(vault_root: &Path) -> Result<MemoryVaultReg
         registry.register(r).map_err(|e| e.to_string())?;
     }
 
+    // 4. Discover machine-wide external & adopted toolchains (Ruby, Go, Java, GCC, etc.)
+    let scanner = crate::UniversalToolchainScanner::new(vault_root.to_path_buf());
+    let discovered = scanner.scan_all();
+    for tool in discovered {
+        let res = tool.to_resource(vault_root);
+        if registry.get(&res.resource_id).is_none() {
+            let _ = registry.register(res);
+        }
+    }
+
     Ok(registry)
 }
 
@@ -176,11 +186,21 @@ pub fn load_vault_registry_readonly(vault_root: &Path) -> Result<MemoryVaultRegi
     let registry_dir = vault_root.join("registry");
     let registry_file = registry_dir.join("vault_registry.json");
 
-    if registry_file.is_file() {
-        return load_durable_vault_registry(vault_root);
+    let mut reg = if registry_file.is_file() {
+        load_durable_vault_registry(vault_root)?
+    } else {
+        discover_fresh_vault_registry(vault_root)?
+    };
+
+    let scanner = crate::UniversalToolchainScanner::new(vault_root.to_path_buf());
+    for tool in scanner.scan_all() {
+        let res = tool.to_resource(vault_root);
+        if reg.get(&res.resource_id).is_none() {
+            let _ = reg.register(res);
+        }
     }
 
-    discover_fresh_vault_registry(vault_root)
+    Ok(reg)
 }
 
 pub fn load_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegistry, String> {
@@ -431,7 +451,7 @@ mod tests {
         let reg = load_vault_registry(&temp).unwrap();
         let report = reconcile_vault_registry(&reg, &temp);
         assert_eq!(report.schema_version, 1);
-        let rust_count = reg.list().into_iter().filter(|r| r.ecosystem == ulvo_core::Ecosystem::Rust).count();
+        let rust_count = reg.list().into_iter().filter(|r| r.ecosystem == ulvo_core::Ecosystem::Rust && r.ownership == ulvo_core::Ownership::Managed).count();
         assert_eq!(rust_count, 6);
         assert!(report.total_checked >= 6);
         // Since files are missing in synthetic empty fixture, clean must be false and issues must be reported

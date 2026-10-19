@@ -1017,21 +1017,219 @@ impl ProjectOrchestrator {
         let shared_store = self.uv.vault_paths().shared_packages_dir.clone();
         std::fs::create_dir_all(&shared_store).map_err(|e| e.to_string())?;
 
-        // 1. If shared store does not yet have torch, check if local project candidate has it to seed shared store
+        // 1. Inspect target Python ABI tag
+        let python_exe = env_path.join("Scripts").join("python.exe");
+        let target_py_tag = if python_exe.is_file() {
+            if let Ok(out) = std::process::Command::new(&python_exe).arg("-V").output() {
+                let s = String::from_utf8_lossy(&out.stdout);
+                let ver_str = s.trim().strip_prefix("Python ").unwrap_or(s.trim());
+                let parts: Vec<&str> = ver_str.split('.').collect();
+                if parts.len() >= 2 {
+                    format!("cp{}{}", parts[0], parts[1])
+                } else {
+                    "cp311".to_string()
+                }
+            } else {
+                "cp311".to_string()
+            }
+        } else {
+            "cp311".to_string()
+        };
+
+        let host_gpu = Self::detect_host_gpu();
+
+        // 2. Verified transactional seeding from candidate project if available
         let local_candidate_site = project_root.join(".venv").join("Lib").join("site-packages");
         if local_candidate_site.is_dir() {
-            let torch_dir = local_candidate_site.join("torch");
-            if torch_dir.is_dir() {
-                let shared_torch = shared_store.join("torch");
-                if !shared_torch.is_dir() {
-                    let _ = ulvo_adapters::hardlink_or_copy_tree(&local_candidate_site, &shared_store);
+            Self::seed_verified_gpu_packages(&local_candidate_site, &shared_store, &target_py_tag, host_gpu.as_ref())?;
+        }
+
+        // 3. Verified transactional linking into target environment site-packages
+        Self::link_verified_gpu_packages(&shared_store, &env_site_packages, &target_py_tag, host_gpu.as_ref())?;
+
+        Ok(())
+    }
+
+    fn seed_verified_gpu_packages(
+        source_site: &Path,
+        shared_store: &Path,
+        target_py_tag: &str,
+        host_gpu: Option<&HostGpuInfo>,
+    ) -> Result<(), String> {
+        let packages_to_check = ["torch", "torchvision", "torchaudio"];
+        for pkg in &packages_to_check {
+            let pkg_dir = source_site.join(pkg);
+            if !pkg_dir.is_dir() {
+                continue;
+            }
+
+            // Find matching .dist-info
+            let dist_info = Self::find_dist_info(source_site, pkg);
+            if let Some(dist_dir) = dist_info {
+                Self::verify_and_copy_distribution(
+                    &pkg_dir,
+                    &dist_dir,
+                    shared_store,
+                    target_py_tag,
+                    host_gpu,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn link_verified_gpu_packages(
+        shared_store: &Path,
+        target_site: &Path,
+        target_py_tag: &str,
+        _host_gpu: Option<&HostGpuInfo>,
+    ) -> Result<(), String> {
+        if !shared_store.is_dir() {
+            return Ok(());
+        }
+
+        if let Ok(entries) = std::fs::read_dir(shared_store) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = entry.file_name().to_string_lossy().to_string();
+
+                // Skip hidden entries and cache
+                if name.starts_with('.') || name == "__pycache__" {
+                    continue;
+                }
+
+                // Handle single-file modules (e.g. typing_extensions.py, six.py)
+                if path.is_file() {
+                    let target_dest = target_site.join(&name);
+                    let _ = std::fs::copy(&path, &target_dest);
+                    continue;
+                }
+
+                if !path.is_dir() {
+                    continue;
+                }
+
+                // If this is a dist-info directory, verify its wheel tags before copying
+                if name.ends_with(".dist-info") {
+                    let wheel_file = path.join("WHEEL");
+                    if wheel_file.is_file() {
+                        let content = std::fs::read_to_string(&wheel_file).unwrap_or_default();
+                        let is_compat = content.lines().any(|l| {
+                            let lower = l.to_lowercase();
+                            lower.starts_with("tag:") && (lower.contains("py3-none-any") || lower.contains(target_py_tag))
+                        });
+                        if !is_compat {
+                            continue; // Skip incompatible Python ABI distributions
+                        }
+                    }
+                }
+
+                let target_dest = target_site.join(&name);
+                ulvo_adapters::hardlink_or_copy_tree(&path, &target_dest)
+                    .map_err(|e| format!("failed to materialize verified shared package '{name}': {e}"))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn find_dist_info(site_packages: &Path, pkg_name: &str) -> Option<PathBuf> {
+        let prefix = format!("{}-", pkg_name.replace('-', "_"));
+        let alt_prefix = format!("{}-", pkg_name);
+        if let Ok(entries) = std::fs::read_dir(site_packages) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".dist-info") && (name.starts_with(&prefix) || name.starts_with(&alt_prefix)) {
+                    return Some(entry.path());
+                }
+            }
+        }
+        None
+    }
+
+    fn verify_and_copy_distribution(
+        pkg_dir: &Path,
+        dist_info_dir: &Path,
+        shared_store: &Path,
+        target_py_tag: &str,
+        host_gpu: Option<&HostGpuInfo>,
+    ) -> Result<(), String> {
+        // Read WHEEL metadata
+        let wheel_file = dist_info_dir.join("WHEEL");
+        if !wheel_file.is_file() {
+            return Err(format!("corrupted package distribution in '{}': missing WHEEL metadata", dist_info_dir.display()));
+        }
+        let wheel_content = std::fs::read_to_string(&wheel_file).map_err(|e| e.to_string())?;
+
+        let tag_matches = wheel_content.lines().any(|line| {
+            let lower = line.to_lowercase();
+            lower.starts_with("tag:") && (lower.contains("py3-none-any") || lower.contains(target_py_tag))
+        });
+
+        if !tag_matches {
+            return Err(format!(
+                "ABI_MISMATCH: Package in '{}' does not match target Python tag '{}'",
+                dist_info_dir.display(), target_py_tag
+            ));
+        }
+
+        // Verify CUDA compatibility if GPU required
+        let metadata_file = dist_info_dir.join("METADATA");
+        if metadata_file.is_file() {
+            let meta_content = std::fs::read_to_string(&metadata_file).unwrap_or_default();
+            for line in meta_content.lines() {
+                if line.starts_with("Version:") {
+                    let ver = line["Version:".len()..].trim();
+                    if let Some(pos) = ver.find("+cu") {
+                        let cu_ver = &ver[pos + 1..];
+                        if let Some(gpu) = host_gpu {
+                            if let Some(ref max_cu) = gpu.max_cuda_version {
+                                // e.g. cu124 requires max_cu >= 12.4
+                                let cu_num = cu_ver.strip_prefix("cu").unwrap_or(cu_ver);
+                                let max_num = max_cu.replace('.', "");
+                                if cu_num.len() >= 3 && max_num.len() >= 3 {
+                                    if cu_num > &max_num[..cu_num.len()] {
+                                        return Err(format!(
+                                            "CUDA_INCOMPATIBLE: Package requires CUDA {} but host driver only supports up to CUDA {}",
+                                            cu_ver, max_cu
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // 2. Link from shared store into env_site_packages
-        if shared_store.is_dir() {
-            let _ = ulvo_adapters::hardlink_or_copy_tree(&shared_store, &env_site_packages);
+        // Transactional publication: Copy into staging directory first, then publish
+        let staging_parent = shared_store.join(".staging");
+        std::fs::create_dir_all(&staging_parent).map_err(|e| e.to_string())?;
+
+        let pkg_name = pkg_dir.file_name().unwrap_or_default();
+        let dist_name = dist_info_dir.file_name().unwrap_or_default();
+
+        let stage_pkg = staging_parent.join(format!("{}_{}", pkg_name.to_string_lossy(), std::process::id()));
+        let stage_dist = staging_parent.join(format!("{}_{}", dist_name.to_string_lossy(), std::process::id()));
+
+        ulvo_adapters::hardlink_or_copy_tree(pkg_dir, &stage_pkg)
+            .map_err(|e| format!("failed to stage package '{:?}': {e}", pkg_name))?;
+        ulvo_adapters::hardlink_or_copy_tree(dist_info_dir, &stage_dist)
+            .map_err(|e| format!("failed to stage metadata '{:?}': {e}", dist_name))?;
+
+        let final_pkg = shared_store.join(pkg_name);
+        let final_dist = shared_store.join(dist_name);
+
+        if !final_pkg.exists() {
+            let _ = std::fs::rename(&stage_pkg, &final_pkg);
+        } else {
+            let _ = std::fs::remove_dir_all(&stage_pkg);
+        }
+
+        if !final_dist.exists() {
+            let _ = std::fs::rename(&stage_dist, &final_dist);
+        } else {
+            let _ = std::fs::remove_dir_all(&stage_dist);
         }
 
         Ok(())

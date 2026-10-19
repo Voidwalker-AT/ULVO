@@ -12,6 +12,8 @@ pub mod gateway;
 pub use gateway::*;
 pub mod vault_msys2;
 pub use vault_msys2::*;
+pub mod cas_storage;
+pub use cas_storage::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

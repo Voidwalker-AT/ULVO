@@ -7,11 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.2.8] - 2026-10-19
 
-### Planned
-- **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
-- **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
+### Stage 2.9.4 — Universal Content-Addressable Dependency Store & Machine-Wide Language Adoption
+
+#### Added
+- **Universal Content-Addressable Dependency Store (`ulvo-core::cas`, `ulvo-adapters::cas_storage`)**:
+  - Implemented immutable, cryptographic SHA-256 CAS object storage under `vault/packages/cas/objects/<prefix>/<sha256>`.
+  - Created pure-Rust, zero-dependency streaming cryptographic SHA-256 implementation (FIPS 180-4) with `Sha256` and `Sha256Digest` supporting arbitrary streaming chunks.
+  - Implemented `CasArtifactDescriptor`, `CasArtifactKind` (Python wheels, Node packages, Cargo crates, Go modules, Java archives, Ruby gems, pacman packages, native binaries, generic payloads), and `CasReferenceTracker`.
+  - Implemented atomic staging via `vault/packages/cas/.staging` with fail-safe transactions, mutual exclusion file locking (`.cas.lock`), and checksum verification.
+  - Implemented CAS garbage collection (`CasStorageManager::garbage_collect`) safely pruning unreferenced artifacts (0 active consumers) and reclaiming physical bytes.
+- **Coordinated Native Package Cache Coordination (`NativeCacheCoordinator`)**:
+  - Unified telemetry and discovery across 7 native ecosystem package managers:
+    - Python: `uv-cache` (`vault/packages/python/uv-cache`) & `shared wheels` (`vault/packages/python/shared`)
+    - Rust: `cargo registry` (`vault/runtimes/rust/cargo/registry`)
+    - Node.js: `pnpm store` (`vault/packages/node/pnpm-store`)
+    - Go: `GOMODCACHE` (`vault/packages/go/mod`)
+    - Ruby: `gem/bundler` (`vault/packages/ruby/gems`)
+    - C/C++: `pacman pkg` (`vault/toolchains/msys2/var/cache/pacman/pkg`)
+  - Added CLI command `ulvo vault cas caches` reporting per-cache allocation, item counts, and relative vault paths.
+- **Robust Machine-Wide Toolchain Discovery (`ulvo-discovery::toolchain_inventory`)**:
+  - Discovered 41 development tools across Windows PATH, known filesystem roots, MSYS2, and WSL.
+  - Formulated typed 9-stage adoption plans (`ulvo toolchain plan <tool>`) and staged adoption (`ulvo toolchain adopt <tool>`) for external toolchains without moving or breaking original installations.
+  - Full first-class adoption for **Ruby 4.0.1** (`C:\Ruby40-x64\bin\ruby.exe`) and **Go 1.26.5** (`C:\Program Files\Go\bin\go.exe`).
+- **Unified Execution Gateway Multi-Language Hardening (`ulvo-adapters::gateway`, `ulvo exec`)**:
+  - Added `--tool <name>` option to `ulvo exec` supporting `python`, `ruby`, `go`, `gcc`, `g++`, `java`, etc.
+  - Implemented Windows verbatim extended path (`\\?\`) normalization via `ulvo_core::strip_unc_prefix`, resolving GCC 14.2.0 `cannot execute 'cc1'` CreateProcess errors.
+  - Injected process-local isolated environment variables:
+    - Ruby: MSYS2 UCRT64 toolchain injection for building native C gems
+    - Go: `GOROOT`, `GOMODCACHE`, `GOCACHE` pointing into the vault
+    - Java: `JAVA_HOME` pointing to discovered Adoptium OpenJDK
+- **Verified Transactional Python/GPU Package Sharing (`ulvo-discovery::project_lifecycle`)**:
+  - Enforced strict distribution metadata verification: `.dist-info/WHEEL` matching target Python ABI tag (e.g. `cp311`), `.dist-info/METADATA` validating CUDA capability.
+  - Supported single-file modules (`typing_extensions.py`, `six.py`) alongside directory packages.
+  - Verified real GPU execution (`Academic\sem5\DL\exp1`) through ULVO with `TORCH_CUDA_AVAILABLE: True` on NVIDIA GeForce RTX 2050, both in persistent and `--reclaim` ephemeral modes.
+- **Zero Global Mutation Guarantee**:
+  - Preserved external `C:\msys64` and global PATH / registry completely untouched.
+  - Reclaimed over 4.62 GB during environment lifecycle tests; maintained drive E: free space at **~11.40 GB**.
+- **CLI Commands Added**:
+  - `ulvo vault cas list`: Lists all immutable CAS artifacts.
+  - `ulvo vault cas caches`: Reports status of all coordinated native ecosystem caches.
+  - `ulvo vault cas verify`: Verifies cryptographic SHA-256 integrity of all CAS artifacts.
+  - `ulvo vault cas gc`: Performs garbage collection of unreferenced CAS artifacts.
+  - `ulvo toolchain adopt <tool>`: Adopts external toolchain into the Vault Registry.
+  - `ulvo exec --tool <name> <args...>`: Direct execution gateway by tool name.
+- **Test Suite**:
+  - 127 native tests passing across `ulvo-core`, `ulvo-adapters`, `ulvo-discovery`, and `ulvo-cli`.
 
 ## [0.2.7] - 2026-10-19
 

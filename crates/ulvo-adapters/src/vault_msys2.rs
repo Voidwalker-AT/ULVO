@@ -307,8 +307,8 @@ pub fn build_msys2_process_env(
         ));
     }
 
-    let sub_bin = subsystem.bin_dir(&msys2_root);
-    let usr_bin = msys2_root.join("usr").join("bin");
+    let sub_bin = ulvo_core::strip_unc_prefix(&subsystem.bin_dir(&msys2_root));
+    let usr_bin = ulvo_core::strip_unc_prefix(&msys2_root.join("usr").join("bin"));
 
     let mut path_entries = Vec::new();
     if sub_bin.is_dir() {
@@ -338,6 +338,10 @@ pub fn build_msys2_process_env(
 
     let mut env = BTreeMap::new();
     env.insert("PATH".to_string(), path_str);
+    env.insert("SystemRoot".to_string(), sys_root.clone());
+    if let Ok(sd) = std::env::var("SystemDrive") {
+        env.insert("SystemDrive".to_string(), sd);
+    }
     env.insert("MSYSTEM".to_string(), subsystem.msystem_env().to_string());
     env.insert("MSYS2_PATH_TYPE".to_string(), "minimal".to_string());
     env.insert("CHERE_INVOKING".to_string(), "1".to_string());
@@ -360,14 +364,14 @@ pub fn build_msys2_process_env(
 /// Verifies native C compilation using the vault-managed MSYS2 GCC compiler.
 pub fn verify_native_c_compilation(vault_root: &Path, scratch_dir: &Path) -> Result<String, String> {
     let msys2_root = vault_root.join("toolchains").join("msys2");
-    let gcc_exe = msys2_root.join("ucrt64").join("bin").join("gcc.exe");
+    let gcc_exe = ulvo_core::strip_unc_prefix(&msys2_root.join("ucrt64").join("bin").join("gcc.exe"));
     if !gcc_exe.is_file() {
         return Err(format!("gcc.exe not found in managed MSYS2 at '{}'", gcc_exe.display()));
     }
 
     std::fs::create_dir_all(scratch_dir).map_err(|e| e.to_string())?;
-    let src_file = scratch_dir.join("test_ulvo_c.c");
-    let out_exe = scratch_dir.join("test_ulvo_c.exe");
+    let src_file = ulvo_core::strip_unc_prefix(&scratch_dir.join("test_ulvo_c.c"));
+    let out_exe = ulvo_core::strip_unc_prefix(&scratch_dir.join("test_ulvo_c.exe"));
 
     let c_source = r#"#include <stdio.h>
 int main(void) {
@@ -422,14 +426,14 @@ int main(void) {
 /// Verifies native C++ compilation using the vault-managed MSYS2 G++ compiler.
 pub fn verify_native_cpp_compilation(vault_root: &Path, scratch_dir: &Path) -> Result<String, String> {
     let msys2_root = vault_root.join("toolchains").join("msys2");
-    let gpp_exe = msys2_root.join("ucrt64").join("bin").join("g++.exe");
+    let gpp_exe = ulvo_core::strip_unc_prefix(&msys2_root.join("ucrt64").join("bin").join("g++.exe"));
     if !gpp_exe.is_file() {
         return Err(format!("g++.exe not found in managed MSYS2 at '{}'", gpp_exe.display()));
     }
 
     std::fs::create_dir_all(scratch_dir).map_err(|e| e.to_string())?;
-    let src_file = scratch_dir.join("test_ulvo_cpp.cpp");
-    let out_exe = scratch_dir.join("test_ulvo_cpp.exe");
+    let src_file = ulvo_core::strip_unc_prefix(&scratch_dir.join("test_ulvo_cpp.cpp"));
+    let out_exe = ulvo_core::strip_unc_prefix(&scratch_dir.join("test_ulvo_cpp.exe"));
 
     let cpp_source = r#"#include <iostream>
 #include <vector>

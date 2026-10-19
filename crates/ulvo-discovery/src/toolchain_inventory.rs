@@ -106,6 +106,7 @@ impl UniversalToolchainScanner {
         self.scan_path_executables(&mut results);
         self.scan_known_install_roots(&mut results);
         self.scan_msys2(&mut results);
+        self.scan_vault_toolchains(&mut results);
         self.scan_wsl_metadata(&mut results);
         self.scan_vscode_settings(&mut results);
 
@@ -123,12 +124,17 @@ impl UniversalToolchainScanner {
         let path_var = std::env::var("PATH").unwrap_or_default();
         let targets = [
             ("python.exe", "python", Ecosystem::Python, ResourceKind::LanguageRuntime, vec!["interpreter"]),
+            ("python3.exe", "python3", Ecosystem::Python, ResourceKind::LanguageRuntime, vec!["interpreter"]),
             ("uv.exe", "uv", Ecosystem::Python, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("pip.exe", "pip", Ecosystem::Python, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("conda.exe", "conda", Ecosystem::Python, ResourceKind::PackageManager, vec!["package_manager", "environment_manager"]),
             ("rustc.exe", "rustc", Ecosystem::Rust, ResourceKind::Compiler, vec!["compiler"]),
             ("cargo.exe", "cargo", Ecosystem::Rust, ResourceKind::Toolchain, vec!["build_tool"]),
+            ("rustup.exe", "rustup", Ecosystem::Rust, ResourceKind::Toolchain, vec!["toolchain_manager"]),
             ("node.exe", "node", Ecosystem::NodeJs, ResourceKind::LanguageRuntime, vec!["interpreter"]),
             ("npm.cmd", "npm", Ecosystem::NodeJs, ResourceKind::PackageManager, vec!["package_manager"]),
             ("pnpm.cmd", "pnpm", Ecosystem::NodeJs, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("corepack.cmd", "corepack", Ecosystem::NodeJs, ResourceKind::PackageManager, vec!["package_manager"]),
             ("go.exe", "go", Ecosystem::Go, ResourceKind::Compiler, vec!["compiler", "build_tool"]),
             ("java.exe", "java", Ecosystem::Java, ResourceKind::LanguageRuntime, vec!["runtime"]),
             ("javac.exe", "javac", Ecosystem::Java, ResourceKind::Compiler, vec!["compiler"]),
@@ -138,11 +144,15 @@ impl UniversalToolchainScanner {
             ("gem.cmd", "gem", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
             ("bundle.bat", "bundler", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
             ("dotnet.exe", "dotnet", Ecosystem::DotNet, ResourceKind::Sdk, vec!["sdk", "runtime", "compiler"]),
+            ("nuget.exe", "nuget", Ecosystem::DotNet, ResourceKind::PackageManager, vec!["package_manager"]),
             ("gcc.exe", "gcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
             ("g++.exe", "g++", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
             ("clang.exe", "clang", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
+            ("clang++.exe", "clang++", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
+            ("make.exe", "make", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
             ("cmake.exe", "cmake", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
             ("ninja.exe", "ninja", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
+            ("nvcc.exe", "nvcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler", "cuda"]),
         ];
 
         for dir in std::env::split_paths(&path_var) {
@@ -173,12 +183,23 @@ impl UniversalToolchainScanner {
     }
 
     fn scan_known_install_roots(&self, results: &mut Vec<DiscoveredToolchain>) {
-        // Known roots for Python, .NET, Scoop, and system locations
+        // Known roots for Python, .NET, Scoop, MSYS2, Ruby, Go, Java, and CUDA locations
         let known = [
             ("C:\\Program Files\\dotnet\\dotnet.exe", "dotnet", Ecosystem::DotNet, ResourceKind::Sdk, vec!["sdk"]),
             ("C:\\Program Files\\Git\\bin\\git.exe", "git", Ecosystem::Generic("git".into()), ResourceKind::Executable, vec!["vcs"]),
             ("C:\\msys64\\ucrt64\\bin\\gcc.exe", "gcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
             ("C:\\msys64\\ucrt64\\bin\\g++.exe", "g++", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
+            ("C:\\msys64\\usr\\bin\\make.exe", "make", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
+            ("C:\\msys64\\usr\\bin\\pacman.exe", "pacman", Ecosystem::Cpp, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("C:\\Program Files\\Go\\bin\\go.exe", "go", Ecosystem::Go, ResourceKind::Compiler, vec!["compiler", "build_tool"]),
+            ("C:\\Ruby40-x64\\bin\\ruby.exe", "ruby", Ecosystem::Ruby, ResourceKind::LanguageRuntime, vec!["interpreter"]),
+            ("C:\\Ruby40-x64\\bin\\gem.cmd", "gem", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("C:\\Ruby40-x64\\bin\\bundle.bat", "bundler", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
+            ("C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe", "java", Ecosystem::Java, ResourceKind::LanguageRuntime, vec!["runtime"]),
+            ("C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\javac.exe", "javac", Ecosystem::Java, ResourceKind::Compiler, vec!["compiler"]),
+            ("C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\bin\\nvcc.exe", "nvcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler", "cuda"]),
+            ("C:\\Users\\hp\\scoop\\shims\\cmake.exe", "cmake", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
+            ("C:\\Users\\hp\\scoop\\shims\\ninja.exe", "ninja", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
         ];
 
         for (path_str, name, eco, kind, caps) in &known {
@@ -276,6 +297,104 @@ impl UniversalToolchainScanner {
                         capabilities: vec!["compiler".into()],
                     });
                 }
+            }
+        }
+    }
+
+    fn scan_vault_toolchains(&self, results: &mut Vec<DiscoveredToolchain>) {
+        let rust_cargo = self.vault_root.join("runtimes").join("rust").join("cargo").join("bin");
+        if rust_cargo.is_dir() {
+            let rustc = rust_cargo.join("rustc.exe");
+            let cargo = rust_cargo.join("cargo.exe");
+            if rustc.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "rustc_managed".into(),
+                    executable_path: rustc,
+                    version: None,
+                    backend: Backend::Windows,
+                    ecosystem: Ecosystem::Rust,
+                    kind: ResourceKind::Compiler,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_runtimes_rust".into(),
+                    capabilities: vec!["compiler".into()],
+                });
+            }
+            if cargo.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "cargo_managed".into(),
+                    executable_path: cargo,
+                    version: None,
+                    backend: Backend::Windows,
+                    ecosystem: Ecosystem::Rust,
+                    kind: ResourceKind::Toolchain,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_runtimes_rust".into(),
+                    capabilities: vec!["build_tool".into()],
+                });
+            }
+        }
+
+        let msys2_ucrt = self.vault_root.join("toolchains").join("msys2").join("ucrt64").join("bin");
+        if msys2_ucrt.is_dir() {
+            let gcc = msys2_ucrt.join("gcc.exe");
+            let gpp = msys2_ucrt.join("g++.exe");
+            if gcc.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "gcc_managed".into(),
+                    executable_path: gcc,
+                    version: None,
+                    backend: Backend::Msys2,
+                    ecosystem: Ecosystem::Cpp,
+                    kind: ResourceKind::Compiler,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_toolchains_msys2".into(),
+                    capabilities: vec!["compiler".into()],
+                });
+            }
+            if gpp.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "g++_managed".into(),
+                    executable_path: gpp,
+                    version: None,
+                    backend: Backend::Msys2,
+                    ecosystem: Ecosystem::Cpp,
+                    kind: ResourceKind::Compiler,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_toolchains_msys2".into(),
+                    capabilities: vec!["compiler".into()],
+                });
+            }
+        }
+
+        let msys2_usr = self.vault_root.join("toolchains").join("msys2").join("usr").join("bin");
+        if msys2_usr.is_dir() {
+            let make = msys2_usr.join("make.exe");
+            let pacman = msys2_usr.join("pacman.exe");
+            if make.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "make_managed".into(),
+                    executable_path: make,
+                    version: None,
+                    backend: Backend::Msys2,
+                    ecosystem: Ecosystem::Cpp,
+                    kind: ResourceKind::Toolchain,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_toolchains_msys2".into(),
+                    capabilities: vec!["build_tool".into()],
+                });
+            }
+            if pacman.is_file() {
+                results.push(DiscoveredToolchain {
+                    name: "pacman_managed".into(),
+                    executable_path: pacman,
+                    version: None,
+                    backend: Backend::Msys2,
+                    ecosystem: Ecosystem::Cpp,
+                    kind: ResourceKind::PackageManager,
+                    ownership: Ownership::Managed,
+                    discovery_source: "vault_toolchains_msys2".into(),
+                    capabilities: vec!["package_manager".into()],
+                });
             }
         }
     }

@@ -107,10 +107,25 @@ Displays registry aggregate statistics (total resources, ecosystems, backends, v
 ulvo vault stats [--json]
 ```
 
+#### `ulvo vault cas <list|caches|verify|gc>`
+Commands for interacting with the Universal Content-Addressable Dependency Store:
+- `ulvo vault cas list`: Enumerate stored CAS artifacts, package kinds, ecosystems, and sizes.
+- `ulvo vault cas caches`: Report allocations and status across 7 coordinated native ecosystem package stores (uv, pip, cargo, pnpm, go, gem, pacman).
+- `ulvo vault cas verify`: Verify cryptographic SHA-256 integrity of all CAS artifacts against their CAS object digests.
+- `ulvo vault cas gc`: Perform garbage collection, pruning unreferenced artifacts (0 consumers) and reclaiming physical disk space.
+
+```sh
+ulvo vault cas list
+ulvo vault cas caches
+ulvo vault cas verify
+ulvo vault cas gc
+```
+
 ### Example
 ```sh
 ulvo vault list --json
 ulvo vault stats --json
+ulvo vault cas caches
 ulvo vault inspect "rust:windows:managed:rustc:1.96.0" --json
 ```
 
@@ -383,7 +398,15 @@ Formulates a typed 9-stage adoption plan (`EXTERNAL_DISCOVERED` -> `COMPATIBILIT
 ulvo toolchain plan go [--json]
 ```
 
-### 9.3 `ulvo toolchain msys2 <adopt|verify|status>`
+### 9.3 `ulvo toolchain adopt <TOOL_NAME>`
+Adopts a discovered external toolchain into the ULVO Vault Registry under `MANAGED` status using the non-destructive `ReferenceExternal` strategy. Once adopted, the tool is governed by the registry and executable via the Unified Gateway without altering global `PATH`.
+
+```sh
+ulvo toolchain adopt ruby
+ulvo toolchain adopt go
+```
+
+### 9.4 `ulvo toolchain msys2 <adopt|verify|status>`
 Provides first-class management of the native MSYS2 / C / C++ toolchain under the ULVO vault (`vault/toolchains/msys2`).
 
 - `ulvo toolchain msys2 adopt [--source <PATH>]`: Adopts external MSYS2 into the vault with `.ulvo_managed.json` sentinel and verified provenance. Default source: `C:\msys64`.
@@ -400,21 +423,31 @@ ulvo toolchain msys2 status
 
 ## 10. `ulvo exec`
 
-Executes commands through the ULVO Unified Execution Gateway. Resolves requested tools deterministically against Vault Registry identities and builds clean, isolated process environments without polluting global `PATH` or user profile scripts.
+Executes commands through the ULVO Unified Execution Gateway. Resolves requested tools deterministically against Vault Registry identities and builds clean, isolated process environments without polluting global `PATH` or user profile scripts. Extended path normalization (`strip_unc_prefix`) automatically prevents MinGW/GCC `cannot execute 'cc1'` errors.
 
 ### Syntax
 ```sh
-ulvo exec [--toolchain <NAME>] -- <COMMAND...>
+ulvo exec [--tool <NAME>] [--toolchain <NAME>] -- <COMMAND...>
 ```
 
 ### Options
+- `--tool <NAME>`: Optional explicit tool identifier (e.g. `python`, `ruby`, `go`, `gcc`, `g++`, `java`).
 - `--toolchain <NAME>`: Optional explicit toolchain selection (e.g. `msys2-ucrt64`, `msys2`, `rust`).
 - `<COMMAND...>`: Command binary and trailing arguments.
 
 ### Examples
 ```sh
+# Execute Python via unified gateway
+ulvo exec --tool python -- -V
+
+# Execute Ruby with MSYS2 UCRT64 toolchain environment
+ulvo exec --tool ruby -- -v
+
+# Execute Go with vault-managed GOROOT/GOMODCACHE
+ulvo exec --tool go -- version
+
 # Execute GCC via managed MSYS2 toolchain
-ulvo exec --toolchain msys2-ucrt64 -- gcc --version
+ulvo exec --tool gcc -- --version
 
 # Execute G++ via automatic deterministic gateway resolution
 ulvo exec -- g++ --version

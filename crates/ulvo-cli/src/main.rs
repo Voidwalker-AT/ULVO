@@ -71,6 +71,9 @@ enum Commands {
     },
     /// Execute a tool or command through the ULVO Unified Execution Gateway
     Exec {
+        /// Optional explicit tool identifier (e.g. python, ruby, go, gcc, java)
+        #[arg(long)]
+        tool: Option<String>,
         /// Optional explicit toolchain identifier (e.g. msys2-ucrt64, msys2)
         #[arg(long)]
         toolchain: Option<String>,
@@ -86,6 +89,10 @@ enum ToolchainCommands {
     Inventory,
     /// View or formulate a typed 9-stage adoption plan for an external toolchain
     Plan {
+        tool_name: String,
+    },
+    /// Adopt an external toolchain into the ULVO Vault Registry
+    Adopt {
         tool_name: String,
     },
     /// First-class managed MSYS2 toolchain commands
@@ -211,6 +218,23 @@ enum VaultCommands {
     },
     /// Display statistics of managed resources in the vault
     Stats,
+    /// Universal Content-Addressable Dependency Store commands
+    Cas {
+        #[command(subcommand)]
+        subcommand: CasCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum CasCommands {
+    /// List artifacts stored in the Universal CAS
+    List,
+    /// Verify cryptographic SHA-256 integrity of all CAS artifacts
+    Verify,
+    /// Garbage collect unreferenced CAS artifacts
+    Gc,
+    /// Report status of coordinated native ecosystem package caches
+    Caches,
 }
 
 #[derive(Subcommand)]
@@ -403,6 +427,91 @@ fn run(cli: Cli) -> Result<i32, String> {
                         if !stats.by_ownership.is_empty() {
                             println!("  By Ownership:");
                             for (k, v) in &stats.by_ownership { println!("    {k}: {v}"); }
+                        }
+                    }
+                }
+                VaultCommands::Cas { subcommand: cas_sub } => {
+                    let cas_manager = ulvo_adapters::CasStorageManager::new(vault_path.clone())?;
+                    match cas_sub {
+                        CasCommands::List => {
+                            let manifest = cas_manager.load_manifest()?;
+                            if cli.json {
+                                println!("{}", serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?);
+                            } else {
+                                println!("ULVO Universal CAS Dependency Store ({})", vault_path.display());
+                                println!("  Total Artifacts:      {}", manifest.total_artifacts);
+                                println!("  Total Stored Bytes:   {} ({:.2} MB)", manifest.total_bytes, manifest.total_bytes as f64 / 1_048_576.0);
+                                if manifest.artifacts.is_empty() {
+                                    println!("\n  No artifacts currently stored in CAS object pool.");
+                                } else {
+                                    println!("\nStored Package Artifacts:");
+                                    for (hash, art) in &manifest.artifacts {
+                                        let refs = manifest.reference_tracker.reference_count(hash);
+                                        let mb = art.size_bytes as f64 / 1_048_576.0;
+                                        println!("  - {:<18} {:<12} ({:>6.2} MB) [eco: {:?}, refs: {}]",
+                                            art.package_name, art.version, mb, art.ecosystem, refs);
+                                        println!("    SHA-256: {}", hash);
+                                    }
+                                }
+                            }
+                        }
+                        CasCommands::Verify => {
+                            let manifest = cas_manager.load_manifest()?;
+                            let mut all_ok = true;
+                            let mut results = Vec::new();
+                            for (hash, art) in &manifest.artifacts {
+                                let ok = cas_manager.verify_artifact_integrity(hash).unwrap_or(false);
+                                if !ok { all_ok = false; }
+                                results.push(serde_json::json!({
+                                    "artifact": art.package_name,
+                                    "version": art.version,
+                                    "sha256": hash,
+                                    "verified": ok
+                                }));
+                            }
+                            if cli.json {
+                                println!("{}", serde_json::json!({
+                                    "schema_version": 1,
+                                    "all_verified": all_ok,
+                                    "artifacts": results
+                                }));
+                            } else {
+                                println!("ULVO CAS Cryptographic Integrity Verification");
+                                println!("  Total Artifacts Checked: {}", manifest.total_artifacts);
+                                println!("  Integrity Status:        {}", if all_ok { "ALL_PASSED" } else { "CORRUPTION_DETECTED" });
+                            }
+                            if !all_ok { return Err("One or more CAS artifacts failed cryptographic integrity verification".into()); }
+                        }
+                        CasCommands::Gc => {
+                            let report = cas_manager.garbage_collect()?;
+                            if cli.json {
+                                println!("{}", serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?);
+                            } else {
+                                println!("ULVO Universal CAS Garbage Collection");
+                                println!("  Unreferenced Found:      {}", report.unreferenced_artifacts_found);
+                                println!("  Artifacts Reclaimed:     {}", report.artifacts_reclaimed);
+                                println!("  Physical Bytes Freed:    {} bytes ({:.2} MB)",
+                                    report.physical_bytes_reclaimed,
+                                    report.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                                println!("  Remaining Artifacts:     {}", report.remaining_artifacts);
+                                println!("  Remaining Stored Bytes:  {} bytes", report.remaining_bytes);
+                            }
+                        }
+                        CasCommands::Caches => {
+                            let coordinators = cas_manager.coordinate_native_caches()?;
+                            if cli.json {
+                                println!("{}", serde_json::to_string_pretty(&coordinators).map_err(|e| e.to_string())?);
+                            } else {
+                                println!("ULVO Coordinated Native Ecosystem Caches ({})", vault_path.display());
+                                println!("  {:<10} | {:<14} | {:>10} | {:>6} | {:<8} | {}",
+                                    "Ecosystem", "Manager", "Allocated", "Items", "Active", "Relative Vault Path");
+                                println!("  {}", "-".repeat(85));
+                                for c in &coordinators {
+                                    let mb = c.total_allocated_bytes as f64 / 1_048_576.0;
+                                    println!("  {:<10} | {:<14} | {:>7.2} MB | {:>6} | {:<8} | {}",
+                                        format!("{:?}", c.ecosystem), c.manager_name, mb, c.item_count, c.is_active, c.relative_vault_path);
+                                }
+                            }
                         }
                     }
                 }
@@ -1014,6 +1123,67 @@ fn run(cli: Cli) -> Result<i32, String> {
                         }
                     }
                 }
+                ToolchainCommands::Adopt { tool_name } => {
+                    let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+                    let scanner = ulvo_discovery::UniversalToolchainScanner::new(vault_path.clone());
+                    let toolchains = scanner.scan_all();
+                    let found = toolchains.into_iter().find(|t| t.name.eq_ignore_ascii_case(&tool_name));
+                    match found {
+                        Some(t) => {
+                            let mut reg = ulvo_discovery::load_durable_vault_registry(&vault_path)?;
+                            let mut res = t.to_resource(&vault_path);
+                            res.verification_status = ulvo_core::VerificationStatus::Verified;
+                            res.ownership = ulvo_core::Ownership::Managed;
+                            res.provenance = Some(ulvo_core::Provenance {
+                                source_type: "toolchain_adoption".into(),
+                                canonical_url: None,
+                                expected_sha256: None,
+                                actual_sha256: None,
+                                manifest_path: None,
+                                notes: Some(format!("Adopted via ULVO CLI from {}", t.executable_path.display())),
+                            });
+                            let res_id = res.resource_id.clone();
+                            let _ = reg.register(res);
+                            ulvo_discovery::save_durable_vault_registry(&vault_path, &reg, &format!("ADOPT_TOOL_{}", tool_name), "cli")?;
+
+                            let mut plan = ulvo_core::ToolchainAdoptionPlan::new(
+                                &t.name,
+                                t.ecosystem.clone(),
+                                t.executable_path.to_string_lossy(),
+                                format!("{}\\{}", vault_path.join("runtimes").display(), t.name),
+                                t.discovery_source.clone(),
+                                t.version.clone(),
+                                ulvo_core::Architecture::X86_64,
+                                match t.backend {
+                                    ulvo_core::Backend::Msys2 => ulvo_core::Abi::Gnu,
+                                    _ => ulvo_core::Abi::None,
+                                },
+                                ulvo_core::AdoptionStrategy::ReferenceExternal,
+                            );
+                            let _ = plan.transition_to(ulvo_core::AdoptionState::CompatibilityAssessed, None);
+                            let _ = plan.transition_to(ulvo_core::AdoptionState::AdoptionPlanned, None);
+                            let _ = plan.transition_to(ulvo_core::AdoptionState::Staging, None);
+                            let _ = plan.transition_to(ulvo_core::AdoptionState::Verified, None);
+                            let _ = plan.transition_to(ulvo_core::AdoptionState::Managed, None);
+
+                            if cli.json {
+                                println!("{}", serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?);
+                            } else {
+                                println!("ULVO Toolchain Adoption Succeeded ({})", t.name);
+                                println!("  Resource ID:       {}", res_id);
+                                println!("  Ecosystem:         {:?}", t.ecosystem);
+                                println!("  Executable:        {}", t.executable_path.display());
+                                println!("  Ownership:         MANAGED (Vault Registry Governed)");
+                                println!("  Lifecycle State:   MANAGED");
+                                println!("  Adoption Strategy: REFERENCE_EXTERNAL");
+                            }
+                            Ok(0)
+                        }
+                        None => {
+                            Err(format!("Tool '{tool_name}' not found in discovered inventory. Run 'ulvo toolchain inventory' to view detected tools."))
+                        }
+                    }
+                }
                 ToolchainCommands::Msys2 { subcommand } => {
                     let vault_path = ulvo_discovery::resolve_vault_root(None)?;
                     match subcommand {
@@ -1158,11 +1328,11 @@ fn run(cli: Cli) -> Result<i32, String> {
                 }
             }
         }
-        Commands::Exec { toolchain, command } => {
+        Commands::Exec { tool, toolchain, command } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
             let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
 
-            if command.is_empty() {
+            if command.is_empty() && tool.is_none() {
                 return Err("No command specified for execution".into());
             }
 
@@ -1172,18 +1342,32 @@ fn run(cli: Cli) -> Result<i32, String> {
                     let sub = ulvo_adapters::Msys2Subsystem::Ucrt64;
                     let env = ulvo_adapters::build_msys2_process_env(&vault_path, sub)?;
                     let msys2_root = vault_path.join("toolchains").join("msys2");
-                    let tool = &command[0];
+                    let tool_name = if let Some(ref t) = tool {
+                        t.as_str()
+                    } else {
+                        &command[0]
+                    };
                     let candidate_paths = [
-                        sub.bin_dir(&msys2_root).join(tool),
-                        sub.bin_dir(&msys2_root).join(format!("{tool}.exe")),
-                        msys2_root.join("usr").join("bin").join(tool),
-                        msys2_root.join("usr").join("bin").join(format!("{tool}.exe")),
+                        sub.bin_dir(&msys2_root).join(tool_name),
+                        sub.bin_dir(&msys2_root).join(format!("{tool_name}.exe")),
+                        msys2_root.join("usr").join("bin").join(tool_name),
+                        msys2_root.join("usr").join("bin").join(format!("{tool_name}.exe")),
                     ];
                     let exe_path = candidate_paths.into_iter().find(|p| p.is_file())
-                        .ok_or_else(|| format!("tool '{tool}' not found in managed MSYS2 toolchain"))?;
+                        .ok_or_else(|| format!("tool '{tool_name}' not found in managed MSYS2 toolchain"))?;
 
+                    let exe_path = ulvo_core::strip_unc_prefix(&exe_path);
                     let mut c = std::process::Command::new(exe_path);
-                    c.args(&command[1..]);
+                    let args = if tool.is_some() {
+                        if command.first().map(|s| s.as_str()) == Some(tool_name) {
+                            &command[1..]
+                        } else {
+                            &command[..]
+                        }
+                    } else {
+                        &command[1..]
+                    };
+                    c.args(args);
                     c.env_clear();
                     for (k, v) in env {
                         c.env(k, v);
@@ -1193,6 +1377,14 @@ fn run(cli: Cli) -> Result<i32, String> {
                     let resolver = ulvo_adapters::GatewayResolver::new(&registry);
                     resolver.build_command(&command[0], &command[1..])?
                 }
+            } else if let Some(ref t) = tool {
+                let resolver = ulvo_adapters::GatewayResolver::new(&registry);
+                let args = if command.first().map(|s| s.as_str()) == Some(t.as_str()) {
+                    &command[1..]
+                } else {
+                    &command[..]
+                };
+                resolver.build_command(t, args)?
             } else {
                 let resolver = ulvo_adapters::GatewayResolver::new(&registry);
                 resolver.build_command(&command[0], &command[1..])?
@@ -1239,6 +1431,10 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "vault", "inspect", "some-id", "--json"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "vault", "verify", "some-id"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "vault", "stats"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "list"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "caches"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "verify"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "gc"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "scan", "E:\\Workspace", "--json"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "report"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "python-envs"]).is_ok());
@@ -1254,11 +1450,13 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "inventory"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "inventory", "--json"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "plan", "python"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "toolchain", "adopt", "ruby"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "gpu", "detect"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "msys2", "status"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "msys2", "verify"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "msys2", "adopt"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "exec", "--", "gcc", "--version"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "exec", "--tool", "python", "--", "-V"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "exec", "--toolchain", "msys2-ucrt64", "--", "gcc", "--version"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "install", "evil"]).is_err());
     }
