@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - 2026-10-19
+## [1.2.0] - 2026-10-20
+
+### Stage 3.2 — Storage Optimization, Package Store Deduplication & Toolchain Consolidation
+
+#### Storage Footprint Audit & Verified Physical Accounting
+- **High-Performance NTFS Metadata Scanner (`scripts/measure-fast-storage-baseline.ps1`)**:
+  - Engineered queue-based directory traversal with reparse point exclusion (0 loop cycles).
+  - Queried logical sizes and cluster allocations via Win32 `GetCompressedFileSizeW` with zero file locking or full stream reads.
+  - Processed 186,851 files at 2,800+ files/second across 15 vault and workspace categories in ~53 seconds.
+  - Initial baseline: 23.25 GB logical, 22.88 GB unique physical; Drive E: 24.17 GB free, Drive C: 21.27 GB free.
+
+#### Package Store Deduplication (`scripts/deduplicate-package-store.ps1`)
+- **NTFS Hardlink Deduplication Engine**:
+  - Audited exact byte-level duplication between `vault/packages/python/shared` (PyTorch, torchvision, numpy, pillow, sympy) and `vault/packages/python/uv-cache/archive-v0`.
+  - Verified 13,590 identical files across 21 package distributions via cryptographic SHA-256 matching.
+  - Replaced duplicate allocations with atomic NTFS hardlinks (`CreateHardLink` + `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`).
+  - Both paths remain 100% intact and functional with zero project mutation; reclaimed **4.412 GB** (4,737,593,344 bytes) of physical storage on drive E:.
+
+#### Build Artifact Governance & Disposable Intermediates Pruning
+- **`ulvo storage build-prune --all`**:
+  - Audited `target/release` compiler intermediates and release build dependencies (`build/`, `deps/`, `.fingerprint/`).
+  - Pruned 3,496 disposable compiler intermediates (1,588.94 MB) while strictly preserving all essential release binaries (`ulvo.exe`, `ulvo-agent.exe`, `ulvo-desktop.exe`, `WebView2Loader.dll`).
+  - Reclaimed **1.329 GB** (1,394,008,064 bytes) of physical storage.
+  - Drive E: free capacity expanded from 24.17 GB to **32.84 GB free** (**+8.67 GB** net physical gain).
+
+#### Machine-Wide External Toolchain Inventory & Adoption Assessment
+- **Discovery & Measurement on `C:`**:
+  - Audited `C:\msys64` (5.097 GB, 69,699 files), `C:\Program Files\nodejs` (3.854 GB, 168,542 files), `C:\Ruby40-x64` (1.196 GB, 43,544 files), `Python313` (1.063 GB, 40,419 files), `Eclipse Adoptium JDK` (0.319 GB, 487 files), and `Go` (0.220 GB, 15,026 files).
+  - Total external duplicate footprint identified on `C:`: **11.749 GB** across 337,717 files.
+  - Formulated comprehensive External Duplicate Toolchain Retirement Report (`docs/evidence/stage3-2/external-duplicate-retirement-report.md`).
+  - Enforced strict Human Approval Gate: Zero files deleted or moved on `C:` without explicit user sign-off.
+
+#### Unified Execution Gateway & Multi-Language Verification
+- **Multi-Ecosystem Resolution**:
+  - Verified gateway dispatch for MSYS2 GCC/G++ 14.2.0, Go go1.26.5, Ruby 4.0.1, Node.js v24.15.0, and Java 21.0.4.
+  - Compiled and executed native C++ program with vault-managed MSYS2 G++ 14.2.0 (`Sum = 55`).
+  - Built and executed Go verification program with go1.26.5.
+  - Executed Ruby script with Ruby 4.0.1.
+  - Compiled and executed Java class with OpenJDK 21.0.4.
+
+#### Project Compatibility Verification
+- **Real-World Project Execution**:
+  - Verified `CrossModalLab` under `ulvo run`: Loaded PyTorch 2.6.0+cu124 from shared package store, executed CUDA tensor operations on physical NVIDIA GeForce RTX 2050 GPU (`cuda:0`), and cleanly reclaimed the ephemeral environment.
+  - Verified `NexusNode` under `ulvo run`: Executed on Python 3.11.16 with zero local virtualenv pollution.
+  - Verified `AstraRun` under `ulvo run`: Executed on Python 3.13.0 with zero local virtualenv pollution.
+  - Zero lingering environments in `vault/environments`.
+
+#### Full Test Suite Verification
+- 177 unit and integration tests passing across all workspace crates with zero regressions (`cargo test`).
+
+---
 
 ### Stage 3.1.3 — Final Production Reliability, Real-World Dogfooding, Performance Profiling & Release Preparation
 

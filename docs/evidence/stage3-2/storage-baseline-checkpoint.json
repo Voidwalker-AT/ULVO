@@ -1,0 +1,173 @@
+﻿{
+    "schema_version":  1,
+    "partial_files":  186851,
+    "categories":  [
+                       {
+                           "Name":  "ULVO Source Code",
+                           "FileCount":  216,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  3942526,
+                           "AllocatedBytes":  3942526,
+                           "UniquePhysicalBytes":  3942526,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.11
+                       },
+                       {
+                           "Name":  "Rust Cargo Target",
+                           "FileCount":  3516,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  1652438630,
+                           "AllocatedBytes":  1652438630,
+                           "UniquePhysicalBytes":  1451917102,
+                           "HardlinkCopies":  47,
+                           "ElapsedSeconds":  0.93
+                       },
+                       {
+                           "Name":  "Tauri Desktop Build Target",
+                           "FileCount":  0,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  0,
+                           "AllocatedBytes":  0,
+                           "UniquePhysicalBytes":  0,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0
+                       },
+                       {
+                           "Name":  "Frontend node_modules",
+                           "FileCount":  640,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  87482553,
+                           "AllocatedBytes":  87482553,
+                           "UniquePhysicalBytes":  87482553,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.23
+                       },
+                       {
+                           "Name":  "Portable Release Artifacts",
+                           "FileCount":  16,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  50063025,
+                           "AllocatedBytes":  50063025,
+                           "UniquePhysicalBytes":  50063025,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.02
+                       },
+                       {
+                           "Name":  "Vault Cargo Registry \u0026 Crates",
+                           "FileCount":  12075,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  549218136,
+                           "AllocatedBytes":  549218136,
+                           "UniquePhysicalBytes":  361796434,
+                           "HardlinkCopies":  13,
+                           "ElapsedSeconds":  5.56
+                       },
+                       {
+                           "Name":  "Vault Rust Toolchain",
+                           "FileCount":  208,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  856408279,
+                           "AllocatedBytes":  856408279,
+                           "UniquePhysicalBytes":  856408279,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.12
+                       },
+                       {
+                           "Name":  "Vault Python Runtimes",
+                           "FileCount":  0,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  0,
+                           "AllocatedBytes":  0,
+                           "UniquePhysicalBytes":  0,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0
+                       },
+                       {
+                           "Name":  "Vault uv Cache",
+                           "FileCount":  99899,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  15466391870,
+                           "AllocatedBytes":  15466391870,
+                           "UniquePhysicalBytes":  15456863405,
+                           "HardlinkCopies":  5,
+                           "ElapsedSeconds":  34.24
+                       },
+                       {
+                           "Name":  "Vault Shared Packages",
+                           "FileCount":  17714,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  4844578772,
+                           "AllocatedBytes":  4844578772,
+                           "UniquePhysicalBytes":  4844578772,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  1.98
+                       },
+                       {
+                           "Name":  "Vault Content-Addressable Store (CAS)",
+                           "FileCount":  2,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  222,
+                           "AllocatedBytes":  222,
+                           "UniquePhysicalBytes":  222,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0
+                       },
+                       {
+                           "Name":  "Vault Managed MSYS2",
+                           "FileCount":  52562,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  1450040267,
+                           "AllocatedBytes":  1450040267,
+                           "UniquePhysicalBytes":  1450040267,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  10.15
+                       },
+                       {
+                           "Name":  "Vault Ephemeral Environments",
+                           "FileCount":  0,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  0,
+                           "AllocatedBytes":  0,
+                           "UniquePhysicalBytes":  0,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.01
+                       },
+                       {
+                           "Name":  "Vault Staging Transactions",
+                           "FileCount":  0,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  0,
+                           "AllocatedBytes":  0,
+                           "UniquePhysicalBytes":  0,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0
+                       },
+                       {
+                           "Name":  "Vault Registry \u0026 Metadata",
+                           "FileCount":  3,
+                           "InaccessibleCount":  0,
+                           "ReparsePointsSkipped":  0,
+                           "LogicalBytes":  20703,
+                           "AllocatedBytes":  20703,
+                           "UniquePhysicalBytes":  20703,
+                           "HardlinkCopies":  0,
+                           "ElapsedSeconds":  0.01
+                       }
+                   ],
+    "partial_unique_bytes":  24563113288,
+    "timestamp_utc":  "2026-10-19T18:45:08.6874342+00:00"
+}

@@ -1,0 +1,165 @@
+﻿{
+    "schema_version":  1,
+    "drive_e_after_free_bytes":  33867911168,
+    "calculated_bytes_freed":  4713756067,
+    "total_deduplicated_files":  13590,
+    "package_details":  [
+                            {
+                                "Package":  "cycler-0.12.1",
+                                "FilesDeduped":  6,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  22084,
+                                "MBReclaimed":  0.02,
+                                "ElapsedSeconds":  0.18
+                            },
+                            {
+                                "Package":  "filelock-3.32.3",
+                                "FilesDeduped":  3,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  3203,
+                                "MBReclaimed":  0,
+                                "ElapsedSeconds":  0.08
+                            },
+                            {
+                                "Package":  "fsspec-2026.7.0",
+                                "FilesDeduped":  3,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  12161,
+                                "MBReclaimed":  0.01,
+                                "ElapsedSeconds":  0.08
+                            },
+                            {
+                                "Package":  "jinja2-3.1.6",
+                                "FilesDeduped":  4,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  4486,
+                                "MBReclaimed":  0,
+                                "ElapsedSeconds":  0.13
+                            },
+                            {
+                                "Package":  "kiwisolver-1.5.1",
+                                "FilesDeduped":  7,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  19854,
+                                "MBReclaimed":  0.02,
+                                "ElapsedSeconds":  0.23
+                            },
+                            {
+                                "Package":  "markupsafe-3.0.3",
+                                "FilesDeduped":  10,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  36122,
+                                "MBReclaimed":  0.03,
+                                "ElapsedSeconds":  0.41
+                            },
+                            {
+                                "Package":  "matplotlib-3.11.2",
+                                "FilesDeduped":  2,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  143706,
+                                "MBReclaimed":  0.14,
+                                "ElapsedSeconds":  0.16
+                            },
+                            {
+                                "Package":  "mpmath-1.3.0",
+                                "FilesDeduped":  91,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  1942520,
+                                "MBReclaimed":  1.85,
+                                "ElapsedSeconds":  5.8
+                            },
+                            {
+                                "Package":  "networkx-3.6.1",
+                                "FilesDeduped":  600,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  6978484,
+                                "MBReclaimed":  6.66,
+                                "ElapsedSeconds":  31.42
+                            },
+                            {
+                                "Package":  "numpy-2.4.6",
+                                "FilesDeduped":  21,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  99795,
+                                "MBReclaimed":  0.1,
+                                "ElapsedSeconds":  0.78
+                            },
+                            {
+                                "Package":  "packaging-24.1",
+                                "FilesDeduped":  5,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  15000,
+                                "MBReclaimed":  0.01,
+                                "ElapsedSeconds":  0.2
+                            },
+                            {
+                                "Package":  "pillow-12.3.0",
+                                "FilesDeduped":  120,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  14747556,
+                                "MBReclaimed":  14.06,
+                                "ElapsedSeconds":  6.95
+                            },
+                            {
+                                "Package":  "pyparsing-3.3.3",
+                                "FilesDeduped":  3,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  7000,
+                                "MBReclaimed":  0.01,
+                                "ElapsedSeconds":  0.05
+                            },
+                            {
+                                "Package":  "python_dateutil-2.9.0.post0",
+                                "FilesDeduped":  24,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  439499,
+                                "MBReclaimed":  0.42,
+                                "ElapsedSeconds":  0.71
+                            },
+                            {
+                                "Package":  "six-1.17.0",
+                                "FilesDeduped":  4,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  2837,
+                                "MBReclaimed":  0,
+                                "ElapsedSeconds":  0.05
+                            },
+                            {
+                                "Package":  "sympy-1.13.1",
+                                "FilesDeduped":  1552,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  26156030,
+                                "MBReclaimed":  24.94,
+                                "ElapsedSeconds":  89.65
+                            },
+                            {
+                                "Package":  "torch-2.6.0+cu124",
+                                "FilesDeduped":  10933,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  4647336463,
+                                "MBReclaimed":  4432.05,
+                                "ElapsedSeconds":  468.23
+                            },
+                            {
+                                "Package":  "torchvision-0.21.0+cu124",
+                                "FilesDeduped":  199,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  15771939,
+                                "MBReclaimed":  15.04,
+                                "ElapsedSeconds":  11.53
+                            },
+                            {
+                                "Package":  "typing_extensions-4.16.0",
+                                "FilesDeduped":  3,
+                                "AlreadyLinked":  0,
+                                "BytesReclaimed":  17328,
+                                "MBReclaimed":  0.02,
+                                "ElapsedSeconds":  0.09
+                            }
+                        ],
+    "already_hardlinked":  0,
+    "drive_e_before_free_bytes":  29130317824,
+    "timestamp_utc":  "2026-10-19T19:16:00.6666429+00:00",
+    "total_evaluated":  15324,
+    "drive_e_delta_bytes":  4737593344
+}

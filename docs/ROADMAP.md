@@ -329,4 +329,34 @@ flowchart LR
     - `dist/ulvo-v1.2.0-windows-x64-portable.zip` (11.72 MB, SHA-256: `63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618`)
     - `dist/SHA256SUMS.txt`
 
+---
+
+### Stage 3.2: Storage Optimization, Package Store Deduplication & Toolchain Consolidation
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Storage Footprint Accounting (`scripts/measure-fast-storage-baseline.ps1`)**:
+    - Fast Win32 NTFS metadata-only scanner with reparse point exclusion.
+    - Initial baseline: 186,851 files, 23.25 GB logical, 22.88 GB unique physical; Drive E: 24.17 GB free.
+  - **Package Store Hardlink Deduplication (`scripts/deduplicate-package-store.ps1`)**:
+    - Cryptographic SHA-256 deduplication of identical immutable package files between `vault/packages/python/shared` and `vault/packages/python/uv-cache/archive-v0`.
+    - 13,590 files deduplicated via NTFS hardlinks, freeing **4.412 GB** on drive E: while preserving 100% path integrity.
+  - **Build Storage Governance (`ulvo storage build-prune --all`)**:
+    - Pruned 3,496 disposable compiler intermediates (1,588 MB) from `target/release`.
+    - Preserved release binaries (`ulvo.exe`, `ulvo-agent.exe`, `ulvo-desktop.exe`, `WebView2Loader.dll`).
+    - Drive E: free capacity expanded from 24.17 GB to **32.84 GB free** (**+8.67 GB** net physical gain).
+  - **Machine-Wide Toolchain Inventory & Human Approval Gate**:
+    - Measured 6 candidate external installations on `C:` (`C:\msys64`, `nodejs`, `Ruby40-x64`, `Python313`, `Eclipse Adoptium JDK`, `Go`) totaling **11.75 GB** across 337,717 files.
+    - Formulated `docs/evidence/stage3-2/external-duplicate-retirement-report.md`.
+    - Zero modifications on `C:` pending explicit user authorization.
+  - **Unified Execution Gateway & Multi-Language Verification**:
+    - Verified MSYS2 GCC/G++ 14.2.0, Go 1.26.5, Ruby 4.0.1, Node.js v24.15.0, and OpenJDK 21.0.4.
+  - **Real Project Compatibility**:
+    - `CrossModalLab` verified on PyTorch 2.6.0+cu124 with CUDA acceleration on NVIDIA RTX 2050 GPU.
+    - `NexusNode` verified on Python 3.11.
+    - `AstraRun` verified on Python 3.13.
+    - Zero lingering ephemeral environments.
+  - **Regression Verification**:
+    - 177 unit and integration tests passing (`cargo test`).
+
+
 
