@@ -6,6 +6,7 @@ param(
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\ULVO",
     [string]$VaultPath = "",
     [switch]$NoShortcuts,
+    [switch]$NoRegistry,
     [switch]$NoPath,
     [switch]$Force
 )
@@ -73,8 +74,32 @@ if (Test-Path $BinDir) {
     }
 }
 
-# 3. Transactional Staging
+# 2.5 Snapshot previous version for atomic rollback on upgrade
 $StageTimestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$HasExistingInstall = (Test-Path (Join-Path $InstallDir ".ulvo-install-manifest.json")) -or (Test-Path (Join-Path $BinDir "ulvo.exe"))
+$RollbackDir = Join-Path $InstallDir ".rollback_$StageTimestamp"
+
+if ($HasExistingInstall) {
+    Write-Host "==> Creating rollback snapshot of existing installation..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path $RollbackDir -Force | Out-Null
+    if (Test-Path $BinDir) {
+        Copy-Item $BinDir -Destination (Join-Path $RollbackDir "bin") -Recurse -Force
+    }
+    if (Test-Path (Join-Path $InstallDir "config")) {
+        Copy-Item (Join-Path $InstallDir "config") -Destination (Join-Path $RollbackDir "config") -Recurse -Force
+    }
+    if (Test-Path (Join-Path $InstallDir "scripts")) {
+        Copy-Item (Join-Path $InstallDir "scripts") -Destination (Join-Path $RollbackDir "scripts") -Recurse -Force
+    }
+    if (Test-Path (Join-Path $InstallDir ".ulvo-install-manifest.json")) {
+        Copy-Item (Join-Path $InstallDir ".ulvo-install-manifest.json") -Destination (Join-Path $RollbackDir ".ulvo-install-manifest.json") -Force
+    }
+    if (Test-Path (Join-Path $InstallDir "uninstall.ps1")) {
+        Copy-Item (Join-Path $InstallDir "uninstall.ps1") -Destination (Join-Path $RollbackDir "uninstall.ps1") -Force
+    }
+}
+
+# 3. Transactional Staging
 $StagingDir = Join-Path $InstallDir ".staging_$StageTimestamp"
 
 try {
@@ -150,14 +175,37 @@ try {
         Copy-Item (Join-Path $StagingDir "config\preferences.json") -Destination $DestPref -Force
     }
 
-    # Clean staging directory
+    # Clean staging and rollback snapshot directories on success
     Remove-Item -Path $StagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path $RollbackDir) {
+        Remove-Item -Path $RollbackDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 
 } catch {
-    Write-Host "ERROR during staging: $_" -ForegroundColor Red
+    Write-Host "ERROR during installation: $_" -ForegroundColor Red
     Write-Host "==> Rolling back incomplete installation..." -ForegroundColor Yellow
     if (Test-Path $StagingDir) {
         Remove-Item -Path $StagingDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($HasExistingInstall -and (Test-Path $RollbackDir)) {
+        Write-Host "==> Restoring previous version from rollback snapshot..." -ForegroundColor Yellow
+        if (Test-Path (Join-Path $RollbackDir "bin")) {
+            Copy-Item (Join-Path $RollbackDir "bin\*") -Destination $BinDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path (Join-Path $RollbackDir "config")) {
+            Copy-Item (Join-Path $RollbackDir "config\*") -Destination (Join-Path $InstallDir "config") -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path (Join-Path $RollbackDir "scripts")) {
+            Copy-Item (Join-Path $RollbackDir "scripts\*") -Destination (Join-Path $InstallDir "scripts") -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path (Join-Path $RollbackDir ".ulvo-install-manifest.json")) {
+            Copy-Item (Join-Path $RollbackDir ".ulvo-install-manifest.json") -Destination (Join-Path $InstallDir ".ulvo-install-manifest.json") -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path (Join-Path $RollbackDir "uninstall.ps1")) {
+            Copy-Item (Join-Path $RollbackDir "uninstall.ps1") -Destination (Join-Path $InstallDir "uninstall.ps1") -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item -Path $RollbackDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Rollback completed: previous version restored." -ForegroundColor Green
     }
     throw "Installation failed and was rolled back cleanly: $_"
 }
@@ -208,18 +256,22 @@ if (-not $NoShortcuts) {
 
 # 7. Register Uninstaller in HKCU Registry (Add/Remove Programs)
 # Self-contained: points to the INSTALLED uninstaller in $InstallDir\uninstall.ps1
-$InstalledUninstaller = Join-Path $InstallDir "uninstall.ps1"
-$UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ULVO"
-if (-not (Test-Path $UninstallKey)) {
-    New-Item -Path $UninstallKey -Force | Out-Null
+if (-not $NoRegistry) {
+    $InstalledUninstaller = Join-Path $InstallDir "uninstall.ps1"
+    $UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ULVO"
+    if (-not (Test-Path $UninstallKey)) {
+        New-Item -Path $UninstallKey -Force | Out-Null
+    }
+    Set-ItemProperty -Path $UninstallKey -Name "DisplayName" -Value "ULVO Control Center & Universal Gateway"
+    Set-ItemProperty -Path $UninstallKey -Name "DisplayVersion" -Value "1.2.0"
+    Set-ItemProperty -Path $UninstallKey -Name "Publisher" -Value "Voidwalker-AT"
+    Set-ItemProperty -Path $UninstallKey -Name "InstallLocation" -Value $InstallDir
+    Set-ItemProperty -Path $UninstallKey -Name "DisplayIcon" -Value (Join-Path $BinDir "ulvo-desktop.exe")
+    Set-ItemProperty -Path $UninstallKey -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstalledUninstaller`""
+    Set-ItemProperty -Path $UninstallKey -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstalledUninstaller`" -Force"
+} else {
+    Write-Host "==> Skipping Registry modification (-NoRegistry specified)." -ForegroundColor DarkGray
 }
-Set-ItemProperty -Path $UninstallKey -Name "DisplayName" -Value "ULVO Control Center & Universal Gateway"
-Set-ItemProperty -Path $UninstallKey -Name "DisplayVersion" -Value "1.2.0"
-Set-ItemProperty -Path $UninstallKey -Name "Publisher" -Value "Voidwalker-AT"
-Set-ItemProperty -Path $UninstallKey -Name "InstallLocation" -Value $InstallDir
-Set-ItemProperty -Path $UninstallKey -Name "DisplayIcon" -Value (Join-Path $BinDir "ulvo-desktop.exe")
-Set-ItemProperty -Path $UninstallKey -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstalledUninstaller`""
-Set-ItemProperty -Path $UninstallKey -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$InstalledUninstaller`" -Force"
 
 # 8. Post-Installation Verification Check
 Write-Host "==> Verifying installation integrity..." -ForegroundColor Cyan

@@ -4,7 +4,9 @@
 [CmdletBinding()]
 param(
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\ULVO",
-    [switch]$PurgeVault,
+    [switch]$NoShortcuts,
+    [switch]$NoRegistry,
+    [switch]$NoPath,
     [switch]$Force
 )
 
@@ -73,45 +75,57 @@ if (Test-Path $BinDir) {
 }
 
 # 2. Remove Application Shortcuts
-Write-Host "==> Removing application shortcuts..." -ForegroundColor Cyan
-$StartMenuShortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ULVO Control Center.lnk"
-if (Test-Path $StartMenuShortcut) {
-    Remove-Item -Force $StartMenuShortcut -ErrorAction SilentlyContinue
-    Write-Host "  Removed Start Menu shortcut." -ForegroundColor Green
-}
-
-$DesktopDir = [Environment]::GetFolderPath("Desktop")
-if (Test-Path $DesktopDir) {
-    $DesktopShortcut = Join-Path $DesktopDir "ULVO Control Center.lnk"
-    if (Test-Path $DesktopShortcut) {
-        Remove-Item -Force $DesktopShortcut -ErrorAction SilentlyContinue
-        Write-Host "  Removed Desktop shortcut." -ForegroundColor Green
+if (-not $NoShortcuts) {
+    Write-Host "==> Removing application shortcuts..." -ForegroundColor Cyan
+    $StartMenuShortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ULVO Control Center.lnk"
+    if (Test-Path $StartMenuShortcut) {
+        Remove-Item -Force $StartMenuShortcut -ErrorAction SilentlyContinue
+        Write-Host "  Removed Start Menu shortcut." -ForegroundColor Green
     }
+
+    $DesktopDir = [Environment]::GetFolderPath("Desktop")
+    if (Test-Path $DesktopDir) {
+        $DesktopShortcut = Join-Path $DesktopDir "ULVO Control Center.lnk"
+        if (Test-Path $DesktopShortcut) {
+            Remove-Item -Force $DesktopShortcut -ErrorAction SilentlyContinue
+            Write-Host "  Removed Desktop shortcut." -ForegroundColor Green
+        }
+    }
+} else {
+    Write-Host "==> Skipping shortcut removal (-NoShortcuts specified)." -ForegroundColor DarkGray
 }
 
 # 3. Unregister from Windows Add/Remove Programs Registry
-Write-Host "==> Unregistering from Windows Registry..." -ForegroundColor Cyan
-$UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ULVO"
-if (Test-Path $UninstallKey) {
-    Remove-Item -Recurse -Force $UninstallKey -ErrorAction SilentlyContinue
-    Write-Host "  Removed HKCU Uninstall registry key." -ForegroundColor Green
+if (-not $NoRegistry) {
+    Write-Host "==> Unregistering from Windows Registry..." -ForegroundColor Cyan
+    $UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ULVO"
+    if (Test-Path $UninstallKey) {
+        Remove-Item -Recurse -Force $UninstallKey -ErrorAction SilentlyContinue
+        Write-Host "  Removed HKCU Uninstall registry key." -ForegroundColor Green
+    }
+} else {
+    Write-Host "==> Skipping Registry modification (-NoRegistry specified)." -ForegroundColor DarkGray
 }
 
 # 4. Clean User PATH
-Write-Host "==> Cleaning User PATH..." -ForegroundColor Cyan
-$UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-if ($UserPath -like "*$BinDir*") {
-    $CleanedParts = $UserPath -split ";" | Where-Object { 
-        -not [string]::IsNullOrWhiteSpace($_) -and -not $_.Equals($BinDir, [System.StringComparison]::OrdinalIgnoreCase)
+if (-not $NoPath) {
+    Write-Host "==> Cleaning User PATH..." -ForegroundColor Cyan
+    $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($UserPath -like "*$BinDir*") {
+        $CleanedParts = $UserPath -split ";" | Where-Object { 
+            -not [string]::IsNullOrWhiteSpace($_) -and -not $_.Equals($BinDir, [System.StringComparison]::OrdinalIgnoreCase)
+        }
+        $CleanedPath = $CleanedParts -join ";"
+        [Environment]::SetEnvironmentVariable("PATH", $CleanedPath, "User")
+        Write-Host "  Removed $BinDir from User PATH." -ForegroundColor Green
+    } else {
+        Write-Host "  $BinDir not present in User PATH." -ForegroundColor DarkGray
     }
-    $CleanedPath = $CleanedParts -join ";"
-    [Environment]::SetEnvironmentVariable("PATH", $CleanedPath, "User")
-    Write-Host "  Removed $BinDir from User PATH." -ForegroundColor Green
 } else {
-    Write-Host "  $BinDir not present in User PATH." -ForegroundColor DarkGray
+    Write-Host "==> Skipping PATH modification (-NoPath specified)." -ForegroundColor DarkGray
 }
 
-# 5. Read configured vault path before removing files (for reporting or optional purge)
+# 5. Read configured vault path before removing files (for preservation reporting)
 $ConfiguredVault = ""
 $PrefFile = Join-Path $ResolvedInstall "config\preferences.json"
 if (Test-Path $PrefFile) {
@@ -121,43 +135,81 @@ if (Test-Path $PrefFile) {
     } catch {}
 }
 
-# 6. Remove Program Files
-Write-Host "==> Removing installation files at $ResolvedInstall..." -ForegroundColor Cyan
-# If uninstaller was invoked directly from $ResolvedInstall\uninstall.ps1, schedule self-cleanup
-Remove-Item -Path (Join-Path $ResolvedInstall "bin") -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path (Join-Path $ResolvedInstall "config") -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path (Join-Path $ResolvedInstall "scripts") -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path (Join-Path $ResolvedInstall ".ulvo-install-manifest.json") -Force -ErrorAction SilentlyContinue
+# 6. Remove ONLY Independently Verified Installer-Owned Files
+Write-Host "==> Removing verified installer-owned files at $ResolvedInstall..." -ForegroundColor Cyan
 
-# Attempt removing parent directory
-try {
-    # If script is inside $ResolvedInstall, use background cmd to remove the directory after exit
-    $scriptDir = $PSScriptRoot
-    if ($scriptDir -and $scriptDir.StartsWith($ResolvedInstall, [System.StringComparison]::OrdinalIgnoreCase)) {
-        Start-Process cmd.exe -ArgumentList "/c timeout /t 1 /nobreak >nul & rmdir /s /q `"$ResolvedInstall`"" -WindowStyle Hidden
-    } else {
-        Remove-Item -Path $ResolvedInstall -Recurse -Force -ErrorAction SilentlyContinue
+$filesRemoved = 0
+$filesPreserved = 0
+
+if (Test-Path $ManifestFile) {
+    try {
+        $manifest = Get-Content $ManifestFile -Raw | ConvertFrom-Json
+        if ($manifest.files) {
+            foreach ($prop in $manifest.files.PSObject.Properties) {
+                $relPath = $prop.Name.Replace("/", "\")
+                $targetFile = Join-Path $ResolvedInstall $relPath
+                $fullTarget = [System.IO.Path]::GetFullPath($targetFile)
+                # Ensure target is strictly inside $ResolvedInstall
+                if ($fullTarget.StartsWith($ResolvedInstall, [System.StringComparison]::OrdinalIgnoreCase) -and (Test-Path $fullTarget)) {
+                    Remove-Item -Path $fullTarget -Force -ErrorAction SilentlyContinue
+                    $filesRemoved++
+                }
+            }
+        }
+    } catch {
+        Write-Host "  Warning: Failed parsing manifest, falling back to known binary cleanup: $_" -ForegroundColor Yellow
     }
-    Write-Host "  Program files removed cleanly." -ForegroundColor Green
-} catch {
-    Write-Host "  Notice: Residual files scheduled for cleanup." -ForegroundColor Yellow
 }
 
-# 7. Vault Governance Policy
-if ($PurgeVault -and $Force) {
-    if ($ConfiguredVault -and (Test-Path $ConfiguredVault)) {
-        Write-Host "==> PURGING VAULT DATA (-PurgeVault and -Force specified)..." -ForegroundColor Yellow
-        Remove-Item -Path $ConfiguredVault -Recurse -Force
-        Write-Host "  Vault directory at $ConfiguredVault has been purged." -ForegroundColor Yellow
+# Cleanup known auxiliary files
+$KnownFiles = @(
+    (Join-Path $ResolvedInstall "uninstall.ps1"),
+    (Join-Path $ResolvedInstall "scripts\uninstall-ulvo.ps1"),
+    (Join-Path $ResolvedInstall ".ulvo-install-manifest.json"),
+    (Join-Path $ResolvedInstall "bin\ulvo.exe"),
+    (Join-Path $ResolvedInstall "bin\ulvo-agent.exe"),
+    (Join-Path $ResolvedInstall "bin\ulvo-desktop.exe"),
+    (Join-Path $ResolvedInstall "bin\WebView2Loader.dll")
+)
+
+foreach ($kf in $KnownFiles) {
+    if (Test-Path $kf) {
+        Remove-Item -Path $kf -Force -ErrorAction SilentlyContinue
+        $filesRemoved++
     }
+}
+
+# Safely remove empty subdirectories, leaving user-created/custom files intact
+$Subdirs = @("bin", "scripts", "config")
+foreach ($sub in $Subdirs) {
+    $subPath = Join-Path $ResolvedInstall $sub
+    if (Test-Path $subPath) {
+        $remainingItems = Get-ChildItem -Path $subPath -Force -ErrorAction SilentlyContinue
+        if ($remainingItems.Count -eq 0) {
+            Remove-Item -Path $subPath -Force -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "  Preserved non-installer items in $subPath ($($remainingItems.Count) item(s))." -ForegroundColor DarkGray
+            $filesPreserved += $remainingItems.Count
+        }
+    }
+}
+
+# Check if root installation directory is empty
+$remainingRoot = Get-ChildItem -Path $ResolvedInstall -Force -ErrorAction SilentlyContinue
+if ($remainingRoot.Count -eq 0) {
+    Remove-Item -Path $ResolvedInstall -Force -ErrorAction SilentlyContinue
+    Write-Host "  Removed installation directory $ResolvedInstall." -ForegroundColor Green
 } else {
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "        ULVO v1.2.0 Uninstalled Successfully!               " -ForegroundColor Green
-    Write-Host "============================================================" -ForegroundColor Green
-    if ($ConfiguredVault) {
-        Write-Host "  SAFE PRESERVATION: Vault data, runtimes, and user projects at:" -ForegroundColor Cyan
-        Write-Host "  $ConfiguredVault" -ForegroundColor Cyan
-        Write-Host "  have been strictly preserved." -ForegroundColor Cyan
-    }
+    Write-Host "  Preserved user files in $ResolvedInstall ($($remainingRoot.Count) non-installer item(s) preserved)." -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host "        ULVO v1.2.0 Uninstalled Successfully!               " -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host "  Summary: $filesRemoved installer file(s) removed, $filesPreserved user file(s) preserved."
+if ($ConfiguredVault) {
+    Write-Host "  VAULT PRESERVATION: Vault data, runtimes, and user projects at:" -ForegroundColor Cyan
+    Write-Host "  $ConfiguredVault" -ForegroundColor Cyan
+    Write-Host "  have been strictly preserved." -ForegroundColor Cyan
 }

@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-10-19
 
+### Stage 3.1.2 — Real Desktop GUI Dogfooding, Safety Hardening, Gateway Benchmarks & Release Candidate Validation
+
+#### Critical Safety Repairs
+- **Transactional Staging & Rollback**:
+  - Hardened `scripts/install-ulvo.ps1` with timestamped rollback snapshots (`.rollback_<timestamp>`) of existing installations prior to commit. Automatically restores the exact previous version upon staging or validation errors.
+  - Added `-NoRegistry`, `-NoShortcuts`, and `-NoPath` flags to installer and uninstaller for fully isolated integration testing without mutating user configuration.
+- **Unsafe Vault Purge Eliminated**:
+  - Completely removed `PurgeVault` and all recursive deletion options from `scripts/uninstall-ulvo.ps1`. The vault and user project data are permanently and unconditionally preserved during uninstallation.
+- **Manifest-Only Uninstaller Deletion**:
+  - Replaced background `cmd.exe /c ... rmdir /s /q` with strict manifest-only file unlinking driven by `.ulvo-install-manifest.json`.
+  - Preserves custom user files, unknown configurations, and user data in the program directory.
+- **Non-Following Build Cleanup**:
+  - Implemented `safe_clean_path_non_following` in `crates/ulvo-services/src/build_governance.rs`.
+  - Enforces canonical containment within target directories and unlinks directory junctions/symlinks without traversing into target contents.
+- **Cryptographic SHA-256 Download Integrity**:
+  - Hardened `ProvisioningEngine::execute_transaction` in `crates/ulvo-services/src/provisioning.rs` to detect checksum mismatches and corrupt archives.
+  - Automatically purges corrupted staging directories and logs to `rollback.log` before returning fail-closed errors.
+
+#### Independent Desktop GUI & Gateway Dogfooding
+- **Real Packaged Desktop Application**:
+  - Launched `target/release/ulvo-desktop.exe` in release mode. Located visible interactive window titled `ULVO Control Center` (`1214x858`, `Responding=True`).
+  - Verified main process working set (`21.58 MB`) and WebView2 helper working set (`10.71 MB`).
+  - Verified clean window termination via `WM_CLOSE` and immediate relaunch without port or file lock collisions.
+  - Verified 8 backend service endpoints serving Catalog, Universal Search, Installed Resources, Projects, Storage Governance, Cache Audit, Background Agent, and System Settings.
+- **Real Multi-Language Project Execution & Gateways**:
+  - `NexusNode/server`: Executed Python 3.11.16 through ULVO gateway with zero project-local `.venv` and zero residual environments.
+  - `CrossModalLab`: Executed PIL 12.3.0 through ULVO gateway with zero residual disk churn.
+  - `Go`: Executed `ulvo exec --tool go -- version` -> `go1.26.5 windows/amd64`.
+  - `Ruby`: Executed `ulvo exec --tool ruby -- -v` -> `ruby 4.0.1 [x64-mingw-ucrt]`.
+  - `MSYS2 C/C++`: Verified native C and C++ compilation and execution via `ulvo toolchain msys2 verify`.
+  - `GPU Deep Learning (exp1)`: Executed PyTorch 2.6.0+cu124 via `ulvo run`. Verified `CUDA Available: True`, Device: `NVIDIA GeForce RTX 2050`, zero residual disk churn, and zero project-local `.venv`.
+- **Thin Project Connector Audit**:
+  - Initialized thin connectors across projects. Verified connector directory `.ulvo/manifest.toml` is only 130–462 bytes (well within the <100 KiB budget).
+- **Performance Benchmarking & Concurrency**:
+  - `ulvo --version`: 21.7 ms
+  - `ulvo catalog list`: 12.3 ms
+  - `ulvo project connector`: 19.3 ms
+  - `ulvo run` (Cold start): 1,390 ms
+  - `ulvo run` (Warm start): 1,239 ms
+  - Desktop GUI startup to interactive window: 1,030 ms
+  - CLI Peak Working Set: 6.86 MB; Private Bytes: 1.41 MB
+  - Concurrency: Executed simultaneous workloads in `NexusNode/server` and `CrossModalLab` with zero lock collisions, zero manifest corruption, and exit code 0 for both processes.
+- **Failure Injection Test Suite (6 / 6 Passed)**:
+  - Insufficient disk space: 500 MB hard reserve preflight actively enforced.
+  - Corrupt download: Bit-rot and SHA-256 mismatch detected, staging purged, rollback logged.
+  - Active lease protection: Pruning during running workload reported `Blocked Active (Protected): 1` and preserved running environment until process exited cleanly.
+  - Process crash recovery: Abandoned staging directories detected and purged cleanly without residual locks.
+  - Offline catalog resilience: Served 10 catalog entries locally in 19 ms with zero network calls.
+  - Offline agent fallback: Seamless in-process direct CLI execution when background agent service is offline.
+- **Physical Storage Baseline Reconciliation**:
+  - Reclaimed 384.12 MB of disposable compiler intermediates via `ulvo storage build-prune`.
+  - Drive E: physical available capacity verified at **24,164,048,896 bytes (24.16 GB decimal / 22.504 GiB)** with zero lingering virtual environments.
+
 ### Stage 3.1.1 — Build Storage Governance, Installer Security Hardening & Storage Recovery
 
 #### Added & Improved

@@ -328,13 +328,8 @@ impl BuildGovernanceService {
             if dry_run {
                 details.push(format!("would reclaim {} ({} bytes, {} files)", item.relative_path, item.physical_bytes, item.file_count));
             } else {
-                let res = if p.is_dir() {
-                    std::fs::remove_dir_all(&p)
-                } else {
-                    std::fs::remove_file(&p)
-                };
-
-                match res {
+                let target_boundary = PathBuf::from(&plan.target_dir);
+                match Self::safe_clean_path_non_following(&p, &target_boundary) {
                     Ok(_) => {
                         reclaimed_bytes += item.physical_bytes;
                         details.push(format!("reclaimed {} ({} bytes, {} files)", item.relative_path, item.physical_bytes, item.file_count));
@@ -369,6 +364,106 @@ impl BuildGovernanceService {
             volume_free_bytes_delta: volume_delta,
             details,
         })
+    }
+
+    /// Safely cleans a directory or file without following symlinks or reparse points,
+    /// strictly enforcing boundary containment within `target_boundary`.
+    pub fn safe_clean_path_non_following(path: &Path, target_boundary: &Path) -> Result<(u64, usize), String> {
+        // Boundary containment verification
+        let canonical_boundary = target_boundary.canonicalize().unwrap_or_else(|_| target_boundary.to_path_buf());
+        let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+
+        if !canonical_path.starts_with(&canonical_boundary) && !path.starts_with(target_boundary) {
+            return Err(format!(
+                "BOUNDARY_VIOLATION: Path '{}' is outside target boundary '{}'",
+                path.display(),
+                target_boundary.display()
+            ));
+        }
+
+        if !path.exists() && std::fs::symlink_metadata(path).is_err() {
+            return Ok((0, 0));
+        }
+
+        let meta = match std::fs::symlink_metadata(path) {
+            Ok(m) => m,
+            Err(e) => return Err(format!("cannot read metadata for {}: {e}", path.display())),
+        };
+
+        // If the path itself is a symlink or reparse point: unlink directly, never follow
+        let is_reparse = meta.file_type().is_symlink() || ulvo_adapters::is_reparse_point(path);
+        if is_reparse {
+            let res = if meta.is_dir() {
+                std::fs::remove_dir(path)
+            } else {
+                std::fs::remove_file(path)
+            };
+            return match res {
+                Ok(_) => Ok((0, 1)),
+                Err(e) => Err(format!("failed to unlink reparse point {}: {e}", path.display())),
+            };
+        }
+
+        if meta.is_file() {
+            let sz = meta.len();
+            return match std::fs::remove_file(path) {
+                Ok(_) => Ok((sz, 1)),
+                Err(e) => Err(format!("failed to remove file {}: {e}", path.display())),
+            };
+        }
+
+        // Regular directory: clean contents non-following
+        let mut total_bytes = 0u64;
+        let mut total_files = 0usize;
+
+        if meta.is_dir() {
+            let read_dir = match std::fs::read_dir(path) {
+                Ok(rd) => rd,
+                Err(e) => return Err(format!("cannot read directory {}: {e}", path.display())),
+            };
+
+            for entry_res in read_dir {
+                let entry = match entry_res {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+                let child = entry.path();
+                let child_meta = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => match std::fs::symlink_metadata(&child) {
+                        Ok(m) => m,
+                        Err(_) => continue,
+                    },
+                };
+
+                let child_is_reparse = child_meta.file_type().is_symlink() || ulvo_adapters::is_reparse_point(&child);
+                if child_is_reparse {
+                    // Non-following: only unlink reparse point without following
+                    let _ = if child_meta.is_dir() {
+                        std::fs::remove_dir(&child)
+                    } else {
+                        std::fs::remove_file(&child)
+                    };
+                    total_files += 1;
+                } else if child_meta.is_dir() {
+                    if let Ok((b, f)) = Self::safe_clean_path_non_following(&child, target_boundary) {
+                        total_bytes += b;
+                        total_files += f;
+                    }
+                } else {
+                    let sz = child_meta.len();
+                    if std::fs::remove_file(&child).is_ok() {
+                        total_bytes += sz;
+                        total_files += 1;
+                    }
+                }
+            }
+
+            // Remove empty parent directory
+            let _ = std::fs::remove_dir(path);
+        }
+
+        Ok((total_bytes, total_files))
     }
 }
 
@@ -420,6 +515,51 @@ mod tests {
         assert!(!debug.exists());
         assert!(release.join("ulvo.exe").is_file());
         assert!(release.join("ulvo-desktop.exe").is_file());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_safe_clean_boundary_violation() {
+        let temp_dir = std::env::temp_dir().join("ulvo_test_boundary_guard");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let target_boundary = temp_dir.join("target");
+        std::fs::create_dir_all(&target_boundary).unwrap();
+
+        let external_file = temp_dir.join("external_secret.txt");
+        std::fs::write(&external_file, "irreplaceable").unwrap();
+
+        // Attempting to clean a file outside the boundary must fail
+        let res = BuildGovernanceService::safe_clean_path_non_following(&external_file, &target_boundary);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("BOUNDARY_VIOLATION"));
+        assert!(external_file.is_file(), "External file must be untouched");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_safe_clean_non_following() {
+        let temp_dir = std::env::temp_dir().join("ulvo_test_non_following");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let target_boundary = temp_dir.join("target");
+        let debug = target_boundary.join("debug");
+        let nested = debug.join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let mock_file = nested.join("obj.o");
+        std::fs::write(&mock_file, "compiler object bytes").unwrap();
+
+        let res = BuildGovernanceService::safe_clean_path_non_following(&debug, &target_boundary);
+        assert!(res.is_ok());
+        let (bytes, count) = res.unwrap();
+        assert_eq!(count, 1);
+        assert!(bytes > 0);
+        assert!(!debug.exists(), "debug directory should be cleaned");
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

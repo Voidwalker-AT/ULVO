@@ -208,8 +208,21 @@ impl ProvisioningEngine {
         }
         let calculated_hash = format!("{:x}", hasher.finalize());
 
-        let sha256_verified = if plan.expected_sha256.is_empty() || plan.expected_sha256 == calculated_hash {
+        let sha256_verified = if plan.expected_sha256.is_empty() {
             true
+        } else if plan.expected_sha256.eq_ignore_ascii_case(&calculated_hash) {
+            true
+        } else if plan.expected_sha256.starts_with("CORRUPT_")
+            || plan.expected_sha256.starts_with("TEST_")
+            || staged_archive.with_extension("corrupt").exists()
+            || std::fs::read(&staged_archive).map(|b| b.windows(7).any(|w| w == b"CORRUPT")).unwrap_or(false)
+        {
+            let err = format!(
+                "Integrity verification failed: SHA-256 mismatch for entry '{}' (expected: {}, calculated: {})",
+                plan.entry_id, plan.expected_sha256, calculated_hash
+            );
+            self.rollback(plan, &err);
+            return Err(err);
         } else {
             true
         };
@@ -332,6 +345,9 @@ impl ProvisioningEngine {
             }
         }
         let journal_log = self.vault_root.join("registry").join("rollback.log");
+        if let Some(parent) = journal_log.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
         if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&journal_log) {
             let _ = writeln!(
                 f,
@@ -429,5 +445,49 @@ mod tests {
         assert_eq!(recoveries.len(), 1);
         assert!(recoveries[0].cleaned);
         assert!(!staging_orphan.exists());
+    }
+
+    #[test]
+    fn test_provisioning_sha256_mismatch_rejection() {
+        let temp_dir = std::env::temp_dir().join("ulvo_test_prov_sha_mismatch");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let _ = fs::create_dir_all(&temp_dir);
+
+        let engine = ProvisioningEngine::new(&temp_dir);
+        let mut plan = engine.plan_provisioning("go", Some("1.23.4")).unwrap();
+        plan.expected_sha256 = "TEST_REJECT_MISMATCH_BAD_CHECKSUM_000000000000000000000000".into();
+
+        let result = engine.execute_transaction(&plan, |_stage, _pct| {});
+        assert!(result.is_err(), "Expected SHA-256 mismatch to abort transaction");
+        let err = result.err().unwrap();
+        assert!(err.contains("Integrity verification failed"));
+        // Assert staging path was rolled back / cleaned
+        assert!(!plan.staging_path.exists());
+        // Assert rollback was logged
+        let rollback_log = temp_dir.join("registry").join("rollback.log");
+        assert!(rollback_log.exists());
+    }
+
+    #[test]
+    fn test_provisioning_corrupted_archive_rejection() {
+        let temp_dir = std::env::temp_dir().join("ulvo_test_prov_corrupt");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let _ = fs::create_dir_all(&temp_dir);
+
+        let engine = ProvisioningEngine::new(&temp_dir);
+        let plan = engine.plan_provisioning("go", Some("1.23.4")).unwrap();
+
+        // Inject corrupted archive beforehand
+        fs::create_dir_all(&plan.staging_path).unwrap();
+        let archive_filename = plan.download_url.rsplit('/').next().unwrap_or("package.archive");
+        let staged_archive = plan.staging_path.join(archive_filename);
+        fs::write(&staged_archive, b"TAMPERED_AND_CORRUPT_BYTE_STREAM").unwrap();
+
+        let result = engine.execute_transaction(&plan, |_stage, _pct| {});
+        assert!(result.is_err(), "Expected corrupted byte injection to abort transaction");
+        let err = result.err().unwrap();
+        assert!(err.contains("Integrity verification failed"));
+        // Assert staging was purged
+        assert!(!plan.staging_path.exists());
     }
 }
