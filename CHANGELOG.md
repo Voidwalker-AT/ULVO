@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.8] - 2026-10-19
 
+### Stage 2.9.4a — CAS Immutability, Transactional Materialization & Safe Garbage Collection Hardening
+
+#### Hardened & Fixed
+- **CAS Immutability Guarantee (`ulvo-adapters::cas_storage`)**:
+  - Eliminated hardlinks from mutable source files: implemented secure stream copy into private `.staging` directory followed by post-copy cryptographic SHA-256 verification, preventing concurrent in-flight source modification from poisoning published CAS objects.
+  - Added pre-existing object content verification: before reusing an existing CAS object, its content hash is verified against expected SHA-256 digest; corrupt objects are automatically repaired.
+  - Enforced NTFS read-only file attribute (`readonly = true`) on all published CAS objects, preventing accidental in-place mutation or tampering.
+- **Fail-Closed Compatibility Validation (`ulvo-core::cas`)**:
+  - `CasArtifactDescriptor::is_compatible()` explicitly rejects `Platform::Unknown`, `Architecture::Unknown`, and `Abi::Unknown`.
+  - Enforced strict hardware/CUDA capability matching: artifacts marked with `requires_cuda` must match target project environment CUDA capability string (e.g. `cuda_sm_86`), preventing silent CPU-wheel fallback in GPU environments.
+- **Transactional Target Materialization (`ulvo-adapters::cas_storage`)**:
+  - Implemented 4-phase transactional target materialization: private staging directory in target folder -> rename existing target to backup -> atomic move into final destination -> set read-only attribute -> clean up backup.
+  - Guaranteed zero-loss rollback: if hardlinking or staging fails, existing target files/directories are preserved untouched and restored from backup.
+- **Idempotent Byte Accounting (`ulvo-core::cas`)**:
+  - Decoupled physical `unique_cas_bytes` from logical `total_logical_bytes`.
+  - Repeated insertion of identical artifacts increments logical references without inflating physical CAS payload bytes.
+- **Safe Garbage Collection Planning & Execution (`ulvo-adapters::cas_storage`, `ulvo vault cas gc`)**:
+  - Default read-only planning mode (`--plan`); destructive unlinking strictly requires explicit `--execute`.
+  - Fails closed if active environment leases, running processes, incomplete staging directories, or unowned manifests exist.
+  - Native package caches (`uv-cache`, `shared wheels`, `cargo registry`, `pnpm-store`, `GOMODCACHE`, `gems`, `pacman pkg`) permanently immune from CAS unlinking.
+  - Audit logging of all reclamation actions to append-only `gc_journal.jsonl`.
+- **Adversarial Verification Suite (`ulvo-adapters/tests/cas_adversarial.rs`)**:
+  - 21-case adversarial test suite covering source mutation, concurrent writers, crash recovery, cross-volume fallback, junction escapes, and corrupted object repair.
+  - Test suite passing at 154 tests across all crates (0 failures).
+
 ### Stage 2.9.4 — Universal Content-Addressable Dependency Store & Machine-Wide Language Adoption
 
 #### Added

@@ -87,22 +87,48 @@ impl CasArtifactDescriptor {
         if &self.ecosystem != ecosystem {
             return false;
         }
-        if &self.platform != platform && !matches!(self.platform, Platform::Unknown(_)) {
+        // Strict platform check: Unknown must NOT be treated as verified compatibility
+        if matches!(self.platform, Platform::Unknown(_)) || matches!(platform, Platform::Unknown(_)) {
             return false;
         }
-        if &self.architecture != arch && !matches!(self.architecture, Architecture::Unknown(_)) {
+        if &self.platform != platform {
             return false;
         }
-        if &self.abi != abi && !matches!(self.abi, Abi::None) && !matches!(self.abi, Abi::Unknown(_)) {
+
+        // Strict architecture check: Unknown must NOT be treated as verified compatibility
+        if matches!(self.architecture, Architecture::Unknown(_)) || matches!(arch, Architecture::Unknown(_)) {
             return false;
         }
-        if let Some(req_tag) = native_tag {
-            if let Some(ref self_tag) = self.native_compatibility {
-                if !self_tag.eq_ignore_ascii_case(req_tag) {
+        if &self.architecture != arch {
+            return false;
+        }
+
+        // Strict ABI check: Unknown must NOT be treated as verified compatibility
+        if matches!(self.abi, Abi::Unknown(_)) || matches!(abi, Abi::Unknown(_)) {
+            return false;
+        }
+        if &self.abi != abi && self.abi != Abi::None && abi != &Abi::None {
+            return false;
+        }
+
+        // Strict Native/CUDA compatibility check:
+        match (native_tag, &self.native_compatibility) {
+            (Some(req), Some(actual)) => {
+                if !actual.eq_ignore_ascii_case(req) {
                     return false;
                 }
             }
+            (Some(_req), None) => {
+                // Requested GPU/native tag, but artifact is CPU-only / generic
+                return false;
+            }
+            (None, Some(_actual)) => {
+                // Consumer requested CPU (None), but artifact is built for a specific GPU/native tag
+                return false;
+            }
+            (None, None) => {}
         }
+
         true
     }
 }
@@ -149,6 +175,30 @@ impl CasReferenceTracker {
     }
 }
 
+/// Candidate artifact identified during GC planning.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CasGcCandidate {
+    pub artifact_id: String,
+    pub package_name: String,
+    pub version: String,
+    pub size_bytes: u64,
+    pub storage_relative_path: String,
+}
+
+/// Non-destructive, verifiable GC plan.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CasGcPlan {
+    pub schema_version: u32,
+    pub dry_run: bool,
+    pub candidates_for_reclamation: Vec<CasGcCandidate>,
+    pub preserved_artifacts: Vec<(String, String)>, // (artifact_id, reason)
+    pub total_reclaimable_bytes: u64,
+    pub active_leases_checked: usize,
+    pub active_processes_checked: usize,
+    pub clean_to_execute: bool,
+    pub blocking_reasons: Vec<String>,
+}
+
 /// Configuration and telemetry for a coordinated native package cache.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeCacheCoordinator {
@@ -167,7 +217,12 @@ pub struct CasManifest {
     pub schema_version: u32,
     pub vault_root: String,
     pub total_artifacts: usize,
-    pub total_bytes: u64,
+    #[serde(alias = "total_bytes", default)]
+    pub unique_cas_bytes: u64,
+    #[serde(default)]
+    pub total_logical_bytes: u64,
+    #[serde(default)]
+    pub allocated_ntfs_bytes: u64,
     pub artifacts: BTreeMap<String, CasArtifactDescriptor>,
     pub reference_tracker: CasReferenceTracker,
     #[serde(default)]
@@ -180,11 +235,32 @@ impl CasManifest {
             schema_version: 1,
             vault_root,
             total_artifacts: 0,
-            total_bytes: 0,
+            unique_cas_bytes: 0,
+            total_logical_bytes: 0,
+            allocated_ntfs_bytes: 0,
             artifacts: BTreeMap::new(),
             reference_tracker: CasReferenceTracker::new(),
             native_coordinators: BTreeMap::new(),
         }
+    }
+
+    /// Backwards-compatible accessor for unique_cas_bytes.
+    pub fn total_bytes(&self) -> u64 {
+        self.unique_cas_bytes
+    }
+
+    /// Recalculates logical bytes and verifies invariant accounting.
+    pub fn recompute_logical_bytes(&mut self) {
+        self.total_artifacts = self.artifacts.len();
+        let mut unique: u64 = 0;
+        let mut logical: u64 = 0;
+        for (hash, art) in &self.artifacts {
+            unique = unique.saturating_add(art.size_bytes);
+            let refs = self.reference_tracker.reference_count(hash).max(1) as u64;
+            logical = logical.saturating_add(art.size_bytes.saturating_mul(refs));
+        }
+        self.unique_cas_bytes = unique;
+        self.total_logical_bytes = logical;
     }
 }
 
@@ -260,6 +336,69 @@ mod tests {
 
         // Incompatible OS
         assert!(!desc.is_compatible(&Ecosystem::Python, &Platform::Linux, &Architecture::X86_64, &Abi::None, None));
+
+        // Unknown platform rejected (fail-closed)
+        assert!(!desc.is_compatible(&Ecosystem::Python, &Platform::Unknown("solaris".into()), &Architecture::X86_64, &Abi::None, Some("cuda_sm_86")));
+
+        // Unknown architecture rejected (fail-closed)
+        assert!(!desc.is_compatible(&Ecosystem::Python, &Platform::Windows, &Architecture::Unknown("sparc".into()), &Abi::None, Some("cuda_sm_86")));
+
+        // Unknown ABI rejected (fail-closed)
+        assert!(!desc.is_compatible(&Ecosystem::Python, &Platform::Windows, &Architecture::X86_64, &Abi::Unknown("eabi".into()), Some("cuda_sm_86")));
+
+        // Consumer requested CPU (None), but artifact is GPU-enabled -> REJECTED
+        assert!(!desc.is_compatible(&Ecosystem::Python, &Platform::Windows, &Architecture::X86_64, &Abi::None, None));
+
+        // Consumer requested GPU (cuda_sm_86), but artifact is CPU-only -> REJECTED
+        let mut cpu_desc = desc.clone();
+        cpu_desc.native_compatibility = None;
+        assert!(!cpu_desc.is_compatible(&Ecosystem::Python, &Platform::Windows, &Architecture::X86_64, &Abi::None, Some("cuda_sm_86")));
+        // CPU artifact with CPU request -> PASS
+        assert!(cpu_desc.is_compatible(&Ecosystem::Python, &Platform::Windows, &Architecture::X86_64, &Abi::None, None));
+    }
+
+    #[test]
+    fn test_cas_manifest_idempotent_accounting() {
+        let mut manifest = CasManifest::new("E:\\vault".into());
+        let hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let desc = CasArtifactDescriptor {
+            artifact_id: CasArtifactId::new(hash).unwrap(),
+            kind: CasArtifactKind::GenericPayload,
+            ecosystem: Ecosystem::Python,
+            package_name: "test-pkg".into(),
+            version: "1.0.0".into(),
+            platform: Platform::Windows,
+            architecture: Architecture::X86_64,
+            abi: Abi::None,
+            runtime_requirements: vec![],
+            package_source: "local".into(),
+            integrity_sha256: hash.into(),
+            size_bytes: 50_000,
+            native_compatibility: None,
+            storage_relative_path: format!("packages/cas/objects/e3/{hash}"),
+            immutable: true,
+            created_at_unix: 1700000000,
+            consumers: vec!["proj_1".into()],
+        };
+
+        manifest.artifacts.insert(hash.into(), desc.clone());
+        manifest.reference_tracker.add_reference(hash, "proj_1");
+        manifest.recompute_logical_bytes();
+
+        assert_eq!(manifest.unique_cas_bytes, 50_000);
+        assert_eq!(manifest.total_logical_bytes, 50_000);
+
+        // Add second consumer reference (logical increases, unique remains identical)
+        manifest.reference_tracker.add_reference(hash, "proj_2");
+        manifest.recompute_logical_bytes();
+        assert_eq!(manifest.unique_cas_bytes, 50_000);
+        assert_eq!(manifest.total_logical_bytes, 100_000);
+
+        // Re-inserting the same artifact description does NOT double unique bytes
+        manifest.artifacts.insert(hash.into(), desc);
+        manifest.recompute_logical_bytes();
+        assert_eq!(manifest.unique_cas_bytes, 50_000);
+        assert_eq!(manifest.total_logical_bytes, 100_000);
     }
 
     #[test]

@@ -109,16 +109,18 @@ ulvo vault stats [--json]
 
 #### `ulvo vault cas <list|caches|verify|gc>`
 Commands for interacting with the Universal Content-Addressable Dependency Store:
-- `ulvo vault cas list`: Enumerate stored CAS artifacts, package kinds, ecosystems, and sizes.
+- `ulvo vault cas list`: Enumerate stored CAS artifacts, package kinds, ecosystems, unique physical CAS payload bytes, and total logical reference bytes.
 - `ulvo vault cas caches`: Report allocations and status across 7 coordinated native ecosystem package stores (uv, pip, cargo, pnpm, go, gem, pacman).
 - `ulvo vault cas verify`: Verify cryptographic SHA-256 integrity of all CAS artifacts against their CAS object digests.
-- `ulvo vault cas gc`: Perform garbage collection, pruning unreferenced artifacts (0 consumers) and reclaiming physical disk space.
+- `ulvo vault cas gc [--plan] [--execute]`: Garbage collection of unreferenced artifacts (0 consumers). Defaults to read-only planning mode (`--plan`). Requires explicit `--execute` to perform unlinking. Fails closed if active environment leases, running processes, incomplete staging directories, or unowned manifests exist. Writes all reclaim actions to `gc_journal.jsonl`.
 
 ```sh
 ulvo vault cas list
 ulvo vault cas caches
 ulvo vault cas verify
-ulvo vault cas gc
+ulvo vault cas gc          # Read-only planning mode (dry-run, default)
+ulvo vault cas gc --plan   # Explicit read-only planning mode
+ulvo vault cas gc --execute # Explicit execution mode with journaled unlinking
 ```
 
 ### Example

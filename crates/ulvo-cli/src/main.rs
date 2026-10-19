@@ -231,8 +231,15 @@ enum CasCommands {
     List,
     /// Verify cryptographic SHA-256 integrity of all CAS artifacts
     Verify,
-    /// Garbage collect unreferenced CAS artifacts
-    Gc,
+    /// Garbage collect unreferenced CAS artifacts (default: read-only plan mode)
+    Gc {
+        /// Force read-only planning mode (default)
+        #[arg(long, default_value_t = true)]
+        plan: bool,
+        /// Explicit authorization to execute irreversible unlinking
+        #[arg(long)]
+        execute: bool,
+    },
     /// Report status of coordinated native ecosystem package caches
     Caches,
 }
@@ -440,7 +447,8 @@ fn run(cli: Cli) -> Result<i32, String> {
                             } else {
                                 println!("ULVO Universal CAS Dependency Store ({})", vault_path.display());
                                 println!("  Total Artifacts:      {}", manifest.total_artifacts);
-                                println!("  Total Stored Bytes:   {} ({:.2} MB)", manifest.total_bytes, manifest.total_bytes as f64 / 1_048_576.0);
+                                println!("  Unique CAS Payload:   {} bytes ({:.2} MB)", manifest.unique_cas_bytes, manifest.unique_cas_bytes as f64 / 1_048_576.0);
+                                println!("  Total Logical Bytes:  {} bytes ({:.2} MB)", manifest.total_logical_bytes, manifest.total_logical_bytes as f64 / 1_048_576.0);
                                 if manifest.artifacts.is_empty() {
                                     println!("\n  No artifacts currently stored in CAS object pool.");
                                 } else {
@@ -482,19 +490,58 @@ fn run(cli: Cli) -> Result<i32, String> {
                             }
                             if !all_ok { return Err("One or more CAS artifacts failed cryptographic integrity verification".into()); }
                         }
-                        CasCommands::Gc => {
-                            let report = cas_manager.garbage_collect()?;
-                            if cli.json {
-                                println!("{}", serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?);
+                        CasCommands::Gc { plan: _, execute } => {
+                            if execute {
+                                let report = cas_manager.garbage_collect(true, &[], &[])?;
+                                if cli.json {
+                                    println!("{}", serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?);
+                                } else {
+                                    println!("ULVO Universal CAS Garbage Collection (EXECUTED)");
+                                    println!("  Unreferenced Found:      {}", report.unreferenced_artifacts_found);
+                                    println!("  Artifacts Reclaimed:     {}", report.artifacts_reclaimed);
+                                    println!("  Physical Bytes Freed:    {} bytes ({:.2} MB)",
+                                        report.physical_bytes_reclaimed,
+                                        report.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                                    println!("  Remaining Artifacts:     {}", report.remaining_artifacts);
+                                    println!("  Remaining Stored Bytes:  {} bytes", report.remaining_bytes);
+                                    if let Some(ref j) = report.journal_path {
+                                        println!("  Journal:                 {}", j);
+                                    }
+                                }
                             } else {
-                                println!("ULVO Universal CAS Garbage Collection");
-                                println!("  Unreferenced Found:      {}", report.unreferenced_artifacts_found);
-                                println!("  Artifacts Reclaimed:     {}", report.artifacts_reclaimed);
-                                println!("  Physical Bytes Freed:    {} bytes ({:.2} MB)",
-                                    report.physical_bytes_reclaimed,
-                                    report.physical_bytes_reclaimed as f64 / 1_048_576.0);
-                                println!("  Remaining Artifacts:     {}", report.remaining_artifacts);
-                                println!("  Remaining Stored Bytes:  {} bytes", report.remaining_bytes);
+                                let plan = cas_manager.plan_garbage_collection(&[], &[])?;
+                                if cli.json {
+                                    println!("{}", serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?);
+                                } else {
+                                    println!("ULVO Universal CAS Garbage Collection Plan (READ-ONLY)");
+                                    println!("  Mode:                    DRY-RUN / PLANNING");
+                                    println!("  Eligible for Reclaim:    {}", plan.candidates_for_reclamation.len());
+                                    println!("  Preserved Artifacts:     {}", plan.preserved_artifacts.len());
+                                    println!("  Reclaimable Bytes:       {} bytes ({:.2} MB)",
+                                        plan.total_reclaimable_bytes,
+                                        plan.total_reclaimable_bytes as f64 / 1_048_576.0);
+                                    println!("  Safety Gates Passed:     {}", plan.clean_to_execute);
+                                    if !plan.blocking_reasons.is_empty() {
+                                        println!("\n  Blocking Reasons:");
+                                        for r in &plan.blocking_reasons {
+                                            println!("    - {}", r);
+                                        }
+                                    }
+                                    if !plan.candidates_for_reclamation.is_empty() {
+                                        println!("\n  Eligible Candidates:");
+                                        for c in &plan.candidates_for_reclamation {
+                                            println!("    - {:<18} {:<10} ({:.2} MB) [{}]",
+                                                c.package_name, c.version, c.size_bytes as f64 / 1_048_576.0, c.artifact_id);
+                                        }
+                                    }
+                                    if !plan.preserved_artifacts.is_empty() {
+                                        println!("\n  Preserved Artifacts:");
+                                        for (id, reason) in &plan.preserved_artifacts {
+                                            println!("    - {}: {}", id, reason);
+                                        }
+                                    }
+                                    println!("\n  Note: Destructive unlinking is disabled in plan mode. Use --execute to apply.");
+                                }
                             }
                         }
                         CasCommands::Caches => {
@@ -1435,6 +1482,8 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "caches"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "verify"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "gc"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "gc", "--plan"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "vault", "cas", "gc", "--execute"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "scan", "E:\\Workspace", "--json"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "report"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "workspace", "python-envs"]).is_ok());
