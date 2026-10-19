@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: **ULVO v1.0.0 Release Readiness**. ULVO is an active, verified, installable system-wide development-resource orchestrator. It provides a single universal execution gateway (`bin/ulvo.exe`), an authoritative Vault Registry, native Windows toolchains (MSYS2 C/C++, Rust), on-demand ephemeral environments, a cryptographically hardened Content-Addressable Dependency Store (CAS), and safe storage reclamation.
+> **Current Development Status**: **ULVO Stage 3.0 / v1.1.0**. ULVO enforces zero persistent project-specific environments under the vault, default ephemeral lifecycle with automatic post-execution reclamation, vault environment auditing and pruning (`ulvo env audit/prune`), package cache governance (`ulvo storage cache-audit/cache-prune`), single universal execution gateway (`bin/ulvo.exe`), an authoritative Vault Registry, native Windows toolchains, a cryptographically hardened CAS, and safe storage reclamation.
 
 ---
 
@@ -324,7 +324,8 @@ For complete security specifications, see [docs/SECURITY.md](docs/SECURITY.md).
 - **Stage 2.9.4**: Universal Content-Addressable Dependency Store & machine-wide language adoption [COMPLETED]
 - **Stage 2.9.4a**: CAS immutability, transactional materialization & adversarial hardening [COMPLETED]
 - **Stage 1.0.0**: System-wide consolidation, single gateway, universal catalog, and release readiness [COMPLETED]
-- **Stage 3.0**: Desktop Control Center (Tauri 2.0 GUI) [BLOCKED pending host Tauri build prerequisites]
+- **Stage 3.0**: Zero persistent project environments, automatic ephemeral reclamation & storage cache governance [COMPLETED]
+- **Stage 3.1**: Desktop Control Center (Tauri 2.0 GUI) [BLOCKED pending host Tauri build prerequisites]
 
 For roadmap details, see [docs/ROADMAP.md](docs/ROADMAP.md).
 

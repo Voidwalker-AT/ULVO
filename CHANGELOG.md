@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-10-19
+
+### Stage 3.0 — Zero Persistent Project Environments, Automatic Reclamation & Storage Cache Governance
+
+#### Added
+- **Vault Environment Audit & Garbage Collection Engine (`ulvo-discovery::project_lifecycle`, `ulvo-core::lifecycle`)**:
+  - Implemented `ProjectOrchestrator::audit_vault_environments()` providing comprehensive inspection and categorization of all materialized environments under `vault/environments/python` into `ACTIVE`, `RECLAIMABLE`, `ABORTED`, and `UNKNOWN`.
+  - Implemented `ProjectOrchestrator::reclaim_all_inactive_environments(dry_run)`: automated, safe vault-wide garbage collector.
+  - Implemented `ProjectOrchestrator::reclaim_aborted_materialization()`: recovers orphaned or interrupted environment directories (e.g. from aborted builds) while strictly guarding against active processes.
+  - Added new CLI subcommands:
+    - `ulvo env audit [--json]`: formatted tabular/JSON audit of vault environments, active leases, logical/physical storage, and owner projects.
+    - `ulvo env prune [--dry-run] [--json]`: automated safe environment reclamation, freeing inactive and aborted environments while strictly preserving active and foreign directories.
+- **Package Cache & Store Governance (`ulvo-cli`)**:
+  - `ulvo storage cache-audit`: inspects package manager caches and shared package stores under the vault, displaying disk usage and cache locations.
+  - `ulvo storage cache-prune [--dry-run]`: invokes `uv cache prune` to safely prune unreferenced wheel archives while preserving immutable shared packages.
+- **Default Ephemeral Lifecycle & Safe Auto-Reclamation**:
+  - Updated `ulvo run` to enforce `EPHEMERAL` lifecycle as default: automatically reclaims materialized environments upon process completion and quiescence unless `--keep-env` is passed or manifest explicitly sets persistent policy.
+  - Guaranteed try-finally lease release: child process termination and lease cleanup run unconditionally even if the user command fails or errors.
+  - Added pre-materialization cleanup of aborted/corrupted directories and transactional rollback on materialization failure.
+- **Adversarial & Regression Test Suite**:
+  - Added 4 comprehensive test scenarios to `crates/ulvo-discovery/src/project_lifecycle.rs`:
+    - `test_vault_environments_audit_empty`: verifies audit against clean vault.
+    - `test_vault_environments_audit_and_prune_classification`: validates 4-way classification (`ACTIVE`, `RECLAIMABLE`, `ABORTED`, `UNKNOWN`), dry-run safety, and selective reclamation preserving active/unknown.
+    - `test_dead_process_lease_cleanup_allows_reclaim`: verifies dead process lease recovery and state reconciliation.
+    - `test_active_lease_blocks_direct_reclaim`: verifies fail-closed blocking of active leased environments.
+
+#### Verified & Hardened
+- Reclaimed 11 lingering environments totaling **18.21 GB (18,613.11 MB)** of redundant logical storage from `vault/environments/python`.
+- Verified end-to-end execution and immediate zero-residual auto-reclamation across:
+  - `Academic\sem5\DL\exp1`: PyTorch 2.6.0+cu124 CUDA execution on NVIDIA RTX 2050 (9/9 gates passed, 0 lingering environments).
+  - `Academic\sem5\DL\exp2`: PyTorch CNN baseline and active model checkpoint verification (0 lingering environments).
+  - `Active\CrossModalLab`: PyTorch, Transformers, Accelerate, and CUDA bounded smoke test (0 lingering environments).
+  - `Active\termux-ai-workstation`: pytest tool tests passing under ULVO (0 lingering environments).
+  - `Active\AstraRun`: pytest tests passing under ULVO (0 lingering environments).
+- Proved 159 workspace tests passing with 0 failures across all 4 crates.
+
+---
+
 ## [1.0.0] - 2026-10-19
 
 ### ULVO v1.0.0 — Release Readiness & System-Wide Development Resource Consolidation

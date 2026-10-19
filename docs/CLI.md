@@ -547,7 +547,54 @@ ulvo project init [<PROJECT_PATH>] [--ecosystem <ECOSYSTEM>] [--runtime-version 
 
 ---
 
-## 17. Non-Mutating Execution Guarantee
+## 17. `ulvo env audit` & `ulvo env prune`
+
+Manages materialized project environments within the ULVO vault (`vault/environments/<ecosystem>`). Enforces the Stage 3.0 invariant: zero persistent project-specific environments.
+
+### 17.1 `ulvo env audit`
+Audits all materialized environments in the vault, reporting their state (`ACTIVE`, `RECLAIMABLE`, `ABORTED`, `UNKNOWN`), active PIDs, logical/physical storage consumption, and owner project.
+```sh
+ulvo env audit [--json]
+```
+
+### 17.2 `ulvo env prune`
+Safely garbage-collects inactive environments and aborted materializations. Active environments (referenced by running processes) and unrecognized directories are strictly protected and preserved.
+```sh
+ulvo env prune [--dry-run] [--json]
+```
+
+---
+
+## 18. `ulvo storage cache-audit` & `ulvo storage cache-prune`
+
+Provides governance and safe pruning over persistent package caches (`uv-cache`, shared wheels).
+
+### 18.1 `ulvo storage cache-audit`
+Audits package manager caches and shared package stores under the vault, displaying disk usage and cache paths.
+```sh
+ulvo storage cache-audit [--json]
+```
+
+### 18.2 `ulvo storage cache-prune`
+Prunes stale package-manager caches using underlying ecosystem tooling (`uv cache prune`), reclaiming unreferenced wheel archives while preserving active shared packages.
+```sh
+ulvo storage cache-prune [--dry-run] [--json]
+```
+
+---
+
+## 19. `ulvo run [--keep-env]`
+
+Executes commands inside an on-demand, ephemeral project environment materialized in the vault. Default lifecycle policy is **ephemeral**: upon command completion and quiescence (all child processes exited), the environment is automatically reclaimed unless `--keep-env` is passed or manifest policy is explicitly persistent.
+
+### Syntax
+```sh
+ulvo run [--keep-env] <PROJECT_PATH> -- <COMMAND...>
+```
+
+---
+
+## 20. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.
@@ -555,3 +602,4 @@ ulvo project init [<PROJECT_PATH>] [--ecosystem <ECOSYSTEM>] [--runtime-version 
 - All temporary test fixtures use process-level ownership sentinels.
 - Legacy environment retirement requires explicit authorization and passes 10 safety gates.
 - Toolchain discovery is metadata-only and never launches or moves external installations.
+

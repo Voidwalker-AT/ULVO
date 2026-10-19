@@ -297,6 +297,50 @@ pub struct EnvironmentReclaimReport {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultEnvironmentAuditItem {
+    pub environment_id: String,
+    pub environment_path: String,
+    pub project_path: Option<String>,
+    pub specification_hash: Option<String>,
+    pub state: EnvironmentLifecycleState,
+    pub is_materialized: bool,
+    pub is_quiescent: bool,
+    pub can_reclaim: bool,
+    pub is_aborted_materialization: bool,
+    pub active_pids: Vec<u32>,
+    pub logical_bytes: u64,
+    pub physical_bytes: u64,
+    pub file_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultEnvironmentsAuditReport {
+    pub schema_version: u32,
+    pub vault_environments_dir: String,
+    pub total_environments: usize,
+    pub active_environments: usize,
+    pub reclaimable_environments: usize,
+    pub aborted_environments: usize,
+    pub unknown_environments: usize,
+    pub total_logical_bytes: u64,
+    pub total_physical_bytes: u64,
+    pub items: Vec<VaultEnvironmentAuditItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultEnvironmentsGcReport {
+    pub schema_version: u32,
+    pub vault_environments_dir: String,
+    pub total_scanned: usize,
+    pub reclaimed_count: usize,
+    pub blocked_active_count: usize,
+    pub preserved_unknown_count: usize,
+    pub physical_bytes_reclaimed: u64,
+    pub volume_free_bytes_delta: Option<i64>,
+    pub reclaimed_items: Vec<EnvironmentReclaimReport>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

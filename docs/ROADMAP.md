@@ -231,9 +231,24 @@ flowchart LR
 
 ---
 
+### Stage 3.0: Zero Persistent Project Environments, Automatic Reclamation & Storage Cache Governance
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - Vault environment inspection engine auditing all environments under `vault/environments/python` into `ACTIVE`, `RECLAIMABLE`, `ABORTED`, and `UNKNOWN`.
+  - Automated safe vault garbage collection (`ulvo env prune`) recovering inactive and aborted materializations while strictly protecting active leases and foreign directories.
+  - Package manager cache governance (`ulvo storage cache-audit` and `ulvo storage cache-prune`) invoking `uv cache prune` to safely reclaim unreferenced archives while preserving shared packages.
+  - Default `EPHEMERAL` lifecycle enforcement in `ulvo run`: automatic reclamation upon quiescence unless `--keep-env` is specified.
+  - Try-finally lease release guaranteeing lease cleanup even on application crash or failure.
+  - Pre-materialization cleanup of aborted/corrupt directories and transactional rollback on materialization failure.
+  - Reclaimed 11 lingering environments totaling 18.21 GB (18,613.11 MB) from `vault/environments/python`.
+  - Verified end-to-end execution and immediate post-run zero residual environments on `Academic\sem5\DL\exp1` (CUDA PyTorch), `DL\exp2` (CNN baseline), `CrossModalLab` (hardware preflight), `termux-ai-workstation` (pytest), and `AstraRun` (pytest).
+  - 159 workspace tests passing with 0 failures across all 4 crates.
+
+---
+
 ## Future Roadmap
 
-### Stage 3.0: Desktop Control Center (Tauri 2.0 GUI)
+### Stage 3.1: Desktop Control Center (Tauri 2.0 GUI)
 - **Status**: `BLOCKED` (Pending host Tauri 2.0 / web frontend build prerequisites)
 - **Objectives**:
   - Native Windows desktop application consuming the Rust core via Tauri 2.0.

@@ -42,8 +42,11 @@ enum Commands {
     Run {
         /// Project directory path
         project_path: PathBuf,
-        /// Automatically reclaim the environment after execution quiesces
+        /// Keep the environment after execution rather than reclaiming it (default: false, ephemeral)
         #[arg(long)]
+        keep_env: bool,
+        /// Legacy alias for explicit reclamation
+        #[arg(long, hide = true)]
         reclaim: bool,
         /// Command and arguments to execute
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
@@ -102,6 +105,10 @@ enum StorageCommands {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
+    /// Inspect and audit package manager cache and shared package storage
+    CacheAudit,
+    /// Prune dangling and unreferenced cache artifacts from the package cache
+    CachePrune,
 }
 
 #[derive(Subcommand)]
@@ -240,9 +247,17 @@ enum EnvCommands {
     Status {
         project_path: PathBuf,
     },
-    /// Safely reclaim environment if quiesced
+    /// Safely reclaim environment for a specific project if quiesced
     Reclaim {
         project_path: PathBuf,
+    },
+    /// Comprehensive audit of all materialized environments in the ULVO vault
+    Audit,
+    /// Safely prune and reclaim all inactive, orphaned, and aborted environments in the ULVO vault
+    Prune {
+        /// Preview environments that would be reclaimed without deleting them
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -886,10 +901,10 @@ fn run(cli: Cli) -> Result<i32, String> {
                 }
             }
         }
-        Commands::Run { project_path, reclaim, command } => {
+        Commands::Run { project_path, keep_env, reclaim: _, command } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
             let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
-            let exit_code = orchestrator.run(&project_path, &command, reclaim)?;
+            let exit_code = orchestrator.run(&project_path, &command, keep_env)?;
             Ok(exit_code)
         }
         Commands::Env { subcommand } => {
@@ -942,6 +957,63 @@ fn run(cli: Cli) -> Result<i32, String> {
                             println!("  Volume Delta:       {} bytes", delta);
                         }
                         println!("  Status:             {}", result.message);
+                    }
+                    Ok(0)
+                }
+                EnvCommands::Audit => {
+                    let audit = orchestrator.audit_vault_environments()?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&audit).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Vault Environments Audit");
+                        println!("  Vault Environments Dir: {}", audit.vault_environments_dir);
+                        println!("  Total Environments:     {}", audit.total_environments);
+                        println!("  Active Environments:    {}", audit.active_environments);
+                        println!("  Reclaimable (Inactive): {}", audit.reclaimable_environments);
+                        println!("  Aborted Materialization:{}", audit.aborted_environments);
+                        println!("  Unknown Directories:    {}", audit.unknown_environments);
+                        println!("  Total Logical Storage:  {} bytes ({:.2} MB)", audit.total_logical_bytes, audit.total_logical_bytes as f64 / 1_048_576.0);
+                        println!("  Total Physical Storage: {} bytes ({:.2} MB)", audit.total_physical_bytes, audit.total_physical_bytes as f64 / 1_048_576.0);
+                        println!();
+                        println!("  Environment ID                         | State        | Active | Physical MB | Owner Project");
+                        println!("  --------------------------------------------------------------------------------------------------");
+                        for item in &audit.items {
+                            let owner = item.project_path.as_deref().unwrap_or(if item.is_aborted_materialization { "[ABORTED]" } else { "-" });
+                            println!(
+                                "  {:<38} | {:<12} | {:<6} | {:>11.2} | {}",
+                                item.environment_id,
+                                item.state,
+                                item.active_pids.len(),
+                                item.physical_bytes as f64 / 1_048_576.0,
+                                owner
+                            );
+                        }
+                    }
+                    Ok(0)
+                }
+                EnvCommands::Prune { dry_run } => {
+                    let gc_report = orchestrator.reclaim_all_inactive_environments(dry_run)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&gc_report).map_err(|e| e.to_string())?);
+                    } else {
+                        let mode = if dry_run { "[DRY RUN] " } else { "" };
+                        println!("ULVO Vault Environments Prune {}", mode);
+                        println!("  Vault Environments Dir:     {}", gc_report.vault_environments_dir);
+                        println!("  Total Scanned:              {}", gc_report.total_scanned);
+                        println!("  Reclaimed Environments:     {}", gc_report.reclaimed_count);
+                        println!("  Blocked Active (Protected): {}", gc_report.blocked_active_count);
+                        println!("  Preserved Unknown:          {}", gc_report.preserved_unknown_count);
+                        println!("  Physical Storage Reclaimed: {} bytes ({:.2} MB)",
+                            gc_report.physical_bytes_reclaimed,
+                            gc_report.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                        if let Some(delta) = gc_report.volume_free_bytes_delta {
+                            println!("  Volume Free Space Delta:    {} bytes ({:.2} MB)", delta, delta as f64 / 1_048_576.0);
+                        }
+                        println!();
+                        for item in &gc_report.reclaimed_items {
+                            let status = if item.reclaimed { "[RECLAIMED]" } else { "[BLOCKED]" };
+                            println!("  {} {} -> {}", status, item.environment_id, item.message);
+                        }
                     }
                     Ok(0)
                 }
@@ -1887,14 +1959,116 @@ name = "{}"
 }
 
 fn run_storage(
-    _subcommand: Option<StorageCommands>,
+    subcommand: Option<StorageCommands>,
     path: PathBuf,
     cli_json: bool,
 ) -> Result<i32, String> {
-    let report = ulvo_discovery::audit_workspace(&path)?;
     let vault_path = ulvo_discovery::resolve_vault_root(None).ok();
-    let cas_mgr = vault_path.as_ref().and_then(|vp| ulvo_adapters::CasStorageManager::new(vp.clone()).ok());
-    let cas_manifest = cas_mgr.as_ref().and_then(|m| m.load_manifest().ok());
+
+    match subcommand {
+        Some(StorageCommands::CacheAudit) => {
+            let vp = vault_path.ok_or_else(|| "cannot resolve vault root".to_string())?;
+            let uv_cache = vp.join("packages").join("python").join("uv-cache");
+            let shared_pkgs = vp.join("packages").join("python").join("shared");
+
+            let mut cache_entries = Vec::new();
+            let mut total_cache_bytes = 0u64;
+            if uv_cache.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&uv_cache) {
+                    for entry in entries.flatten() {
+                        let ep = entry.path();
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        let (bytes, count) = ulvo_adapters::calculate_physical_dir_size(&ep);
+                        total_cache_bytes += bytes;
+                        cache_entries.push(serde_json::json!({
+                            "name": name,
+                            "bytes": bytes,
+                            "mb": bytes as f64 / 1_048_576.0,
+                            "file_count": count
+                        }));
+                    }
+                }
+            }
+
+            let (shared_bytes, shared_files) = if shared_pkgs.is_dir() {
+                ulvo_adapters::calculate_physical_dir_size(&shared_pkgs)
+            } else {
+                (0, 0)
+            };
+
+            if cli_json {
+                let payload = serde_json::json!({
+                    "schema_version": 1,
+                    "uv_cache_dir": uv_cache.to_string_lossy(),
+                    "shared_packages_dir": shared_pkgs.to_string_lossy(),
+                    "total_uv_cache_bytes": total_cache_bytes,
+                    "total_uv_cache_mb": total_cache_bytes as f64 / 1_048_576.0,
+                    "shared_packages_bytes": shared_bytes,
+                    "shared_packages_mb": shared_bytes as f64 / 1_048_576.0,
+                    "cache_components": cache_entries
+                });
+                println!("{}", serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Package Cache Governance & Audit");
+                println!("  UV Cache Directory:       {}", uv_cache.display());
+                println!("  UV Cache Total Physical:  {} bytes ({:.2} MB)", total_cache_bytes, total_cache_bytes as f64 / 1_048_576.0);
+                println!("  Shared Packages Store:    {} bytes ({:.2} MB, {} files)", shared_bytes, shared_bytes as f64 / 1_048_576.0, shared_files);
+                println!();
+                println!("  Component Cache Directory | Files       | Physical MB");
+                println!("  ------------------------------------------------------");
+                for entry in &cache_entries {
+                    println!("  {:<25} | {:<11} | {:>11.2}",
+                        entry["name"].as_str().unwrap_or(""),
+                        entry["file_count"].as_u64().unwrap_or(0),
+                        entry["mb"].as_f64().unwrap_or(0.0)
+                    );
+                }
+            }
+            Ok(0)
+        }
+        Some(StorageCommands::CachePrune) => {
+            let vp = vault_path.ok_or_else(|| "cannot resolve vault root".to_string())?;
+            let uv_cache = vp.join("packages").join("python").join("uv-cache");
+            let disk_before = ulvo_adapters::get_disk_free_bytes(&vp).ok();
+
+            let uv_mgr = ulvo_adapters::UvManager::new(vp.clone())?;
+            let mut cmd = std::process::Command::new(uv_mgr.uv_executable());
+            cmd.arg("cache").arg("prune").arg("--cache-dir").arg(&uv_cache);
+
+            let out = cmd.output().map_err(|e| format!("failed to execute uv cache prune: {e}"))?;
+            let disk_after = ulvo_adapters::get_disk_free_bytes(&vp).ok();
+            let delta = match (disk_before, disk_after) {
+                (Some(b), Some(a)) => Some(a as i64 - b as i64),
+                _ => None,
+            };
+
+            if cli_json {
+                let payload = serde_json::json!({
+                    "schema_version": 1,
+                    "success": out.status.success(),
+                    "exit_code": out.status.code().unwrap_or(1),
+                    "volume_delta_bytes": delta,
+                    "output": String::from_utf8_lossy(&out.stdout).trim()
+                });
+                println!("{}", serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Package Cache Prune");
+                println!("  Target:                 {}", uv_cache.display());
+                println!("  Status:                 {}", if out.status.success() { "COMPLETED" } else { "FAILED" });
+                if let Some(d) = delta {
+                    println!("  Volume Free Space Delta: {} bytes ({:.2} MB)", d, d as f64 / 1_048_576.0);
+                }
+                let msg = String::from_utf8_lossy(&out.stdout);
+                if !msg.trim().is_empty() {
+                    println!("  uv: {}", msg.trim());
+                }
+            }
+            Ok(if out.status.success() { 0 } else { 1 })
+        }
+        _ => {
+            let report = ulvo_discovery::audit_workspace(&path)?;
+            let cas_mgr = vault_path.as_ref().and_then(|vp| ulvo_adapters::CasStorageManager::new(vp.clone()).ok());
+            let cas_manifest = cas_mgr.as_ref().and_then(|m| m.load_manifest().ok());
 
     if cli_json {
         let payload = serde_json::json!({
@@ -1924,6 +2098,8 @@ fn run_storage(
         }
     }
     Ok(0)
+}
+}
 }
 
 #[cfg(test)]
