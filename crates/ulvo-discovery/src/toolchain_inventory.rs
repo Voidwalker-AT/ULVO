@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use ulvo_core::{
@@ -6,7 +7,7 @@ use ulvo_core::{
 };
 
 /// An inventory entry discovered during read-only toolchain scanning.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiscoveredToolchain {
     pub name: String,
     pub executable_path: PathBuf,

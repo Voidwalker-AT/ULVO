@@ -23,22 +23,44 @@ pub struct GatewayResolution {
 pub struct GatewayResolver<'a> {
     registry: &'a MemoryVaultRegistry,
     system_path: String,
+    vault_root: Option<PathBuf>,
 }
 
 impl<'a> GatewayResolver<'a> {
     pub fn new(registry: &'a MemoryVaultRegistry) -> Self {
         let system_path = std::env::var("PATH").unwrap_or_default();
+        let vault_root = std::env::var("ULVO_VAULT_ROOT").ok().map(PathBuf::from).or_else(|| {
+            registry.list().iter().find_map(|r| {
+                if r.ownership == ulvo_core::Ownership::Managed {
+                    if let Some(ref p) = r.installation_path {
+                        let pb = PathBuf::from(p);
+                        if let Some(pos) = pb.to_string_lossy().find("vault") {
+                            let candidate = PathBuf::from(&pb.to_string_lossy()[..pos + 5]);
+                            if candidate.is_dir() {
+                                return Some(candidate);
+                            }
+                        }
+                    }
+                }
+                None
+            })
+        });
         Self {
             registry,
             system_path,
+            vault_root,
         }
     }
 
     pub fn with_system_path(registry: &'a MemoryVaultRegistry, custom_path: String) -> Self {
-        Self {
-            registry,
-            system_path: custom_path,
-        }
+        let mut r = Self::new(registry);
+        r.system_path = custom_path;
+        r
+    }
+
+    pub fn with_vault_root(mut self, vault_root: PathBuf) -> Self {
+        self.vault_root = Some(vault_root);
+        self
     }
 
     /// Resolves a requested tool name or resource identifier deterministically.
@@ -150,12 +172,15 @@ impl<'a> GatewayResolver<'a> {
                 if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
                 if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
                 // Companion MSYS2 UCRT64 toolchain directory for compiling native Ruby gem C extensions
-                let default_msys = PathBuf::from(r"E:\Workspace\Active\ULVO\vault\toolchains\msys2\ucrt64\bin");
+                if let Some(ref vr) = self.vault_root {
+                    let msys_ucrt = vr.join("toolchains").join("msys2").join("ucrt64").join("bin");
+                    if msys_ucrt.is_dir() {
+                        let s = msys_ucrt.to_string_lossy().to_string();
+                        if !path_entries.contains(&s) { path_entries.push(s); }
+                    }
+                }
                 let fallback_msys = PathBuf::from(r"C:\msys64\ucrt64\bin");
-                if default_msys.is_dir() {
-                    let s = default_msys.to_string_lossy().to_string();
-                    if !path_entries.contains(&s) { path_entries.push(s); }
-                } else if fallback_msys.is_dir() {
+                if fallback_msys.is_dir() {
                     let s = fallback_msys.to_string_lossy().to_string();
                     if !path_entries.contains(&s) { path_entries.push(s); }
                 }
@@ -168,10 +193,12 @@ impl<'a> GatewayResolver<'a> {
                         }
                     }
                 }
-                // Managed Go module cache under vault or user
-                let vault_go_mod = PathBuf::from(r"E:\Workspace\Active\ULVO\vault\packages\go\mod");
-                if vault_go_mod.is_dir() {
-                    process_env.insert("GOMODCACHE".into(), vault_go_mod.to_string_lossy().to_string());
+                // Managed Go module cache under vault
+                if let Some(ref vr) = self.vault_root {
+                    let vault_go_mod = vr.join("packages").join("go").join("mod");
+                    if vault_go_mod.is_dir() {
+                        process_env.insert("GOMODCACHE".into(), vault_go_mod.to_string_lossy().to_string());
+                    }
                 }
                 if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
                 if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
@@ -190,6 +217,20 @@ impl<'a> GatewayResolver<'a> {
                 if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
                 if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
                 if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
+            }
+            ulvo_core::Ecosystem::NodeJs => {
+                if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
+                if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
+                if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
+                if let Ok(appdata) = std::env::var("APPDATA") { process_env.insert("APPDATA".into(), appdata); }
+                if let Ok(localappdata) = std::env::var("LOCALAPPDATA") { process_env.insert("LOCALAPPDATA".into(), localappdata); }
+                if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
+                if let Some(ref vr) = self.vault_root {
+                    let pnpm_store = vr.join("packages").join("node").join("pnpm-store");
+                    if pnpm_store.is_dir() {
+                        process_env.insert("PNPM_HOME".into(), pnpm_store.to_string_lossy().to_string());
+                    }
+                }
             }
             _ => {}
         }

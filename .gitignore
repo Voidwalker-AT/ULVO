@@ -20,3 +20,8 @@ __pycache__/
 
 # Raw private workspace audit dumps
 /docs/evidence/stage2-7-workspace-audit/workspace_audit.json
+
+# Release distributions and binary gateway
+/dist/
+/bin/*.exe
+

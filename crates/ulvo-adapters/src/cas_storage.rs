@@ -115,10 +115,21 @@ impl CasStorageManager {
         descriptor.storage_relative_path = rel_path;
         descriptor.immutable = true;
 
+        let mut manifest = self.load_manifest()?;
+
         if final_path.is_file() {
             // Check pre-existing object integrity before reuse
             let existing_hash = hash_file_path(&final_path)?;
             if !existing_hash.eq_ignore_ascii_case(&actual_hash) {
+                let has_active_consumers = manifest.artifacts.get(&actual_hash)
+                    .map_or(false, |desc| !desc.consumers.is_empty())
+                    || manifest.reference_tracker.reference_count(&actual_hash) > 0;
+                if has_active_consumers {
+                    return Err(format!(
+                        "CAS_CORRUPTED_OBJECT_HELD_BY_ACTIVE_CONSUMERS: Cannot repair corrupted CAS object '{}' while active consumers reference it",
+                        actual_hash
+                    ));
+                }
                 // Object is corrupted; atomically repair from clean bytes
                 let ts = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
                 let staging_file = self.staging_dir.join(format!("repair_{}_{}_{}", actual_hash, std::process::id(), ts));
@@ -139,7 +150,6 @@ impl CasStorageManager {
         }
 
         // Idempotent manifest update: recompute_logical_bytes ensures no duplicate byte accounting
-        let mut manifest = self.load_manifest()?;
         manifest.artifacts.insert(actual_hash.clone(), descriptor);
         manifest.recompute_logical_bytes();
         self.save_manifest(&manifest)?;
@@ -230,13 +240,24 @@ impl CasStorageManager {
         descriptor.immutable = true;
 
         // Phase 3: Check pre-existing object
+        let mut manifest = self.load_manifest()?;
         if final_path.is_file() {
             let existing_hash = hash_file_path(&final_path)?;
             if existing_hash.eq_ignore_ascii_case(&actual_hash) {
                 // Object exists and is valid: safely discard staging file and reuse
                 let _ = fs::remove_file(&staging_file);
             } else {
-                // Existing object corrupted: repair by atomic replace from verified staging file
+                let has_active_consumers = manifest.artifacts.get(&actual_hash)
+                    .map_or(false, |desc| !desc.consumers.is_empty())
+                    || manifest.reference_tracker.reference_count(&actual_hash) > 0;
+                if has_active_consumers {
+                    let _ = fs::remove_file(&staging_file);
+                    return Err(format!(
+                        "CAS_CORRUPTED_OBJECT_HELD_BY_ACTIVE_CONSUMERS: Cannot repair corrupted CAS object '{}' while active consumers reference it",
+                        actual_hash
+                    ));
+                }
+                // Existing object corrupted and unreferenced: repair by atomic replace from verified staging file
                 let _ = set_file_readonly(&final_path, false);
                 fs::rename(&staging_file, &final_path)
                     .map_err(|e| format!("failed to repair corrupted CAS object: {e}"))?;
@@ -250,7 +271,6 @@ impl CasStorageManager {
         }
 
         // Phase 4: Idempotent manifest update
-        let mut manifest = self.load_manifest()?;
         manifest.artifacts.insert(actual_hash.clone(), descriptor);
         manifest.recompute_logical_bytes();
         self.save_manifest(&manifest)?;
@@ -358,6 +378,9 @@ impl CasStorageManager {
             }
         }
 
+        // Ensure read-only protection on target
+        let _ = set_file_readonly(target_path, true);
+
         // Update reference tracking under lock
         manifest.reference_tracker.add_reference(artifact_id, consumer_id);
         if let Some(desc) = manifest.artifacts.get_mut(artifact_id) {
@@ -366,7 +389,17 @@ impl CasStorageManager {
             }
         }
         manifest.recompute_logical_bytes();
-        self.save_manifest(&manifest)?;
+        if let Err(e) = self.save_manifest(&manifest) {
+            // Write recovery journal record preserving transaction evidence
+            if let Ok(mut journal) = OpenOptions::new().create(true).append(true).open(&self.journal_path) {
+                let _ = writeln!(
+                    journal,
+                    r#"{{"action":"materialization_unpersisted","artifact_id":"{}","consumer_id":"{}","target":"{}","timestamp":{}}}"#,
+                    artifact_id, consumer_id, target_path.display(), ts
+                );
+            }
+            return Err(format!("CRITICAL: Materialization succeeded but manifest persistence failed: {e}. Preserved in journal"));
+        }
 
         Ok(())
     }

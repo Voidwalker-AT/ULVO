@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-10-19
+
+### ULVO v1.0.0 — Release Readiness & System-Wide Development Resource Consolidation
+
+#### Added
+- **Universal CLI Surface Reconciliation (`ulvo-cli`)**:
+  - `ulvo doctor`: Unified system-wide health and readiness doctor verifying host platform, vault durability (registry, lock, journal), single execution gateway, GPU compute & hardware telemetry (NVIDIA RTX 2050, driver 596.49, sm_86), all 7 language ecosystems (Python, Rust, C/C++, Ruby, Go, Node.js, Java), storage reserves, and CAS integrity.
+  - `ulvo catalog`: Universal, beautifully formatted table or JSON catalog of all 55 development resources across Windows, MSYS2, and the ULVO Vault, sorted and grouped by ecosystem.
+  - `ulvo storage [report]`: Consolidated workspace storage, physical allocation, deduplication, and CAS intelligence reporting.
+  - `ulvo toolchain list`: Catalog of all discovered and managed development toolchains with ownership classification and exact binary paths.
+  - `ulvo toolchain verify [<tool>]`: Automated execution verification across all managed and adopted toolchains (MSYS2 C/C++, Rust, Python, Ruby, Go, Node.js, Java) returning granular pass/fail telemetry.
+  - `ulvo project init [<path>]`: Minimal, compliant `.ulvo/manifest.toml` generator adhering strictly to the Thin Connector Contract (< 100 KiB budget, no prohibited artifacts).
+  - Single Execution Gateway Directory: Deployed `ulvo.exe` into dedicated `bin/ulvo.exe` for single-PATH global integration.
+  - Release Packaging: Created `scripts/package-release.ps1` generating portable release bundles (`dist/ulvo-v1.0.0-windows-x86_64.zip`) with SHA-256 verification hashes.
+
+#### Hardened & Fixed
+- **CAS Active Consumer Protection & Integrity (`ulvo-adapters::cas_storage`)**:
+  - Closed hardlink invalidation vulnerability: guarded against in-place overwriting of corrupted CAS objects when active consumers reference them (`CAS_CORRUPTED_OBJECT_HELD_BY_ACTIVE_CONSUMERS`), preventing silent crash or corruption of running processes.
+  - Enforced NTFS read-only attributes on materialized target files in project environments.
+  - Added failure journaling: unpersisted materialization transactions are journaled to `cas_journal.jsonl` if manifest persistence fails.
+  - Added adversarial test `test_22_active_consumers_block_corrupted_object_repair` to `crates/ulvo-adapters/tests/cas_adversarial.rs` (22/22 adversarial tests pass).
+- **Dynamic Gateway Discovery & Portability (`ulvo-adapters::gateway`, `ulvo-cli`)**:
+  - Dynamic Vault Root Discovery via `with_vault_root`, `ULVO_VAULT_ROOT`, and registry introspection, eliminating hardcoded drive or workspace paths.
+  - Replaced hardcoded `E:\Workspace` CLI defaults across `MigrateCommands` and `WorkspaceCommands` with portable `"."`.
+  - Added full environment injection for Node.js (`APPDATA`, `LOCALAPPDATA`, `PNPM_HOME`) and Java (`JAVA_HOME`).
+- **Comprehensive Workspace Verification**:
+  - Verified 155 workspace unit and integration tests passing with 0 failures across all 4 crates (`ulvo-core`, `ulvo-adapters`, `ulvo-discovery`, `ulvo-cli`).
+  - Verified end-to-end PyTorch CUDA execution and transactional environment reclamation on `E:\Workspace\Academic\sem5\DL\exp1`.
+
+---
+
 ## [0.2.8] - 2026-10-19
 
 ### Stage 2.9.4a — CAS Immutability, Transactional Materialization & Safe Garbage Collection Hardening

@@ -200,20 +200,42 @@ flowchart LR
   - **Regression Verification**:
     - 121/121 passing automated native tests across all four workspace crates.
 
+### Stage 2.9.4: Universal Content-Addressable Dependency Store & Language Adoption
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - Pure-Rust FIPS 180-4 streaming SHA-256 CAS engine (`vault/packages/cas`).
+  - Coordinated native package caches across 7 ecosystems (`uv-cache`, `shared wheels`, `cargo registry`, `pnpm store`, `GOMODCACHE`, `gems`, `pacman pkg`).
+  - Machine-wide toolchain discovery (41 tools) and typed 9-stage adoption plans.
+  - Multi-language execution gateway (`ulvo exec --tool <name>`) with Windows verbatim path normalization.
+
+### Stage 2.9.4a: CAS Immutability, Transactional Materialization & Adversarial Hardening
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - Stream copy to private staging with post-copy cryptographic validation.
+  - Active consumer guard (`CAS_CORRUPTED_OBJECT_HELD_BY_ACTIVE_CONSUMERS`) preventing in-place corruption.
+  - 4-phase transactional target materialization with NTFS read-only attributes and rollback.
+  - Fail-closed compatibility validation with CUDA capability matching (`cuda_sm_86`).
+  - Safe garbage collection planning (`--plan` default, journaled unlinking).
+  - 22-case adversarial test suite passing across all scenarios.
+
+### Stage 1.0.0: Release Readiness & System-Wide Development Resource Consolidation
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - Single Execution Gateway Directory (`bin/ulvo.exe`) for single-PATH global integration.
+  - Universal CLI surface: `ulvo doctor`, `ulvo catalog`, `ulvo storage`, `ulvo toolchain list/install/verify`, `ulvo project init`.
+  - Automated multi-toolchain verification across all 7 ecosystems (MSYS2 C/C++, Rust, Python, Ruby, Go, Node.js, Java) returning `ALL_VERIFIED`.
+  - Minimal Thin Connector compliance generator (< 100 KiB budget, zero runtime bloat).
+  - Dynamic Vault Root and portable CLI defaults (`"."`).
+  - Release packaging script (`scripts/package-release.ps1`) generating `dist/ulvo-v1.0.0-windows-x86_64.zip` with SHA-256 checksums.
+  - 155 workspace tests passing with 0 failures.
+
 ---
 
 ## Future Roadmap
 
-### Stage 2.9.3: Active Ecosystem Execution Adapters
-- **Status**: `PLANNED` (Recommended Next Milestone)
-- **Ecosystems**:
-  - **Node.js / JavaScript**: Integration with `pnpm` content-addressable store and `package.json` manifest parsing.
-  - **Go**: Integration with `GOPATH`/`GOMODCACHE` and `go.mod` module management.
-  - **Java / JVM**: Integration with Maven/Gradle caches and JDK toolchain management.
-
 ### Stage 3.0: Desktop Control Center (Tauri 2.0 GUI)
-- **Status**: `PLANNED`
+- **Status**: `BLOCKED` (Pending host Tauri 2.0 / web frontend build prerequisites)
 - **Objectives**:
   - Native Windows desktop application consuming the Rust core via Tauri 2.0.
   - Interactive cockpit for GPU telemetry, active leases, storage deduplication, and staged toolchain adoption.
-  - Implementation based on [docs/GUI_AND_BRANDING_SPECIFICATION.md](GUI_AND_BRANDING_SPECIFICATION.md).
+  - Architectural and visual design fully specified in [docs/GUI_AND_BRANDING_SPECIFICATION.md](GUI_AND_BRANDING_SPECIFICATION.md).

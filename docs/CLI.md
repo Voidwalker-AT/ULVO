@@ -480,7 +480,74 @@ ulvo gpu inspect E:\Workspace\Academic\sem5\DL\exp1 [--json]
 
 ---
 
-## 12. Non-Mutating Execution Guarantee
+## 12. `ulvo doctor`
+
+Performs an exhaustive system and control plane health check across all release-critical subsystems:
+- Platform and architecture integrity
+- Vault durability (registry, lock, journal validation)
+- Execution gateway availability (`bin/ulvo.exe`)
+- Host GPU hardware and driver telemetry (NVIDIA RTX, driver version, compute capability)
+- Managed and adopted language ecosystems (Python, Rust, MSYS2 C/C++, Ruby, Go, Node.js, Java)
+- Storage reserves against safety reserve thresholds (500 MB minimum)
+- CAS store cryptographic integrity
+
+### Syntax
+```sh
+ulvo doctor [--json]
+```
+
+---
+
+## 13. `ulvo catalog`
+
+Renders an authoritative, formatted table or JSON catalog of all development resources (managed and discovered) registered across Windows, MSYS2, and the ULVO Vault, sorted and grouped by ecosystem.
+
+### Syntax
+```sh
+ulvo catalog [--json]
+```
+
+---
+
+## 14. `ulvo storage`
+
+Provides integrated storage and deduplication intelligence reporting across a project or workspace directory tree, reporting logical storage, physical disk allocation, hardlink deduplication count, CAS unique payload bytes, and discovered virtual environments.
+
+### Syntax
+```sh
+ulvo storage [report] [<PATH>] [--json]
+```
+
+---
+
+## 15. `ulvo toolchain list` & `ulvo toolchain verify`
+
+### 15.1 `ulvo toolchain list`
+Lists all discovered and managed compilers, runtimes, package managers, and SDKs with backend and ownership indicators.
+```sh
+ulvo toolchain list [--json]
+```
+
+### 15.2 `ulvo toolchain verify`
+Runs automated compilation, linking, and execution verification across managed and adopted toolchains (MSYS2 C/C++, Rust, Python, Ruby, Go, Node.js, Java).
+```sh
+ulvo toolchain verify [<TOOL>] [--json]
+```
+
+---
+
+## 16. `ulvo project init`
+
+Initializes a minimal, compliant `.ulvo/manifest.toml` thin connector inside a target project directory (< 100 KiB budget, zero heavy runtime binaries or virtual environments).
+
+### Syntax
+```sh
+ulvo project init [<PROJECT_PATH>] [--ecosystem <ECOSYSTEM>] [--runtime-version <VERSION>] [--json]
+```
+
+---
+
+## 17. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.

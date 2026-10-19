@@ -445,3 +445,34 @@ fn test_21_reparse_point_and_junction_escapes_rejected() {
     let res = manager.link_artifact_to_environment(fake_hash, &escape_target, "bad_actor");
     assert!(res.is_err());
 }
+
+#[test]
+fn test_22_active_consumers_block_corrupted_object_repair() {
+    let fixture = TestFixture::new("t22_consumer_repair_block");
+    let manager = CasStorageManager::new(fixture.dir.clone()).unwrap();
+
+    let payload = b"PAYLOAD_WITH_ACTIVE_HARDLINK_CONSUMER";
+    let hash = format!("{:x}", Sha256::digest(payload));
+    let desc = make_desc(&hash, "consumer-guard", "1.0.0");
+    manager.store_payload(desc.clone(), payload).unwrap();
+
+    // Materialize to an environment, creating an active consumer reference
+    let target = fixture.dir.join("env").join("consumer.bin");
+    manager.link_artifact_to_environment(&hash, &target, "active_consumer_env").unwrap();
+
+    // Corrupt the CAS object directly on disk
+    let obj_path = fixture.dir.join("packages").join("cas").join("objects").join(&hash[..2]).join(&hash);
+    let mut perms = fs::metadata(&obj_path).unwrap().permissions();
+    perms.set_readonly(false);
+    fs::set_permissions(&obj_path, perms).unwrap();
+    fs::write(&obj_path, b"TAMPERED_IN_PLACE_BYTE_PAYLOAD").unwrap();
+
+    // Attempting to re-publish or repair this corrupted object while active consumers exist MUST be rejected!
+    let res = manager.store_payload(desc, payload);
+    assert!(res.is_err());
+    let err_msg = res.unwrap_err();
+    assert!(
+        err_msg.contains("CAS_CORRUPTED_OBJECT_HELD_BY_ACTIVE_CONSUMERS"),
+        "Unexpected error: {err_msg}"
+    );
+}

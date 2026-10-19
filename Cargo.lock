@@ -280,7 +280,7 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "ulvo-adapters"
-version = "0.2.8"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "ulvo-cli"
-version = "0.2.8"
+version = "1.0.0"
 dependencies = [
  "clap",
  "serde_json",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "ulvo-core"
-version = "0.2.8"
+version = "1.0.0"
 dependencies = [
  "serde",
  "toml",
@@ -309,7 +309,7 @@ dependencies = [
 
 [[package]]
 name = "ulvo-discovery"
-version = "0.2.8"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
