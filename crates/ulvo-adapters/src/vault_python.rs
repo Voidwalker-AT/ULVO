@@ -13,21 +13,58 @@ use crate::{
 };
 
 pub fn find_uv_executable() -> Option<PathBuf> {
-    // 1. Check local user directory
+    // 0. Check ULVO_VAULT environment variable
+    if let Ok(v) = std::env::var("ULVO_VAULT") {
+        let vault_dir = PathBuf::from(v);
+        let candidate = vault_dir.join("bin").join("uv.exe");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    // 1. Check relative to current executable
+    if let Ok(current) = std::env::current_exe() {
+        if let Some(parent) = current.parent() {
+            let candidate = parent.join("uv.exe");
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+            let candidate2 = parent.join("vault").join("bin").join("uv.exe");
+            if candidate2.is_file() {
+                return Some(candidate2);
+            }
+            if let Some(grandparent) = parent.parent() {
+                let candidate3 = grandparent.join("vault").join("bin").join("uv.exe");
+                if candidate3.is_file() {
+                    return Some(candidate3);
+                }
+            }
+        }
+    }
+
+    // 2. Check UV_PATH
+    if let Ok(path) = std::env::var("UV_PATH") {
+        let p = PathBuf::from(path);
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+
+    // 3. Check local user directory
     if let Ok(userprofile) = std::env::var("USERPROFILE") {
         let candidate = PathBuf::from(&userprofile).join(".local/bin/uv.exe");
         if candidate.is_file() {
             return Some(candidate);
         }
     }
-    // 2. Check scoop or AppData
+    // 4. Check scoop or AppData
     if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
         let candidate = PathBuf::from(&localappdata).join("uv/uv.exe");
         if candidate.is_file() {
             return Some(candidate);
         }
     }
-    // 3. Check PATH
+    // 5. Check PATH
     if let Ok(path_var) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path_var) {
             let candidate = dir.join("uv.exe");

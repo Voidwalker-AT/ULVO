@@ -1,0 +1,99 @@
+﻿{
+    "timestamp":  "2026-10-20T02:48:39+05:30",
+    "ulvo_executable":  "E:\\Workspace\\Active\\ULVO\\bin\\ulvo.exe",
+    "verifications":  [
+                          {
+                              "name":  "CrossModalLab_PyTorch_CUDA_MatMul",
+                              "category":  "Python_CUDA",
+                              "status":  "PASS",
+                              "duration_ms":  27695,
+                              "output":  "Device: NVIDIA GeForce RTX 2050\r\nMatMul: 4096x4096 completed in 523.84 ms\r\nAllocated VRAM: 200.12 MB",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "CrossModalLab_Zero_Project_Tree_Bloat",
+                              "category":  "Storage_Preservation",
+                              "status":  "PASS",
+                              "duration_ms":  190,
+                              "output":  "Zero .venv detected; thin connector size = 510 bytes",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "NexusNode_Unittest_Execution",
+                              "category":  "Python_Server",
+                              "status":  "PASS",
+                              "duration_ms":  9125,
+                              "output":  "ulvo.exe : ....................\r\nAt E:\\Workspace\\Active\\ULVO\\scripts\\test-real-project-regression.ps1:106 char:12\r\n+     $out = \u0026 $UlvoExe run E:\\Workspace\\Active\\NexusNode\\server python ...\r\n+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (....................:String) [], RemoteException\r\n    + FullyQualifiedErrorId : NativeCommandError\r\n \r\n----------------------------------------------------------------------\r\nRan 20 tests in 3.304s\r\n\r\nOK",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "NexusNode_Socket_Binding_And_Release",
+                              "category":  "Network_Lifecycle",
+                              "status":  "PASS",
+                              "duration_ms":  3029,
+                              "output":  "Socket successfully bound and listening on 127.0.0.1:58945\r\nSocket successfully rebound on 127.0.0.1:58945 after close\r\nSocket lifecycle verified cleanly",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "AstraRun_Python313_Execution",
+                              "category":  "Python_313",
+                              "status":  "PASS",
+                              "duration_ms":  87006,
+                              "output":  "Python Version: 3.13.0\r\nAstraRun Python 3.13 execution verified successfully",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "Polyglot_Go_Gateway_Execution",
+                              "category":  "Toolchain_Go",
+                              "status":  "PASS",
+                              "duration_ms":  1581,
+                              "output":  "Go 1.26.5 successfully compiled and executed via ULVO gateway!",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "Polyglot_Ruby_Gateway_Execution",
+                              "category":  "Toolchain_Ruby",
+                              "status":  "PASS",
+                              "duration_ms":  872,
+                              "output":  "Ruby 4.0.1 (x64-mingw-ucrt) successfully executed via ULVO gateway!",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "Polyglot_Vault_MSYS2_GCC_Compilation",
+                              "category":  "Toolchain_Cpp",
+                              "status":  "PASS",
+                              "duration_ms":  1980,
+                              "output":  "MSYS2 GCC 14.2.0 C++ binary compiled and executed via ULVO gateway!",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "Polyglot_NodeJS_Gateway_Execution",
+                              "category":  "Toolchain_Node",
+                              "status":  "PASS",
+                              "duration_ms":  449,
+                              "output":  "Node.js v24.15.0 executed successfully via ULVO gateway!",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "Polyglot_Java_Compilation_And_Execution",
+                              "category":  "Toolchain_Java",
+                              "status":  "PASS",
+                              "duration_ms":  2497,
+                              "output":  "Java 21 successfully compiled and executed via ULVO gateway!",
+                              "error":  ""
+                          },
+                          {
+                              "name":  "NexusNode_Http_Server_Request_Lifecycle",
+                              "category":  "Server_Lifecycle",
+                              "status":  "PASS",
+                              "duration_ms":  3717,
+                              "output":  "True\r\nHTTP 200 OK: status=healthy, engine=NexusNode, orchestrator=ULVO; clean shutdown verified",
+                              "error":  ""
+                          }
+                      ],
+    "summary":  {
+                    "failed":  0,
+                    "total":  11,
+                    "passed":  11
+                }
+}

@@ -1,0 +1,95 @@
+﻿{
+    "ruby_reconciliation":  {
+                                "ruby_40_exists":  true,
+                                "active_version":  "ruby 4.0.1 (2026-01-13 revision e04267a14b) +PRISM [x64-mingw-ucrt]",
+                                "ruby_34_exists":  false,
+                                "resolution":  "Removed obsolete Ruby 3.4.1 entry. Retained Ruby 4.0.1 (1.22 GB) with zero modifications."
+                            },
+    "schema_version":  1,
+    "deletions_executed":  0,
+    "invariant_status":  "ZERO_DELETIONS_ON_C (All host toolchains preserved untouched)",
+    "unit_reconciliation":  {
+                                "agent_stage3_3_begin_gb":  24.17,
+                                "agent_stage3_3_peak_gb":  32.84,
+                                "current_reading_gb":  30.19,
+                                "current_delta_explanation":  "Intermediate target/ compilation artifacts (~4.5 GB) created during debug/release verification. Safely governable via \u0027ulvo storage build-prune\u0027.",
+                                "peak_explanation":  "Achieved after aggressive temporary build artifact and dangling cache pruning in Stage 3.2.",
+                                "current_reading_gib":  28.11,
+                                "mathematical_equivalence":  "24.17 GB (decimal, 10^9) = 22.509 GiB (binary, 2^30). Zero discrepancy; identical measurement in decimal vs binary units.",
+                                "user_reported_gib":  22.5
+                            },
+    "recoverable_inventory":  [
+                                  {
+                                      "name":  "MSYS2 Toolchain",
+                                      "estimated_gb":  4.2,
+                                      "path":  "C:\\msys64",
+                                      "safety_status":  "BLOCKED (Requires explicit human authorization; already vaulted in ULVO)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2"
+                                  },
+                                  {
+                                      "name":  "Ruby 4.0.1 Toolchain",
+                                      "estimated_gb":  1.22,
+                                      "path":  "C:\\Ruby40-x64",
+                                      "safety_status":  "BLOCKED (Retained for existing external Ruby development)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "Future vault adoption pilot"
+                                  },
+                                  {
+                                      "name":  "Go Toolchain",
+                                      "estimated_gb":  0.65,
+                                      "path":  "C:\\Program Files\\Go",
+                                      "safety_status":  "BLOCKED (Retained for existing external Go projects)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "Managed via ULVO polyglot gateway"
+                                  },
+                                  {
+                                      "name":  "Node.js",
+                                      "estimated_gb":  0.08,
+                                      "path":  "C:\\Program Files\\nodejs",
+                                      "safety_status":  "BLOCKED (Retained for external Node tooling)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "Managed via ULVO polyglot gateway"
+                                  },
+                                  {
+                                      "name":  "Java Temurin JDK 21",
+                                      "estimated_gb":  0.34,
+                                      "path":  "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot",
+                                      "safety_status":  "BLOCKED (Retained for Java enterprise builds)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "Managed via ULVO polyglot gateway"
+                                  },
+                                  {
+                                      "name":  "Host Cargo Toolchain (Already Vaulted)",
+                                      "estimated_gb":  0,
+                                      "path":  "C:\\Users\\hp\\.cargo",
+                                      "safety_status":  "ALREADY_MIGRATED (0 MB on C:, active in vault\\runtimes\\rust)",
+                                      "exists":  true,
+                                      "ulvo_replacement":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo"
+                                  }
+                              ],
+    "volume_statistics":  {
+                              "C":  {
+                                        "total_bytes":  288539799552,
+                                        "free_bytes":  20857769984,
+                                        "free_decimal_gb":  20.86,
+                                        "free_binary_gib":  19.43,
+                                        "total_binary_gib":  268.72,
+                                        "total_decimal_gb":  288.54
+                                    },
+                              "E":  {
+                                        "total_bytes":  223279575040,
+                                        "free_bytes":  30186606592,
+                                        "free_decimal_gb":  30.19,
+                                        "free_binary_gib":  28.11,
+                                        "total_binary_gib":  207.95,
+                                        "total_decimal_gb":  223.28
+                                    }
+                          },
+    "timestamp_utc":  "2026-10-19T21:16:30.1703280+00:00",
+    "cargo_reconciliation":  {
+                                 "cargo_bin_files":  0,
+                                 "rustup_files":  1,
+                                 "resolution":  "Corrected 3.2 GB host Cargo record to 0 MB (binaries already reside in vault runtimes)."
+                             }
+}

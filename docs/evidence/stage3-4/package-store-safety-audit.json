@@ -1,0 +1,85 @@
+﻿{
+    "schema_version":  1,
+    "real_package_samples":  [
+                                 {
+                                     "File":  "torch_cpu.dll",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\torch\\lib\\torch_cpu.dll",
+                                     "Links":  2,
+                                     "Inode":  "83574700:00030000000653EE",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  239.62,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "torch_cuda.dll",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\torch\\lib\\torch_cuda.dll",
+                                     "Links":  2,
+                                     "Inode":  "83574700:00040000000653F0",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  912.92,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "expr.py",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\sympy\\core\\expr.py",
+                                     "Links":  2,
+                                     "Inode":  "83574700:000400000005D4E1",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  0.14,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "__init__.py",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\numpy\\__init__.py",
+                                     "Links":  1,
+                                     "Inode":  "83574700:000500000002DDC8",
+                                     "ReadOnly":  true,
+                                     "SizeMB":  0.03,
+                                     "Valid":  true
+                                 }
+                             ],
+    "overall_status":  "PASS",
+    "safety_checks":  [
+                          {
+                              "Check":  "Real Package Hardlink Inodes \u0026 Reference Counts",
+                              "Passed":  true,
+                              "Details":  "Sample files in shared store correctly report valid NTFS inodes and links."
+                          },
+                          {
+                              "Check":  "Cache Prune Unlink Resilience",
+                              "Passed":  true,
+                              "Details":  "Deleting uv-cache entry safely decrements link count without deleting or altering shared store data."
+                          },
+                          {
+                              "Check":  "Atomic Package Replacement Safety",
+                              "Passed":  true,
+                              "Details":  "Atomic replacement via MoveFileEx cleanly unlinks cache entry to new inode while preserving shared store content intact."
+                          },
+                          {
+                              "Check":  "In-Place Write Protection",
+                              "Passed":  true,
+                              "Details":  "Read-only file attribute strictly blocks standard application write handles."
+                          },
+                          {
+                              "Check":  "Concurrent Reader Access Safety",
+                              "Passed":  true,
+                              "Details":  "Read-only shared store files permit simultaneous unblocked read streams across multiple project executions."
+                          },
+                          {
+                              "Check":  "Interrupted Transaction Resilience",
+                              "Passed":  true,
+                              "Details":  "Temporary staging failures or crashes prior to atomic commit leave existing shared packages completely unaffected."
+                          },
+                          {
+                              "Check":  "Shared Store Read-Only Attribute Hardening",
+                              "Passed":  true,
+                              "Details":  "All 17714 files across 21 packages in shared store now have ReadOnly attributes enforced."
+                          },
+                          {
+                              "Check":  "PyTorch CUDA Post-Hardening Functionality",
+                              "Passed":  true,
+                              "Details":  "PyTorch 2.6.0+cu124 executes CUDA tensor operations on physical NVIDIA RTX 2050 GPU with zero regressions."
+                          }
+                      ],
+    "timestamp_utc":  "2026-10-19T20:47:15.8939852+00:00"
+}

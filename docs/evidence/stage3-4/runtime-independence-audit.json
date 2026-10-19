@@ -1,0 +1,82 @@
+﻿{
+    "toolchain_inventory":  [
+                                {
+                                    "Name":  "Go",
+                                    "Path":  "C:\\Program Files\\Go\\bin\\go.exe",
+                                    "Version":  "go version go1.26.5 windows/amd64",
+                                    "Architecture":  "x86_64",
+                                    "Ownership":  "System Program Files (Go MSI Installer)",
+                                    "IndependenceStatus":  "HOST_DEPENDENT",
+                                    "RetirementRecommendation":  "Retain until Go projects require isolated toolchain"
+                                },
+                                {
+                                    "Name":  "Ruby",
+                                    "Path":  "C:\\Ruby40-x64\\bin\\ruby.exe",
+                                    "Version":  "ruby 4.0.1 (2026-01-13 revision e04267a14b) +PRISM [x64-mingw-ucrt]",
+                                    "Architecture":  "x64-mingw-ucrt",
+                                    "Ownership":  "RubyInstaller (Ruby40-x64)",
+                                    "IndependenceStatus":  "HOST_DEPENDENT",
+                                    "RetirementRecommendation":  "Retain until Ruby projects require isolated toolchain"
+                                },
+                                {
+                                    "Name":  "Node.js",
+                                    "Path":  "C:\\Program Files\\nodejs\\node.exe",
+                                    "Version":  "v24.15.0",
+                                    "Architecture":  "x86_64",
+                                    "Ownership":  "Node.js Foundation (MSI Installer)",
+                                    "IndependenceStatus":  "HOST_DEPENDENT",
+                                    "RetirementRecommendation":  "Retain until frontend build pipeline adopts vault node"
+                                },
+                                {
+                                    "Name":  "Java (Temurin JDK 21)",
+                                    "Path":  "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+                                    "Version":  "openjdk version \"21.0.4\" 2024-07-16 LTS",
+                                    "Architecture":  "x86_64",
+                                    "Ownership":  "Eclipse Adoptium (MSI Installer)",
+                                    "IndependenceStatus":  "HOST_DEPENDENT",
+                                    "RetirementRecommendation":  "Retain for enterprise Java / Gradle builds"
+                                },
+                                {
+                                    "Name":  "Rust / Cargo",
+                                    "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\cargo.exe",
+                                    "Version":  "cargo 1.96.0 (30a34c682 2026-05-25)",
+                                    "Architecture":  "x86_64-pc-windows-msvc",
+                                    "Ownership":  "ULVO Vault Managed",
+                                    "IndependenceStatus":  "VAULT_INDEPENDENT",
+                                    "RetirementRecommendation":  "Host ~/.cargo can be safely retired once ULVO PATH alias is configured"
+                                },
+                                {
+                                    "Name":  "MSYS2 GCC",
+                                    "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\gcc.exe",
+                                    "Version":  "gcc.exe (Rev3, Built by MSYS2 project) 14.2.0",
+                                    "Architecture":  "x86_64-w64-mingw32",
+                                    "Ownership":  "ULVO Vault Managed",
+                                    "IndependenceStatus":  "VAULT_INDEPENDENT",
+                                    "RetirementRecommendation":  "Host C:\\msys64 can be retired after user confirmation"
+                                },
+                                {
+                                    "Name":  "Python (CPython 3.11.16)",
+                                    "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\python\\cpython-3.11.16-windows-x86_64-none\\python.exe",
+                                    "Version":  "CPython 3.11.16",
+                                    "Architecture":  "x86_64-windows-none",
+                                    "Ownership":  "ULVO Vault Managed (vendored uv + vault runtime)",
+                                    "IndependenceStatus":  "VAULT_INDEPENDENT",
+                                    "RetirementRecommendation":  "Host scoop uv python can be safely retired once verified"
+                                }
+                            ],
+    "timestamp_utc":  "2026-10-19T20:53:03.2529895+00:00",
+    "schema_version":  1,
+    "overall_status":  "PASS",
+    "vendored_uv":  {
+                        "verified":  true,
+                        "path":  "E:\\Workspace\\Active\\ULVO\\vault\\bin\\uv.exe",
+                        "sha256":  "4075A09490327D2BEDFACC807FA48252FB93647C5BD7EF28F00E579160EA3FB5",
+                        "version":  "uv 0.13.1 (62faed335 2026-10-13 x86_64-pc-windows-msvc)"
+                    },
+    "vault_managed_python":  {
+                                 "uv_resolution_verified":  true,
+                                 "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\python\\cpython-3.11.16-windows-x86_64-none\\python.exe",
+                                 "version":  "3.11.16",
+                                 "complete_distribution":  true
+                             }
+}

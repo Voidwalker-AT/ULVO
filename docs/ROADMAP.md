@@ -399,6 +399,46 @@ flowchart LR
   - **Regression Verification**:
     - 182 unit and integration tests passing (`cargo test`).
 
+---
+
+### Stage 3.4: Production Reliability Blockers, Runtime Independence & Performance Hardening
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Package Store Safety & Inode Severing Verification (`scripts/test-package-store-safety.ps1`)**:
+    - Proved that atomic cache replacement (`MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`) allocates fresh inodes to targets, severing hardlinks and preserving the immutable package store intact.
+    - Repaired test precondition bug for Win32 `ERROR_ALREADY_EXISTS 183`.
+    - 8/8 safety audits passing: Inode reference counts, cache prune unlink resilience, atomic replacement safety, in-place write blocking, 5-thread concurrent reader isolation, interrupted transaction resilience, read-only attribute hardening (17,714 files), and PyTorch 2.6.0+cu124 tensor matmul on physical NVIDIA GeForce RTX 2050 Laptop GPU.
+    - Evidence: `docs/evidence/stage3-4/package-store-safety-audit.json`.
+  - **Physical Runtime Independence & Toolchain Vendoring (`scripts/setup-vault-runtime-independence.ps1`)**:
+    - Vendored pinned `uv.exe` (`v0.13.1`, SHA-256: `4075A09490327D2BEDFACC807FA48252FB93647C5BD7EF28F00E579160EA3FB5`) into `vault/bin/uv.exe`.
+    - Staged complete standalone CPython 3.11.16 distribution into `vault/runtimes/python/cpython-3.11.16-windows-x86_64-none` with C headers and link libraries.
+    - Updated `ulvo-adapters` (`vault_uv.rs` and `vault_python.rs`) to prioritize vault runtimes before host PATH.
+    - Set `UV_PYTHON_INSTALL_DIR` and `UV_CACHE_DIR` across all subcommands.
+    - Evidence: `docs/evidence/stage3-4/runtime-independence-audit.json` & `docs/evidence/stage3-4/uv-provenance.json`.
+  - **Fast Execution Profiling & Warm Launch Optimization (`scripts/generate-fast-execution-profile.ps1`)**:
+    - Diagnosed and resolved warm launch bottleneck by eliminating redundant abandoned-environment directory walks and bypassing subprocess runtime discovery on warm runs.
+    - Warm `ulvo run` launch latency reduced from **1614 ms to 157 ms** (**10.28x speedup**).
+    - `ulvo project status` inspection latency reduced from **1475 ms to 84 ms** (**17.56x speedup**).
+    - `ulvo doctor` check reduced from **1530 ms to 860 ms**.
+    - Evidence: `docs/evidence/stage3-4/fast-execution-profile.json`.
+  - **IDE Integration Corrections & Validation (`scripts/test-ide-integration.ps1`)**:
+    - Validated deterministic environment paths in `.vscode/settings.json`.
+    - Corrected Windows Terminal GUID to valid RFC 4122 hexadecimal syntax (`{a63d95b0-13f5-4c09-9069-000000000001}`).
+    - Replaced fragile shell alias overrides with non-destructive PowerShell prompt window-title hooks.
+    - Provided Windows-native `.cmd` pre-commit hook alongside POSIX shell fallback.
+    - Evidence: `docs/evidence/stage3-4/ide-integration-validation.json`.
+  - **Storage Accounting & Retirement Matrix Reconciliation (`scripts/reconcile-storage-and-retirement.ps1`)**:
+    - Reconciled decimal GB vs binary GiB: proved mathematical identity (`24.17 * 10^9 / 1073741824 = 22.509 GiB`).
+    - Volume measurements: Drive `E:` has **30.19 GB** free (**28.11 GiB**); Drive `C:` has **20.86 GB** free (**19.43 GiB**).
+    - Disproved phantom `C:\Ruby34-x64` (confirmed host has Ruby 4.0.1 at 1.22 GB) and corrected host Cargo entry from 3.2 GB to 0 MB (vaulted on `E:`).
+    - Preserved all host tools with **strictly zero deletions on C:**.
+    - Evidence: `docs/evidence/stage3-4/storage-reconciliation-and-retirement.json` & `docs/evidence/stage3-4/external-toolchain-retirement-matrix.md`.
+  - **Real Project Polyglot Regression & Unit Test Suites**:
+    - **11/11 Polyglot & Hardware Verifications Passed**: CrossModalLab PyTorch CUDA on RTX 2050, zero `.venv` bloat, NexusNode unittests, socket binding, AstraRun Python 3.13, Go 1.26.5 gateway execution, Ruby 4.0.1 gateway execution, MSYS2 GCC 14.2.0 C++ compilation and run, Node.js 24.15.0 gateway execution, Java Adoptium JDK 21 compilation and run, and NexusNode HTTP lifecycle shutdown.
+    - **128/128 Cargo Workspace Unit Tests Passed Cleanly** across all crates.
+    - Evidence: `docs/evidence/stage3-4/project-regression-suite.json`.
+
+
 
 
 

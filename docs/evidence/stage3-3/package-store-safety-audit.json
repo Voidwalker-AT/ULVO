@@ -33,7 +33,7 @@
                                      "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\numpy\\__init__.py",
                                      "Links":  1,
                                      "Inode":  "83574700:500000002DDC8",
-                                     "ReadOnly":  false,
+                                     "ReadOnly":  true,
                                      "SizeMB":  0.03,
                                      "Valid":  true
                                  }
@@ -71,5 +71,5 @@
                               "Details":  "PyTorch 2.6.0+cu124 executes CUDA tensor operations on physical NVIDIA RTX 2050 GPU with zero regressions."
                           }
                       ],
-    "timestamp_utc":  "2026-10-19T19:44:34.3629849+00:00"
+    "timestamp_utc":  "2026-10-19T20:43:27.3662390+00:00"
 }

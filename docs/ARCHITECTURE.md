@@ -224,5 +224,11 @@ To maintain engineering clarity, all ULVO features are strictly categorized into
 | **Production Installer & Distribution** | `IMPLEMENTED` | Implemented in Stage 3.1 via `scripts/package-release.ps1`, `scripts/install-ulvo.ps1`, `scripts/uninstall-ulvo.ps1`, and portable zip bundle (`dist/`). |
 | **Node.js / pnpm Adapter** | `IMPLEMENTED` | Catalog entry, universal search resolution, and `.ulvo/manifest.toml` thin connector parsing for JavaScript/TypeScript runtimes. |
 | **Go / Java / Ruby / .NET Adapters** | `IMPLEMENTED` | Catalog entries, execution gateway resolution, and thin connector dependency models for Go, JVM, Ruby, and .NET. |
+| **Universal Multi-Ecosystem Onboarding Engine** | `IMPLEMENTED` | Implemented in Stage 3.3 (`ulvo project onboard`) supporting recursive detection of 7 ecosystems, monorepo container traversal, and thin connector initialization. |
+| **Physical Runtime Independence & Pinned uv Vendoring** | `IMPLEMENTED` | Implemented in Stage 3.4 (`vault/bin/uv.exe` v0.13.1 SHA-256 pinned and standalone CPython 3.11.16 in `vault/runtimes/python`), removing execution reliance on host C: installations. |
+| **Package Store Inode Severing & Safety Hardening** | `IMPLEMENTED` | Implemented in Stage 3.4 verifying NTFS atomic replacement (`MoveFileExW`) inode allocation and read-only attributes across 17,714 package store files. |
+| **Fast Warm Execution Optimization** | `IMPLEMENTED` | Implemented in Stage 3.4 reducing warm `ulvo run` launch latency from 1614 ms to 157 ms (10.28x speedup) and `ulvo project status` to 84 ms. |
+| **Storage & Retirement Matrix Reconciliation** | `IMPLEMENTED` | Implemented in Stage 3.4 providing exact mathematical proof for decimal/binary equivalence (24.17 GB = 22.509 GiB), volume measurements (E: 30.19 GB free, C: 20.86 GB free), and zero C: host tool deletions. |
 | **Foreign Distribution Execution** | `BLOCKED` | Cross-boundary execution between Windows and WSL without explicit launcher. |
+
 

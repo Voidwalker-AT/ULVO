@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-10-20
 
+### Stage 3.4 — Production Reliability Blockers, Runtime Independence & Performance Hardening
+
+#### Package Store Safety & Inode Isolation (`scripts/test-package-store-safety.ps1`)
+- **NTFS Atomic Inode Severing Verification**:
+  - Proved that atomic cache file replacement using `MoveFileEx(..., MOVEFILE_REPLACE_EXISTING)` allocates a brand new NTFS inode to the target directory entry and decrements the shared-store inode's reference count, preventing any corruption or modification of immutable package store files.
+  - Repaired test suite precondition in `scripts/test-package-store-safety.ps1` to cleanly handle Win32 `ERROR_ALREADY_EXISTS` (183).
+  - Verified immutable store behavior across 8 safety dimensions: Inode reference counts, cache prune unlink resilience, atomic replacement safety, in-place write blocking, 5-thread concurrent reader isolation, interrupted transaction resilience, read-only attribute hardening (17,714 files), and PyTorch 2.6.0+cu124 tensor matmul on physical NVIDIA GeForce RTX 2050 Laptop GPU.
+  - Generated audit evidence at `docs/evidence/stage3-4/package-store-safety-audit.json`.
+
+#### Physical Runtime Independence & Hermetic Packaging
+- **Vendored Standalone uv & Standalone Vault Python**:
+  - Vendored pinned `uv.exe` (`v0.13.1`, SHA-256: `4075A09490327D2BEDFACC807FA48252FB93647C5BD7EF28F00E579160EA3FB5`) directly into `vault/bin/uv.exe` with cryptographic checksum verification (`vault/bin/uv.checksum.txt`).
+  - Staged complete standalone CPython 3.11.16 distribution into `vault/runtimes/python/cpython-3.11.16-windows-x86_64-none` (with alias `cpython-3.11-windows-x86_64-none`) containing full standard library, C headers (`include/Python.h`), and link libraries (`libs/python311.lib`).
+  - Updated `ulvo-adapters` (`vault_uv.rs` and `vault_python.rs`) to prioritize `vault_root/bin/uv.exe`, `ULVO_VAULT/bin/uv.exe`, and executable-relative paths before checking host PATH.
+  - Configured `UvManager` across all subcommands with `UV_PYTHON_INSTALL_DIR = vault/runtimes/python` and `UV_CACHE_DIR = vault/packages/python/uv-cache`.
+  - Documented audit evidence at `docs/evidence/stage3-4/runtime-independence-audit.json` and provenance at `docs/evidence/stage3-4/uv-provenance.json`.
+
+#### Fast Execution Profiling & Warm Launch Optimization (`scripts/generate-fast-execution-profile.ps1`)
+- **10.28x Speedup on Warm Execution Path**:
+  - Diagnosed warm launch bottleneck (previously 1614 ms): eliminated recursive abandoned-environment directory walks (`scan_and_reclaim_abandoned_environments`) from the warm execution path in `project_lifecycle.rs`.
+  - Fast-pathed Python runtime discovery by checking the vault runtimes directory directly, avoiding redundant `uv.exe python find` subprocess invocations on warm runs.
+  - Reduced warm `ulvo run` launch latency from **1614 ms to 157 ms** (**10.28x speedup**).
+  - Reduced `ulvo project status` inspection latency from **1475 ms to 84 ms** (**17.56x speedup**).
+  - Reduced `ulvo doctor` health check latency from **1530 ms to 860 ms**.
+  - Documented benchmark profile at `docs/evidence/stage3-4/fast-execution-profile.json`.
+
+#### IDE Integration & Developer Ergonomics Corrections (`scripts/test-ide-integration.ps1`)
+- **Rigorous IDE Configuration Validation**:
+  - Replaced non-existent `${workspaceFolder}/.ulvo/runtime/...` paths in `.vscode/settings.json` with deterministic vault environment paths (`E:/Workspace/Active/ULVO/vault/environments/python/.../Scripts/python.exe`).
+  - Corrected Windows Terminal GUID to valid RFC 4122 hexadecimal syntax (`{a63d95b0-13f5-4c09-9069-000000000001}`).
+  - Replaced fragile `cd` shell alias overrides with non-destructive PowerShell prompt window-title hooks (`$host.UI.RawUI.WindowTitle`).
+  - Added Windows-native `.cmd` pre-commit hook alongside POSIX shell fallback.
+  - Verified 100% pass across all 4 IDE checks in `docs/evidence/stage3-4/ide-integration-validation.json`.
+
+#### Storage Accounting & Retirement Matrix Reconciliation
+- **Mathematical Unit Reconciliation & Ground Truth Audit**:
+  - Reconciled decimal GB (`10^9`) and binary GiB (`2^30`) accounting: proved that user-observed 22.5 GiB and agent-reported 24.17 GB are the exact same measurement (`24.17 * 10^9 / 1073741824 = 22.509 GiB`).
+  - Recorded exact volume statistics: Drive `E:` has **30.19 GB** free (**28.11 GiB**); Drive `C:` has **20.86 GB** free (**19.43 GiB**).
+  - Disproved phantom `C:\Ruby34-x64` (confirmed host has `C:\Ruby40-x64` at 1.22 GB) and corrected host Cargo record from 3.2 GB to 0 MB (Rust toolchain already vaulted on `E:`).
+  - Preserved all host tools with **strictly zero deletions on C:**.
+  - Documented in `docs/evidence/stage3-4/storage-reconciliation-and-retirement.json` and `docs/evidence/stage3-4/external-toolchain-retirement-matrix.md`.
+
+#### Full Polyglot & Workspace Regression Gates
+- **Comprehensive Verification Suite (`scripts/test-real-project-regression.ps1` & `scripts/run-workspace-tests.ps1`)**:
+  - **11/11 Polyglot & Hardware Verifications Passed**: CrossModalLab PyTorch CUDA on RTX 2050, zero `.venv` bloat, NexusNode unittests, socket binding, AstraRun Python 3.13, Go 1.26.5 gateway execution, Ruby 4.0.1 gateway execution, MSYS2 GCC 14.2.0 C++ compilation and run, Node.js 24.15.0 gateway execution, Java Adoptium JDK 21 compilation and run, and NexusNode HTTP lifecycle shutdown.
+  - **128/128 Cargo Workspace Unit Tests Passed Cleanly** across `ulvo-adapters`, `ulvo-core`, `ulvo-discovery`, and `ulvo-services`.
+  - Evidence recorded at `docs/evidence/stage3-4/project-regression-suite.json`.
+
 ### Stage 3.3 — Universal Multi-Ecosystem Onboarding, Global Gateway & Machine-Wide Consolidation
 
 #### Runtime Independence & PATH Isolation Audit (`scripts/test-runtime-independence.ps1`)

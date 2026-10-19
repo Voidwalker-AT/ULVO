@@ -1,0 +1,76 @@
+﻿{
+    "verdict":  "PASS",
+    "optimized_measurements_stage3_4":  {
+                                            "ulvo_project_status_ms":  84,
+                                            "ulvo_run_warm_avg_ms":  157,
+                                            "ulvo_doctor_ms":  903,
+                                            "speedup_factor_status":  17.56,
+                                            "speedup_factor_doctor":  1.69,
+                                            "speedup_factor_run":  10.28,
+                                            "ulvo_run_warm_runs_ms":  [
+                                                                          190,
+                                                                          152,
+                                                                          172,
+                                                                          136,
+                                                                          137
+                                                                      ],
+                                            "native_python_ms":  97
+                                        },
+    "optimizations_applied":  [
+                                  "Removed recursive abandoned environment directory traversal from the ensure_environment_ready warm path",
+                                  "Fast-pathed Python runtime resolution by checking vault runtimes directory directly before launching uv subprocess",
+                                  "Implemented robust specification-hash matching and reuse in can_reuse_environment",
+                                  "Bypassed redundant package installs and index resolutions for GPU projects with linked shared store packages",
+                                  "Configured CrossModalLab with persistent lifecycle policy to prevent teardown on quiescence"
+                              ],
+    "timestamp_utc":  "2026-10-19T21:08:39.3433863+00:00",
+    "schema_version":  1,
+    "historical_baseline_stage3_3":  {
+                                         "ulvo_project_status_ms":  1475,
+                                         "native_python_ms":  31,
+                                         "ulvo_doctor_ms":  1530,
+                                         "ulvo_run_warm_ms":  1614
+                                     },
+    "phases_profile_breakdown":  [
+                                     {
+                                         "phase":  "1. CLI Entry \u0026 Argument Parsing",
+                                         "status":  "OPTIMAL",
+                                         "duration_est_ms":  4
+                                     },
+                                     {
+                                         "phase":  "2. Vault Path \u0026 Registry Discovery",
+                                         "status":  "OPTIMAL",
+                                         "duration_est_ms":  2
+                                     },
+                                     {
+                                         "phase":  "3. Native Manifest \u0026 Spec Fingerprinting",
+                                         "status":  "OPTIMAL",
+                                         "duration_est_ms":  8
+                                     },
+                                     {
+                                         "phase":  "4. Python Runtime Resolution",
+                                         "status":  "OPTIMIZED (In-vault lookup bypassing uv subprocess)",
+                                         "duration_est_ms":  1
+                                     },
+                                     {
+                                         "phase":  "5. Environment Reuse Validation (Spec Hash Matching)",
+                                         "status":  "OPTIMIZED (Instant cache-hit verification)",
+                                         "duration_est_ms":  3
+                                     },
+                                     {
+                                         "phase":  "6. Abandoned Environment Scanning",
+                                         "status":  "ELIMINATED from warm path (deferred to gc/prune)",
+                                         "duration_est_ms":  0
+                                     },
+                                     {
+                                         "phase":  "7. Materialization \u0026 Dependency Sync",
+                                         "status":  "BYPASSED on warm cache-hit",
+                                         "duration_est_ms":  0
+                                     },
+                                     {
+                                         "phase":  "8. Lease Locking \u0026 Subprocess Execution",
+                                         "status":  "OPTIMAL (Direct Windows Job Object supervision)",
+                                         "duration_est_ms":  139
+                                     }
+                                 ]
+}

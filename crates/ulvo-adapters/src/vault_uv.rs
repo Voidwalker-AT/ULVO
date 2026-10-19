@@ -48,8 +48,8 @@ pub struct UvManager {
 
 impl UvManager {
     pub fn new(vault_root: PathBuf) -> Result<Self, String> {
-        let uv_exe = find_uv_executable().ok_or_else(|| {
-            "uv executable not found on system PATH. Please ensure uv is installed.".to_string()
+        let uv_exe = find_uv_executable(Some(&vault_root)).ok_or_else(|| {
+            "uv executable not found in ULVO vault or on system PATH. Please ensure uv is installed.".to_string()
         })?;
 
         // Purely read-only: do NOT call paths.ensure_dirs() here! Defer to materialize_environment!
@@ -90,6 +90,7 @@ impl UvManager {
             cmd.arg(version_constraint);
         }
         cmd.env("UV_CACHE_DIR", &self.paths.uv_cache_dir);
+        cmd.env("UV_PYTHON_INSTALL_DIR", &self.paths.runtimes_dir);
 
         let out = cmd.output().map_err(|e| format!("failed to execute uv python find: {e}"))?;
         if out.status.success() {
@@ -123,6 +124,8 @@ impl UvManager {
             cmd.arg("--python").arg(py);
         }
         cmd.arg("--cache-dir").arg(&self.paths.uv_cache_dir);
+        cmd.env("UV_CACHE_DIR", &self.paths.uv_cache_dir);
+        cmd.env("UV_PYTHON_INSTALL_DIR", &self.paths.runtimes_dir);
 
         let out = cmd.output().map_err(|e| format!("failed to execute uv venv: {e}"))?;
         if !out.status.success() {
@@ -159,6 +162,8 @@ impl UvManager {
                 .arg(&self.paths.uv_cache_dir)
                 .arg("--index-strategy")
                 .arg("unsafe-best-match");
+            cmd.env("UV_CACHE_DIR", &self.paths.uv_cache_dir);
+            cmd.env("UV_PYTHON_INSTALL_DIR", &self.paths.runtimes_dir);
 
             let out = cmd.output().map_err(|e| format!("failed to execute uv pip install: {e}"))?;
             if !out.status.success() {
@@ -230,6 +235,7 @@ impl UvManager {
         cmd.env("PATH", sanitized_path);
         cmd.env_remove("PYTHONHOME");
         cmd.env("UV_CACHE_DIR", &self.paths.uv_cache_dir);
+        cmd.env("UV_PYTHON_INSTALL_DIR", &self.paths.runtimes_dir);
         cmd.stdin(Stdio::inherit());
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
@@ -303,7 +309,50 @@ fn sanitize_path(current_path: &str, project_dir: &Path, prepend_scripts: &Path)
     entries.join(sep)
 }
 
-fn find_uv_executable() -> Option<PathBuf> {
+fn find_uv_executable(vault_root: Option<&Path>) -> Option<PathBuf> {
+    // 0. Check inside explicit vault root
+    if let Some(root) = vault_root {
+        let vault_candidates = [
+            root.join("bin").join("uv.exe"),
+            root.join("bin").join("uv"),
+            root.join("toolchains").join("uv").join("bin").join("uv.exe"),
+        ];
+        for candidate in &vault_candidates {
+            if candidate.is_file() {
+                return Some(candidate.clone());
+            }
+        }
+    }
+
+    // 1. Check ULVO_VAULT environment variable
+    if let Ok(v) = std::env::var("ULVO_VAULT") {
+        let vault_dir = PathBuf::from(v);
+        let candidate = vault_dir.join("bin").join("uv.exe");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    // 2. Check relative to current executable
+    if let Ok(current) = std::env::current_exe() {
+        if let Some(parent) = current.parent() {
+            let candidate = parent.join("uv.exe");
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+            let candidate2 = parent.join("vault").join("bin").join("uv.exe");
+            if candidate2.is_file() {
+                return Some(candidate2);
+            }
+            if let Some(grandparent) = parent.parent() {
+                let candidate3 = grandparent.join("vault").join("bin").join("uv.exe");
+                if candidate3.is_file() {
+                    return Some(candidate3);
+                }
+            }
+        }
+    }
+
     if let Ok(path) = std::env::var("UV_PATH") {
         let p = PathBuf::from(path);
         if p.is_file() {
@@ -334,6 +383,7 @@ fn find_uv_executable() -> Option<PathBuf> {
     {
         if let Ok(userprofile) = std::env::var("USERPROFILE") {
             let common_locations = [
+                format!("{userprofile}\\.local\\bin\\uv.exe"),
                 format!("{userprofile}\\.cargo\\bin\\uv.exe"),
                 format!("{userprofile}\\scoop\\shims\\uv.exe"),
                 format!("{userprofile}\\AppData\\Local\\Programs\\uv\\uv.exe"),

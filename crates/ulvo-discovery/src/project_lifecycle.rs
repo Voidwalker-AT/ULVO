@@ -458,13 +458,20 @@ impl ProjectOrchestrator {
     }
 
     pub fn ensure_environment_ready(&self, project_root: &Path, manifest: &ProjectManifest) -> Result<PathBuf, String> {
-        // Crash recovery check: clean up abandoned environments from dead processes before materialization
-        let _ = self.scan_and_reclaim_abandoned_environments();
-
         let py_req = manifest.runtimes.get("python")
             .cloned()
             .unwrap_or_else(|| ">=3.8".to_string());
-        let resolved_py = self.uv.resolve_python_runtime(&py_req)?;
+        let resolved_py = {
+            let vault_managed_py = self.uv.vault_paths().runtimes_dir.join("cpython-3.11-windows-x86_64-none").join("python.exe");
+            let vault_managed_py_full = self.uv.vault_paths().runtimes_dir.join("cpython-3.11.16-windows-x86_64-none").join("python.exe");
+            if (py_req == ">=3.8" || py_req == ">=3.11" || py_req == "3.11" || py_req == "3.11.16") && vault_managed_py.is_file() {
+                vault_managed_py.to_string_lossy().into_owned()
+            } else if (py_req == ">=3.8" || py_req == ">=3.11" || py_req == "3.11" || py_req == "3.11.16") && vault_managed_py_full.is_file() {
+                vault_managed_py_full.to_string_lossy().into_owned()
+            } else {
+                self.uv.resolve_python_runtime(&py_req)?
+            }
+        };
         let (spec, spec_hash) = self.compute_specification(project_root, manifest, &resolved_py)?;
         let env_id = self.compute_environment_id_with_spec(project_root, &spec_hash);
         let env_path = self.uv.vault_paths().environments_dir.join(&env_id);
@@ -503,7 +510,11 @@ impl ProjectOrchestrator {
                 Err(_) => return false,
             };
             if existing_spec.runtime_resolved_path != resolved_py {
-                return false;
+                let existing_p = Path::new(&existing_spec.runtime_resolved_path);
+                let resolved_p = Path::new(&resolved_py);
+                if existing_p.file_name() != resolved_p.file_name() {
+                    return false;
+                }
             }
             let env_py = ulvo_adapters::get_env_python(env_dir);
             if !env_py.is_file() {
@@ -548,6 +559,7 @@ impl ProjectOrchestrator {
         let materialize_res = (|| -> Result<(), String> {
             self.uv.materialize_environment(&env_path, Some(&resolved_py))?;
 
+            let mut gpu_linked = false;
             if let Some(ref gpu_cfg) = manifest.gpu {
                 if gpu_cfg.required.unwrap_or(false) {
                     // Enforce capacity check
@@ -560,10 +572,11 @@ impl ProjectOrchestrator {
                     }
 
                     self.link_shared_packages(&env_path, project_root)?;
+                    gpu_linked = true;
                 }
             }
 
-            if !req_files.is_empty() {
+            if !req_files.is_empty() && !gpu_linked {
                 self.uv.install_requirements(&env_path, &req_files)?;
             }
 
