@@ -1,0 +1,94 @@
+﻿{
+    "all_passed":  true,
+    "timestamp_utc":  "2026-10-19T21:27:10.2169880+00:00",
+    "schema_version":  1,
+    "tests":  [
+                  {
+                      "TestName":  "Python Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Python_Single_Ecosystem\",\n  \"project_name\": \"Python_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1..."
+                  },
+                  {
+                      "TestName":  "Rust Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Rust_Single_Ecosystem\",\n  \"project_name\": \"Rust_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda..."
+                  },
+                  {
+                      "TestName":  "Node Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Node_Single_Ecosystem\",\n  \"project_name\": \"Node_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda..."
+                  },
+                  {
+                      "TestName":  "Go Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Go_Single_Ecosystem\",\n  \"project_name\": \"Go_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Go..."
+                  },
+                  {
+                      "TestName":  "Ruby Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Ruby_Single_Ecosystem\",\n  \"project_name\": \"Ruby_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda..."
+                  },
+                  {
+                      "TestName":  "Cpp Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Cpp_Single_Ecosystem\",\n  \"project_name\": \"Cpp_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\..."
+                  },
+                  {
+                      "TestName":  "Java Single Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Java_Single_Ecosystem\",\n  \"project_name\": \"Java_Single_Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda..."
+                  },
+                  {
+                      "TestName":  "Polyglot Multi-Ecosystem",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Polyglot_Multi-Ecosystem\",\n  \"project_name\": \"Polyglot_Multi-Ecosystem\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45c..."
+                  },
+                  {
+                      "TestName":  "Monorepo Detection",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Monorepo_Detection\",\n  \"project_name\": \"Monorepo_Detection\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Mono..."
+                  },
+                  {
+                      "TestName":  "Policy Manual Blocking",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"message\": \"Onboarding policy is MANUAL. Pass --yes or --force to onboard.\",\n  \"report\": {\n    \"action_verdict\": \"MANUAL_ACTION_REQUIRED\",\n    \"detected_ecosystems\": [\n      {\n        \"details\": {\n          \"primary_manifest\": \"requirements.txt\"\n        },\n        \"kind\": \"python\",\n        \"mani..."
+                  },
+                  {
+                      "TestName":  "Thin Connector Budget Check",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "============================================================\n ULVO Universal Project Onboarding Engine                   \n============================================================\n  Project Name:      Thin_Connector_Budget_Check\n  Path:              \\\\?\\C:\\Users\\hp\\AppData\\Local\\Temp\\ulvo_onboard..."
+                  },
+                  {
+                      "TestName":  "Idempotent and Force Overwrite",
+                      "Passed":  true,
+                      "ExitCode":  0,
+                      "Details":  "",
+                      "StdoutPreview":  "{\n  \"project_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d33bf888de45cf1cdda\\\\Idempotent_and_Force_Overwrite\",\n  \"project_name\": \"Idempotent_and_Force_Overwrite\",\n  \"manifest_path\": \"\\\\\\\\?\\\\C:\\\\Users\\\\hp\\\\AppData\\\\Local\\\\Temp\\\\ulvo_onboard_suite_97dbfde23f014d..."
+                  }
+              ],
+    "total_tests":  12,
+    "passed_tests":  12,
+    "failed_tests":  0
+}

@@ -1,10 +1,11 @@
-# ULVO Stage 3.3: Universal Multi-Ecosystem Project Onboarding Verification Suite
+param(
+    [string]$evidenceDir = "E:\Workspace\Active\ULVO\docs\evidence\stage3-4"
+)
 
 $ErrorActionPreference = "Stop"
 
 $ulvoRoot = "E:\Workspace\Active\ULVO"
 $ulvoExe = "$ulvoRoot\bin\ulvo.exe"
-$evidenceDir = "$ulvoRoot\docs\evidence\stage3-3"
 if (-not (Test-Path $evidenceDir)) {
     New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 }
