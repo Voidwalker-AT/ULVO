@@ -10,6 +10,8 @@ pub mod migration_ops;
 pub use migration_ops::*;
 pub mod gateway;
 pub use gateway::*;
+pub mod vault_msys2;
+pub use vault_msys2::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

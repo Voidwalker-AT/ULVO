@@ -46,18 +46,35 @@ impl CudaComputeCapability {
     }
 }
 
-/// Represents the host NVIDIA GPU display driver version.
+/// Source of CUDA compatibility determination for an NVIDIA driver.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CudaCompatibilitySource {
+    /// Directly verified via runtime telemetry (e.g. nvidia-smi CUDA Version header or driver API).
+    RuntimeVerified,
+    /// Derived from official documented NVIDIA minimum driver version tables.
+    DocumentedTable,
+    /// Unknown: driver version is unmapped or outside documented boundaries without runtime confirmation.
+    Unknown,
+}
+
+/// Represents the host NVIDIA GPU display driver version and its validated CUDA support.
 /// Distinguishes system-managed GPU drivers from user-space runtimes.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct NvidiaDriverVersion {
     pub raw_version: String,
     pub major: u32,
     pub minor: u32,
-    pub max_cuda_support: String,
+    pub max_cuda_support: Option<String>,
+    pub compatibility_source: CudaCompatibilitySource,
 }
 
 impl NvidiaDriverVersion {
     pub fn parse(raw: &str) -> Option<Self> {
+        Self::parse_with_runtime_cuda(raw, None)
+    }
+
+    pub fn parse_with_runtime_cuda(raw: &str, runtime_cuda: Option<&str>) -> Option<Self> {
         let trimmed = raw.trim();
         let parts: Vec<&str> = trimmed.split('.').collect();
         if parts.is_empty() {
@@ -66,28 +83,45 @@ impl NvidiaDriverVersion {
         let major = parts[0].parse().ok()?;
         let minor = if parts.len() > 1 { parts[1].parse().unwrap_or(0) } else { 0 };
 
-        // Conservative mapping of major driver version to maximum supported CUDA version
-        let max_cuda = if major >= 570 {
-            "13.2".to_string()
-        } else if major >= 550 {
-            "12.4".to_string()
-        } else if major >= 535 {
-            "12.2".to_string()
-        } else if major >= 525 {
-            "12.0".to_string()
-        } else if major >= 515 {
-            "11.7".to_string()
-        } else if major >= 470 {
-            "11.4".to_string()
-        } else {
-            "10.2".to_string()
+        if let Some(cuda) = runtime_cuda {
+            let cuda_clean = cuda.trim().to_string();
+            if !cuda_clean.is_empty() && cuda_clean != "N/A" {
+                return Some(Self {
+                    raw_version: trimmed.to_string(),
+                    major,
+                    minor,
+                    max_cuda_support: Some(cuda_clean),
+                    compatibility_source: CudaCompatibilitySource::RuntimeVerified,
+                });
+            }
+        }
+
+        // Look up official documented NVIDIA CUDA Toolkit minimum driver requirements
+        let (cuda_ver, source) = match (major, minor) {
+            (maj, min) if maj > 570 || (maj == 570 && min >= 65) => (Some("12.8".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 560 || (maj == 560 && min >= 70) => (Some("12.6".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 555 || (maj == 555 && min >= 42) => (Some("12.5".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 551 || (maj == 551 && min >= 61) => (Some("12.4".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 545 || (maj == 545 && min >= 84) => (Some("12.3".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 537 || (maj == 537 && min >= 13) => (Some("12.2".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 531 || (maj == 531 && min >= 14) => (Some("12.1".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 527 || (maj == 527 && min >= 41) => (Some("12.0".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 522 || (maj == 522 && min >= 6) => (Some("11.8".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 516 || (maj == 516 && min >= 94) => (Some("11.7".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 512 || (maj == 512 && min >= 15) => (Some("11.6".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 496 || (maj == 496 && min >= 4) => (Some("11.5".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 471 || (maj == 471 && min >= 41) => (Some("11.4".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 451 || (maj == 451 && min >= 22) => (Some("11.0".to_string()), CudaCompatibilitySource::DocumentedTable),
+            (maj, min) if maj > 418 || (maj == 418 && min >= 96) => (Some("10.2".to_string()), CudaCompatibilitySource::DocumentedTable),
+            _ => (None, CudaCompatibilitySource::Unknown),
         };
 
         Some(Self {
             raw_version: trimmed.to_string(),
             major,
             minor,
-            max_cuda_support: max_cuda,
+            max_cuda_support: cuda_ver,
+            compatibility_source: source,
         })
     }
 }
@@ -336,14 +370,20 @@ mod tests {
 
     #[test]
     fn test_nvidia_driver_version_parsing() {
-        let driver = NvidiaDriverVersion::parse("596.49").unwrap();
-        assert_eq!(driver.major, 596);
-        assert_eq!(driver.minor, 49);
-        assert_eq!(driver.max_cuda_support, "13.2");
+        let driver_runtime = NvidiaDriverVersion::parse_with_runtime_cuda("596.49", Some("13.2")).unwrap();
+        assert_eq!(driver_runtime.major, 596);
+        assert_eq!(driver_runtime.minor, 49);
+        assert_eq!(driver_runtime.max_cuda_support.as_deref(), Some("13.2"));
+        assert_eq!(driver_runtime.compatibility_source, CudaCompatibilitySource::RuntimeVerified);
 
-        let legacy = NvidiaDriverVersion::parse("470.82").unwrap();
-        assert_eq!(legacy.major, 470);
-        assert_eq!(legacy.max_cuda_support, "11.4");
+        let documented = NvidiaDriverVersion::parse("471.41").unwrap();
+        assert_eq!(documented.major, 471);
+        assert_eq!(documented.max_cuda_support.as_deref(), Some("11.4"));
+        assert_eq!(documented.compatibility_source, CudaCompatibilitySource::DocumentedTable);
+
+        let unknown = NvidiaDriverVersion::parse("350.12").unwrap();
+        assert_eq!(unknown.max_cuda_support, None);
+        assert_eq!(unknown.compatibility_source, CudaCompatibilitySource::Unknown);
     }
 
     #[test]

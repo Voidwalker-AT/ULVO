@@ -36,7 +36,7 @@ graph TD
 ### `ulvo-core`
 - **Responsibility**: Pure domain models and deterministic business logic. Strictly zero I/O and zero subprocess execution.
 - **Key Modules**:
-  - [`registry`](../crates/ulvo-core/src/registry.rs): In-memory and serializable Universal Vault Registry, conflict detection, idempotent registration, reconciliation state machine, host GPU hardware tracking, and toolchain adoption plan store.
+  - [`registry`](../crates/ulvo-core/src/registry.rs): In-memory and serializable Universal Vault Registry, conflict detection, idempotent registration, reconciliation state machine, host GPU hardware tracking, toolchain adoption plan store, file-locking concurrency (`vault_registry.lock`), append-only journaling (`journal.jsonl`), and cryptographic SHA-256 payload verification.
   - [`resource`](../crates/ulvo-core/src/resource.rs): `ManagedResource`, deterministic `ResourceId` hashing, `OwnershipCategory`, `VerificationState`, `ResourceCapabilities`, and ABI/architecture specifications.
   - [`workspace`](../crates/ulvo-core/src/workspace.rs): Storage accounting models, `WorkspaceAuditReport`, `PythonEnvironment`, `InstalledPackage`, `PackageDuplication`, and mathematically bounded `StorageSavingsReport`.
   - [`gpu`](../crates/ulvo-core/src/gpu.rs): GPU device descriptors, CUDA compute capability (`sm_86`), NVIDIA driver version to CUDA mapping, Deep Learning framework variant models (`+cu124` vs `+cpu`), CUDA runtime dynamic dependency graphs, and drive capacity threshold gates.
@@ -49,7 +49,8 @@ graph TD
   - [`vault_python`](../crates/ulvo-adapters/src/vault_python.rs): Python virtual environment inspection (`pyvenv.cfg`, `conda-meta`), `site-packages` analysis, editable install detection (`direct_url.json` and `.pth` imports), `.dist-info/WHEEL` ABI tag extraction, distribution cryptographic catalog digest verification (`RECORD`/`METADATA`), and duplication analysis.
   - [`vault_uv`](../crates/ulvo-adapters/src/vault_uv.rs): `uv` ecosystem integration, ephemeral environment provisioning, single-instance shared package caching (`vault/packages/python/shared`), wheel pre-seeding, and non-destructive cleanup.
   - [`vault_rust`](../crates/ulvo-adapters/src/vault_rust.rs): Rust toolchain inspection inside the managed vault, `settings.toml` parsing, and PE/ELF binary header validation.
-  - [`gateway`](../crates/ulvo-adapters/src/gateway.rs): Unified Execution Gateway (`GatewayResolver`, `ProcessContext`) constructing process-isolated toolchain `PATH` and ecosystem variables without global PATH or Windows registry pollution.
+  - [`vault_msys2`](../crates/ulvo-adapters/src/vault_msys2.rs): First-class managed MSYS2 C/C++ toolchain subsystem manager (`Ucrt64`, `Mingw64`, `Clang64`, `Msys`), adopting external or provisioned installations into `vault/toolchains/msys2`, `.ulvo_managed.json` sentinel verification, and native C/C++ compilation test harnesses.
+  - [`gateway`](../crates/ulvo-adapters/src/gateway.rs): Unified Execution Gateway (`GatewayResolver`, `ProcessContext`, `ulvo exec`) constructing process-isolated toolchain `PATH` and ecosystem variables without global PATH or Windows registry pollution.
 
 ### `ulvo-discovery`
 - **Responsibility**: Safe filesystem traversal, workspace scanning, multi-ecosystem manifest detection, and lifecycle orchestration.
@@ -81,11 +82,18 @@ ULVO adopts a single-root filesystem architecture. All managed runtimes, toolcha
 │   │   └── rust/                 # Managed Rust toolchain
 │   │       ├── cargo/            # Isolated CARGO_HOME
 │   │       └── rustup/           # Isolated RUSTUP_HOME
-│   ├── toolchains/               # External toolchain reference pointers
+│   ├── toolchains/               # Managed toolchains and adopted compilers
+│   │   └── msys2/                # Managed MSYS2 C/C++ toolchain (.ulvo_managed.json)
+│   │       ├── ucrt64/           # UCRT64 GCC, G++, Clang, headers, binutils
+│   │       ├── usr/              # MSYS POSIX core utilities & shell
+│   │       ├── etc/              # Pacman & environment configurations
+│   │       └── var/lib/pacman/   # Pacman package database
 │   ├── packages/                 # Shared content-addressable package store
 │   │   └── python/shared/        # Single-instance package trees (hardlinked into venvs)
 │   ├── environments/             # Ephemeral materialized project virtualenvs (env_<hash>)
 │   ├── registry/                 # Persistent Universal Vault Registry state (JSON)
+│   │   ├── vault_registry.lock   # Concurrency lockfile for atomic multi-process updates
+│   │   └── journal.jsonl         # Append-only transaction journal
 │   └── tmp/                      # Ephemeral workspace files with ownership guards
 ├── crates/                       # Rust implementation source code
 ├── scripts/                      # Hardened provisioning and audit scripts
@@ -148,7 +156,7 @@ stateDiagram-v2
 | Environment | Role in ULVO | Execution Policy |
 | :--- | :--- | :--- |
 | **Windows Native** | **Primary target**: ULVO executes natively (`x86_64-pc-windows-gnu`). All NTFS operations use Win32 file APIs. | Native Win32 subprocess execution with strict timeouts, gateway environment isolation, and output capture. |
-| **MSYS2 / UCRT64** | **Bootstrap & Linker**: Provides `gcc.exe` and GNU binutils for native Windows linking. | Coexists externally; inventoried and adopted via reference, never claimed as managed or altered in-place. |
+| **MSYS2 / UCRT64** | **Bootstrap & Linker / Vault-Managed Native Toolchain**: Provides `gcc.exe`, `g++.exe`, and GNU binutils for native Windows linking and compilation. | External `C:\msys64` coexists completely untouched. ULVO provisions a first-class managed MSYS2 installation under `vault/toolchains/msys2` with `.ulvo_managed.json` sentinel and verified native C/C++ compilation. |
 | **WSL (Ubuntu)** | **Secondary host / verification**: Linux ELF build host used for cross-platform regression checks. | Registry-only discovery. Linux execution strictly isolated from Windows host processes. Direct cross-boundary execution without proxy is rejected. |
 
 ---
@@ -163,18 +171,20 @@ To maintain engineering clarity, all ULVO features are strictly categorized into
 | **Windows Rust Provisioning** | `IMPLEMENTED` | Hardened PowerShell script (`scripts/provision-rust-windows.ps1`) with redirect validation, SHA-256 verification, and junction isolation. |
 | **Native Windows Rust Compilation** | `IMPLEMENTED` | Fully working native toolchain (`x86_64-pc-windows-gnu`) building all crates. |
 | **Universal Vault Registry Foundation** | `IMPLEMENTED` | Deterministic models, conflict detection, verification lifecycle, GPU models, toolchain adoption plans, and JSON export in `ulvo-core`. |
+| **Durable Vault Registry v2** | `IMPLEMENTED` | Atomic file locking (`vault_registry.lock`), append-only transaction journal (`journal.jsonl`), and cryptographic SHA-256 payload integrity check. |
 | **NTFS Filesystem Identity** | `IMPLEMENTED` | Handle-based volume serial and file index queries (`CreateFileW` + `GetFileInformationByHandle`). |
 | **Physical Disk Allocation Accounting** | `IMPLEMENTED` | Cluster-level allocation measurement via `GetCompressedFileSizeW`. |
 | **Python/uv Environment Discovery** | `IMPLEMENTED` | Discovers virtualenvs, parses `pyvenv.cfg`, identifies native wheels, editable installs, and RECORD digests. |
 | **Bounded Storage Savings Model** | `IMPLEMENTED` | Three-tier mathematical model (`Conservative`, `Realistic`, `Theoretical`) without heuristic percentage multipliers. |
 | **Process-Safe Test Fixtures** | `IMPLEMENTED` | Random/timestamped fixture paths with `.ulvo_test_sentinel` PID ownership validation. |
 | **Controlled Ephemeral Python Execution** | `IMPLEMENTED` | Verified in Stage 2.8/2.8.1 with `NexusNode/server` running completely venv-free. |
-| **Safe Virtualenv Retirement Lifecycle** | `IMPLEMENTED` | Verified in Stage 2.8.2 (`NexusNode/server/.venv` safely deleted, 843 MB physical space reclaimed) and Stage 2.9 (workspace scanner). |
+| **Safe Virtualenv Retirement Lifecycle** | `IMPLEMENTED` | Verified across workspace in Stage 2.9/2.9.2 (5 projects retired, ~9.79 GB physical storage reclaimed, drive E: free space expanded to 11.44 GB). |
 | **Shared Package-Store Hardlinking** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `vault/packages/python/shared` and `hardlink_or_copy_tree`. |
 | **GPU Compatibility & Driver Governance** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `ulvo-core::gpu`, `nvidia-smi` hardware detection, CUDA compute capability mapping, and driver safety guardrails. |
 | **Universal Toolchain Inventory** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `ulvo-discovery::toolchain_inventory`, scanning Windows PATH, MSYS2, VS Code, and WSL registry metadata. |
 | **Staged Toolchain Adoption Model** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `ulvo-core::adoption` (9-stage lifecycle, fail-closed relocation rules). |
-| **Unified Execution Gateway** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `ulvo-adapters::gateway` with process-local environment variables. |
+| **First-Class Managed MSYS2 C/C++ Toolchain** | `IMPLEMENTED` | Implemented in Stage 2.9.2 via `vault/toolchains/msys2` with `.ulvo_managed.json`, native C/C++ verification (`ulvo toolchain msys2 verify`), and zero mutation of external `C:\msys64`. |
+| **Unified Execution Gateway (`ulvo exec`)** | `IMPLEMENTED` | Implemented in Stage 2.9.2 via `ulvo exec [--toolchain <name>] -- <cmd...>` routing commands directly to vault-managed toolchains with isolated PATH. |
 | **Desktop GUI Control Plane** | `PLANNED` | Complete specification authored in Stage 2.9.1 (`docs/GUI_AND_BRANDING_SPECIFICATION.md`). |
 | **Node.js / pnpm Adapter** | `PLANNED` | Manifest parsing and discovery for JavaScript/TypeScript runtimes. |
 | **Go / Java Adapters** | `PLANNED` | Toolchain and dependency resolution for Go and JVM ecosystems. |

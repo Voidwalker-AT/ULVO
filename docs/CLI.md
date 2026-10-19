@@ -364,20 +364,60 @@ Formulates a typed 9-stage adoption plan (`EXTERNAL_DISCOVERED` -> `COMPATIBILIT
 ulvo toolchain plan go [--json]
 ```
 
+### 9.3 `ulvo toolchain msys2 <adopt|verify|status>`
+Provides first-class management of the native MSYS2 / C / C++ toolchain under the ULVO vault (`vault/toolchains/msys2`).
+
+- `ulvo toolchain msys2 adopt [--source <PATH>]`: Adopts external MSYS2 into the vault with `.ulvo_managed.json` sentinel and verified provenance. Default source: `C:\msys64`.
+- `ulvo toolchain msys2 verify`: Compiles and executes native C (`hello.c`) and C++ (`hello.cpp`) programs using the vault-managed GCC/G++ 14.2.0 compilers with zero runtime dependency on external `C:\msys64`.
+- `ulvo toolchain msys2 status`: Reports the live provisioning state, subsystem status, and binary paths.
+
+```sh
+ulvo toolchain msys2 adopt --source C:\msys64
+ulvo toolchain msys2 verify
+ulvo toolchain msys2 status
+```
+
 ---
 
-## 10. `ulvo gpu`
+## 10. `ulvo exec`
+
+Executes commands through the ULVO Unified Execution Gateway. Resolves requested tools deterministically against Vault Registry identities and builds clean, isolated process environments without polluting global `PATH` or user profile scripts.
+
+### Syntax
+```sh
+ulvo exec [--toolchain <NAME>] -- <COMMAND...>
+```
+
+### Options
+- `--toolchain <NAME>`: Optional explicit toolchain selection (e.g. `msys2-ucrt64`, `msys2`, `rust`).
+- `<COMMAND...>`: Command binary and trailing arguments.
+
+### Examples
+```sh
+# Execute GCC via managed MSYS2 toolchain
+ulvo exec --toolchain msys2-ucrt64 -- gcc --version
+
+# Execute G++ via automatic deterministic gateway resolution
+ulvo exec -- g++ --version
+
+# Execute GNU Make inside clean process environment
+ulvo exec -- make --version
+```
+
+---
+
+## 11. `ulvo gpu`
 
 GPU hardware telemetry, display driver inspection, and framework compatibility evaluation.
 
-### 10.1 `ulvo gpu detect`
+### 11.1 `ulvo gpu detect`
 Detects host NVIDIA GPU hardware and display driver telemetry, reporting device model, total VRAM, driver version, compute capability (e.g. `sm_86`), and enforcing system-managed driver boundaries where kernel driver relocation is prohibited.
 
 ```sh
 ulvo gpu detect [--json]
 ```
 
-### 10.2 `ulvo gpu inspect <PATH>`
+### 11.2 `ulvo gpu inspect <PATH>`
 Evaluates a project's GPU requirements against host hardware, driver version, compute architecture, framework variants, and volume storage capacity. Distinguishes CPU-only wheels from CUDA builds and verifies available disk space against safety reserves.
 
 ```sh
@@ -386,7 +426,7 @@ ulvo gpu inspect E:\Workspace\Academic\sem5\DL\exp1 [--json]
 
 ---
 
-## 11. Non-Mutating Execution Guarantee
+## 12. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.

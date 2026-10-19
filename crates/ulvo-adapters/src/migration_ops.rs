@@ -62,6 +62,8 @@ pub fn inspect_candidate_dependencies(
     let uv_lock = project_dir.join("uv.lock");
     let poetry_lock = project_dir.join("poetry.lock");
     let pipfile_lock = project_dir.join("Pipfile.lock");
+    let req_lock = project_dir.join("requirements.lock");
+    let req_lock_txt = project_dir.join("requirements-lock.txt");
 
     let has_lock = if uv_lock.is_file() {
         sources.push("uv.lock".to_string());
@@ -71,6 +73,12 @@ pub fn inspect_candidate_dependencies(
         true
     } else if pipfile_lock.is_file() {
         sources.push("Pipfile.lock".to_string());
+        true
+    } else if req_lock.is_file() {
+        sources.push("requirements.lock".to_string());
+        true
+    } else if req_lock_txt.is_file() {
+        sources.push("requirements-lock.txt".to_string());
         true
     } else {
         false

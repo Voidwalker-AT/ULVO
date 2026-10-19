@@ -13,8 +13,9 @@ flowchart LR
     S26["Stage 2.6<br/>Vault Registry Foundation<br/>(COMPLETED)"]
     S27["Stage 2.7 - 2.7.1<br/>Workspace Intelligence & NTFS Identity<br/>(COMPLETED)"]
     PUB["GitHub Publication<br/>Public Checkpoint<br/>(COMPLETED)"]
-    S28["Stage 2.8<br/>Ephemeral Python Environment Pilot<br/>(COMPLETED)"]
-    S29["Stage 2.9+<br/>Multi-Language Orchestration & GUI<br/>(UP NEXT)"]
+    S28["Stage 2.8 - 2.8.2<br/>Ephemeral Python Environment Pilot & Retirement<br/>(COMPLETED)"]
+    S29["Stage 2.9 - 2.9.2<br/>Workspace Migration, GPU & Managed MSYS2<br/>(COMPLETED)"]
+    S30["Stage 2.9.3+<br/>Multi-Language Adapters & Tauri GUI<br/>(UP NEXT)"]
 
     P0 --> S24
     S24 --> S26
@@ -22,6 +23,7 @@ flowchart LR
     S27 --> PUB
     PUB --> S28
     S28 --> S29
+    S29 --> S30
 ```
 
 ---
@@ -131,11 +133,35 @@ flowchart LR
   - Non-executable GUI architecture and visual branding specification (`docs/GUI_AND_BRANDING_SPECIFICATION.md`).
   - 104/104 passing automated regression tests across the workspace.
 
+### Stage 2.9.2: Universal Vault Adoption, Resource Lifecycle & Storage Recovery
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Mandatory Workspace-Wide Legacy `.venv` Elimination**:
+    - Safely retired heavy AI/ML virtual environments for `Academic\sem5\DL\exp1` and `exp2`.
+    - Recovered **~9.69 GB** physical storage across the two deep learning projects (**~9.79 GB total recovered** across 5 projects in `E:\Workspace`).
+    - Expanded volume free space on `E:` from 6.88 GB to **11.44 GB** (12,283,654,144 bytes).
+    - Post-deletion verification confirmed identical execution (PyTorch 2.6.0+cu124 on physical RTX 2050 GPU; 81.09% test accuracy on CNN baseline) with zero `.venv` presence or re-creation.
+  - **First-Class Managed MSYS2 C/C++ Toolchain**:
+    - Implemented `vault_msys2` manager supporting `Ucrt64`, `Mingw64`, `Clang64`, and `Msys` subsystems.
+    - Adopted MSYS2 into `vault/toolchains/msys2` anchored by `.ulvo_managed.json` sentinel and verified provenance.
+    - Verified native C (`gcc`) and C++ (`g++`) compilation and execution harnesses via `ulvo toolchain msys2 verify`.
+    - Zero mutation or dependencies on external `C:\msys64`.
+  - **Unified Execution Gateway (`ulvo exec`)**:
+    - Gateway dispatcher routing commands directly to vault-managed toolchains (`ulvo exec [--toolchain <name>] -- <cmd...>`).
+    - Isolated process environment constructed with local PATH prepend, preserving system stability without global PATH or Windows registry pollution.
+  - **Durable Vault Registry v2**:
+    - Persistent registry envelope with SHA-256 payload integrity check.
+    - Concurrency protection via `vault_registry.lock` file locking.
+    - Append-only transaction journaling via `journal.jsonl`.
+    - Auto-discovery and registration of managed MSYS2 toolchains alongside Rust and Python resources.
+  - **Regression Test Suite**:
+    - 109/109 passing automated unit and integration tests across the workspace.
+
 ---
 
 ## Future Roadmap
 
-### Stage 2.9.2: Active Ecosystem Execution Adapters
+### Stage 2.9.3: Active Ecosystem Execution Adapters
 - **Status**: `PLANNED` (Recommended Next Milestone)
 - **Ecosystems**:
   - **Node.js / JavaScript**: Integration with `pnpm` content-addressable store and `package.json` manifest parsing.

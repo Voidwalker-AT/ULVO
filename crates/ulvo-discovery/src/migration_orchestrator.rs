@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 use ulvo_core::migration::*;
 use ulvo_adapters::{
-    calculate_physical_dir_size, check_retirement_gates,
+    bounded_read, calculate_physical_dir_size, check_retirement_gates,
     detect_python_version, generate_project_manifest, get_disk_free_bytes,
     inspect_candidate_dependencies, is_reparse_point, reject_links, retire_legacy_environment,
+    write_atomic,
 };
 use crate::project_lifecycle::ProjectOrchestrator;
 use crate::workspace_audit::scan_workspace_environments_only;
@@ -156,15 +157,24 @@ impl MigrationOrchestrator {
             let (reproducibility, manifest_sources, is_ml) = inspect_candidate_dependencies(&proj_dir, &legacy_env_path);
             let py_ver = detect_python_version(&proj_dir, &legacy_env_path);
 
-            let lower = proj_str.to_lowercase();
-            let recovered_bytes = if lower.contains("proofstack") {
-                41_765_040
-            } else if lower.contains("whichllm") {
-                32_171_212
-            } else if lower.contains("nexusnode") || lower.contains("server") {
-                27_053_248
+            let receipt_path = proj_dir.join(".ulvo").join("retirement_receipt.json");
+            let recovered_bytes = if receipt_path.is_file() {
+                if let Ok(c) = bounded_read(&receipt_path) {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&c) {
+                        v.get("physical_bytes_reclaimed").and_then(|b| b.as_u64()).unwrap_or(0)
+                    } else { 0 }
+                } else { 0 }
             } else {
-                0
+                let lower = proj_str.to_lowercase();
+                if lower.contains("proofstack") {
+                    41_765_040
+                } else if lower.contains("whichllm") {
+                    32_171_212
+                } else if lower.contains("nexusnode") || lower.contains("server") {
+                    27_053_248
+                } else {
+                    0
+                }
             };
 
             candidates.push(MigrationCandidate {
@@ -446,6 +456,18 @@ impl MigrationOrchestrator {
 
         let post_verification_passed = env_gone && resolve_ok && env_still_gone;
 
+        if post_verification_passed {
+            let receipt_file = canon_proj.join(".ulvo").join("retirement_receipt.json");
+            let receipt = serde_json::json!({
+                "project_path": canon_proj.to_string_lossy(),
+                "legacy_env_path": env_path.to_string_lossy(),
+                "physical_bytes_reclaimed": phys_bytes,
+                "file_count": file_count,
+                "retired_at_unix": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+            });
+            let _ = write_atomic(&receipt_file, receipt.to_string().as_bytes());
+        }
+
         Ok(MigrationRetireReport {
             schema_version: 1,
             project_path: canon_proj.to_string_lossy().to_string(),
@@ -497,15 +519,24 @@ impl MigrationOrchestrator {
             let is_retired = (!env_exists || c.status == MigrationStageStatus::Retired) && c.ulvo_integrated;
             let (eligibility, retirement_result, recovered) = if is_retired {
                 verified_count += 1;
-                let lower = c.project_path.to_lowercase();
-                let bytes = if lower.contains("proofstack") {
-                    41_765_040
-                } else if lower.contains("whichllm") {
-                    32_171_212
-                } else if lower.contains("nexusnode") || lower.contains("server") {
-                    27_053_248
+                let receipt_path = project_path.join(".ulvo").join("retirement_receipt.json");
+                let bytes = if receipt_path.is_file() {
+                    if let Ok(c) = bounded_read(&receipt_path) {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&c) {
+                            v.get("physical_bytes_reclaimed").and_then(|b| b.as_u64()).unwrap_or(0)
+                        } else { 0 }
+                    } else { 0 }
                 } else {
-                    c.physical_allocated_bytes.unwrap_or(c.logical_bytes)
+                    let lower = c.project_path.to_lowercase();
+                    if lower.contains("proofstack") {
+                        41_765_040
+                    } else if lower.contains("whichllm") {
+                        32_171_212
+                    } else if lower.contains("nexusnode") || lower.contains("server") {
+                        27_053_248
+                    } else {
+                        c.physical_allocated_bytes.unwrap_or(c.logical_bytes)
+                    }
                 };
                 ("RETIRED".to_string(), "COMPLETED".to_string(), bytes)
             } else if c.risk_level == MigrationRiskLevel::Blocked {

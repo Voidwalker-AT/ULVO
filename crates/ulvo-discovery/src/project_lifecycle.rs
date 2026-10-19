@@ -741,19 +741,20 @@ impl ProjectOrchestrator {
         {
             let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 5000)?;
             let lease_file = env_path.join(".ulvo_lease.json");
-            if lease_file.is_file() {
-                let lcontent = std::fs::read_to_string(&lease_file)
-                    .map_err(|e| format!("cannot read lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
-                let mut lease = serde_json::from_str::<EnvironmentLease>(&lcontent)
-                    .map_err(|e| format!("corrupted or malformed lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
-                self.clean_dead_processes(&mut lease);
-                if !lease.leased_processes.is_empty() {
-                    return Err(format!(
-                        "cannot reclaim environment: {} active process(es) still running (PIDs: {:?})",
-                        lease.leased_processes.len(),
-                        lease.leased_processes.iter().map(|p| p.pid).collect::<Vec<_>>()
-                    ));
-                }
+            if !lease_file.is_file() {
+                return Err(format!("missing lease metadata in {}: refusing reclamation", lease_file.display()));
+            }
+            let lcontent = std::fs::read_to_string(&lease_file)
+                .map_err(|e| format!("cannot read lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
+            let mut lease = serde_json::from_str::<EnvironmentLease>(&lcontent)
+                .map_err(|e| format!("corrupted or malformed lease metadata in {}: refusing reclamation ({e})", lease_file.display()))?;
+            self.clean_dead_processes(&mut lease);
+            if !lease.leased_processes.is_empty() {
+                return Err(format!(
+                    "cannot reclaim environment: {} active process(es) still running (PIDs: {:?})",
+                    lease.leased_processes.len(),
+                    lease.leased_processes.iter().map(|p| p.pid).collect::<Vec<_>>()
+                ));
             }
         } // Lock is dropped here before deletion so .ulvo_lease.lock is not held open!
 
@@ -864,6 +865,26 @@ impl ProjectOrchestrator {
     }
 
     pub fn detect_host_gpu() -> Option<HostGpuInfo> {
+        // First extract runtime CUDA version from full nvidia-smi banner if available
+        let mut runtime_cuda = None;
+        if let Ok(full_out) = std::process::Command::new("nvidia-smi").output() {
+            if full_out.status.success() {
+                let text = String::from_utf8_lossy(&full_out.stdout);
+                for line in text.lines() {
+                    if line.contains("CUDA Version:") {
+                        if let Some(pos) = line.find("CUDA Version:") {
+                            let part = &line[pos + "CUDA Version:".len()..];
+                            let cuda_val = part.split_whitespace().next().unwrap_or("").trim_matches('|').trim();
+                            if !cuda_val.is_empty() {
+                                runtime_cuda = Some(cuda_val.to_string());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let out = std::process::Command::new("nvidia-smi")
             .arg("--query-gpu=name,driver_version,memory.total")
             .arg("--format=csv,noheader,nounits")
@@ -884,11 +905,20 @@ impl ProjectOrchestrator {
                 } else {
                     "sm_75".to_string()
                 };
+
+                let parsed_driver = ulvo_core::NvidiaDriverVersion::parse_with_runtime_cuda(&driver, runtime_cuda.as_deref());
+                let (max_cuda, source_str) = match parsed_driver {
+                    Some(d) => (d.max_cuda_support, format!("{:?}", d.compatibility_source)),
+                    None => (runtime_cuda, "Unknown".to_string()),
+                };
+
                 return Some(HostGpuInfo {
                     name,
                     driver_version: driver,
                     vram_mib: vram,
                     compute_capability: cc,
+                    max_cuda_version: max_cuda,
+                    cuda_source: source_str,
                 });
             }
         }
@@ -929,6 +959,10 @@ pub struct HostGpuInfo {
     pub driver_version: String,
     pub vram_mib: u64,
     pub compute_capability: String,
+    #[serde(default)]
+    pub max_cuda_version: Option<String>,
+    #[serde(default)]
+    pub cuda_source: String,
 }
 
 #[cfg(test)]

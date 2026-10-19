@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
 
+## [0.2.5] - 2026-10-19
+
+### Stage 2.9.2 — Universal Vault Adoption, Resource Lifecycle & Storage Recovery
+
+#### Added
+- **First-Class Managed MSYS2 Adapter (`ulvo-adapters::vault_msys2`)**: Modeled `Msys2Subsystem` (`Ucrt64`, `Mingw64`, `Clang64`, `Msys`), implementing staged managed toolchain provisioning into `vault/toolchains/msys2` (`ucrt64`, `usr`, `etc`, `var/lib/pacman`) anchored by `.ulvo_managed.json` sentinel and verified provenance.
+- **Native C and C++ Toolchain Verification**: Built automated compilation, linking, and execution tests (`verify_native_c_compilation` and `verify_native_cpp_compilation`) proving complete GCC/G++ 14.2.0 functionality under process-local isolation with zero runtime dependency on external `C:\msys64`.
+- **Unified Execution Gateway (`ulvo exec`)**: Added `ulvo exec [--toolchain <name>] -- <cmd...>` CLI command backed by `GatewayResolver`. Constructs backend-isolated process environments with deterministic collision resolution (`Managed` > `External` > `Unknown`, verified status, and version ranking) while rejecting dirty user PATH entries.
+- **Durable Vault Registry Schema v2**: Implemented `PersistentRegistryEnvelope` with cryptographic SHA-256 payload checksums, cross-process file locking (`vault_registry.lock`), atomic persistence, append-only journal (`journal.jsonl`), and fail-closed corruption detection.
+- **Mandatory Workspace-Wide .venv Elimination**: Safely retired multi-gigabyte project-local virtual environments for `Academic\sem5\DL\exp1` (4,620.67 MB) and `Academic\sem5\DL\exp2` (4,621.00 MB) after passing 100% of all 10 verification gates (Gates A–J).
+- **Physical Storage Recovery Milestone**: Reclaimed **9,690,602,659 bytes (~9.69 GB / 9,241.67 MB)** across `exp1` and `exp2`, expanding drive E: free space from 6.88 GB to **11.44 GB**, bringing total workspace physical reclamation across 5 retired environments to **9,791,592,159 bytes (~9.79 GB / 9,337.99 MB)**.
+- **Zero-Regression Post-Retirement Verification**: Verified that both `exp1` and `exp2` deep learning GPU workloads (PyTorch 2.6.0+cu124 on CUDA 12.4 with physical NVIDIA RTX 2050) continue to execute identically through ULVO without regenerating project-local `.venv` directories.
+- **Strict Managed Provenance Enforcement**: Required non-null cryptographic or manifest `Provenance` metadata for all `Ownership::Managed` resources, ensuring path containment alone never confers managed ownership.
+- **Runtime-Verified GPU Telemetry**: Integrated direct `nvidia-smi` banner parsing for runtime CUDA support with documented driver boundary mapping and fail-closed `Unknown` fallbacks.
+
 ## [0.2.4] - 2026-10-19
 
 ### Stage 2.9.1 — GPU-Aware Python Environment Orchestration & Universal Toolchain Adoption

@@ -208,8 +208,52 @@ impl MemoryVaultRegistry {
     }
 }
 
+/// A record in the registry transaction journal for rollback and auditability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistryTransactionRecord {
+    pub transaction_id: String,
+    pub timestamp_unix: u64,
+    pub action: String, // e.g. "REGISTER", "UNREGISTER", "ADOPT", "UPDATE_STATUS"
+    pub resource_id: String,
+    pub initiator: String,
+    pub rollback_payload: Option<String>,
+}
+
+/// Persistent registry envelope with schema version, transaction history, and integrity checksum.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PersistentRegistryEnvelope {
+    pub schema_version: u32,
+    pub created_at_unix: u64,
+    pub updated_at_unix: u64,
+    pub sha256_checksum: String,
+    pub payload: MemoryVaultRegistry,
+    #[serde(default)]
+    pub transactions: Vec<RegistryTransactionRecord>,
+}
+
+impl PersistentRegistryEnvelope {
+    pub fn new(payload: MemoryVaultRegistry, sha256_checksum: String, now_unix: u64) -> Self {
+        Self {
+            schema_version: 2,
+            created_at_unix: now_unix,
+            updated_at_unix: now_unix,
+            sha256_checksum,
+            payload,
+            transactions: Vec::new(),
+        }
+    }
+}
+
 impl VaultRegistry for MemoryVaultRegistry {
     fn register(&mut self, resource: Resource) -> Result<(), RegistryError> {
+        // Enforce verified registry provenance for Managed resources
+        if resource.ownership == Ownership::Managed && resource.provenance.is_none() {
+            return Err(RegistryError::InvalidQuery(format!(
+                "resource '{}' claims Managed ownership but lacks verified provenance metadata",
+                resource.name
+            )));
+        }
+
         if let Some(existing) = self.resources.get(&resource.resource_id) {
             if existing == &resource {
                 // Idempotent duplicate: exact match is safe
@@ -303,9 +347,40 @@ mod tests {
             Some("rustup".into()),
             Ownership::Managed,
             VerificationStatus::Discovered,
-            None,
+            Some(crate::resource::Provenance {
+                source_type: "manifest-sha256-pinned".into(),
+                canonical_url: None,
+                expected_sha256: Some("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".into()),
+                actual_sha256: None,
+                manifest_path: Some("config/toolchain-artifacts.toml".into()),
+                notes: Some("sample verified managed toolchain".into()),
+            }),
             vec!["compiler".into()],
         )
+    }
+
+    #[test]
+    fn test_managed_without_provenance_rejected() {
+        let mut reg = MemoryVaultRegistry::new();
+        let unverified = Resource::new(
+            ResourceKind::Compiler,
+            Ecosystem::Rust,
+            "fake_rustc",
+            Some("1.96.0".into()),
+            Platform::Windows,
+            Architecture::X86_64,
+            Backend::Windows,
+            Abi::Gnu,
+            Some("E:/vault/fake/rustc.exe".into()),
+            None,
+            Ownership::Managed,
+            VerificationStatus::Discovered,
+            None, // LACKS PROVENANCE!
+            vec!["compiler".into()],
+        );
+        let err = reg.register(unverified).unwrap_err();
+        assert!(matches!(err, RegistryError::InvalidQuery(_)));
+        assert!(err.to_string().contains("lacks verified provenance metadata"));
     }
 
     #[test]

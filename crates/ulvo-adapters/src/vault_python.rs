@@ -110,7 +110,14 @@ pub fn discover_python_resources(vault_root: &Path) -> Result<Vec<Resource>, Str
                         Some("ulvo".into()),
                         Ownership::Managed,
                         status,
-                        None,
+                        Some(Provenance {
+                            source_type: "vault_managed_runtime".into(),
+                            canonical_url: None,
+                            expected_sha256: None,
+                            actual_sha256: None,
+                            manifest_path: Some(entry.path().to_string_lossy().to_string()),
+                            notes: Some("ULVO-managed standalone Python distribution".into()),
+                        }),
                         vec!["interpreter".into(), "managed_runtime".into()],
                     ));
                 }

@@ -94,6 +94,10 @@ The following capabilities are fully implemented, verified natively on Windows, 
 - **Unified Execution Gateway Foundation**: Read-only `GatewayResolver` constructing process-local PATHs and ecosystem environments from Vault Registry identities without global state pollution.
 - **Shared Package-Store Hardlinking**: Single-instance immutable package store (`vault/packages/python/shared`) hardlinking large native DLLs and wheels (PyTorch, torchvision) into isolated ephemeral environments with zero redundant disk allocation.
 - **Real GPU Deep-Learning Pilot Verification**: End-to-end verified execution of `Academic\sem5\DL\exp1` under ULVO on an NVIDIA RTX 2050 GPU, passing all 9 verification gates (tensor allocation, CUDA forward pass, loss computation, backprop, numerical CPU/GPU parity, and zero legacy `.venv` imports).
+- **First-Class Managed MSYS2 C/C++ Toolchain**: Complete managed toolchain (`vault/toolchains/msys2`) with GCC 14.2.0, G++, GNU Make, and Pacman; verified native C (`hello.c`) and C++ (`hello.cpp`) compilation, linking, and execution with zero runtime dependency on external `C:\msys64`.
+- **Unified Execution Gateway**: Production CLI gateway (`ulvo exec [--toolchain <name>] -- <cmd...>`) providing process-local PATH and environment isolation with deterministic collision ranking (`Managed` > `External` > `Unknown`).
+- **Durable Vault Registry Schema v2**: Persistent registry envelope with cryptographic SHA-256 checksums, cross-process file locking (`vault_registry.lock`), atomic writing, append-only journal (`journal.jsonl`), and corruption detection.
+- **Workspace-Wide Storage Recovery Milestone**: Automated retirement of legacy `.venv`s across 5 workspace projects (`exp1`, `exp2`, `server`, `ProofStack`, `whichllm`), recovering **9,791,592,159 bytes (~9.79 GB / 9,337.99 MB)** of verified physical disk space with zero regression in project functionality.
 
 ---
 

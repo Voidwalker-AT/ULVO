@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use ulvo_core::{
-    Abi, Architecture, Backend, Ecosystem, Ownership, Platform, Resource,
+    Abi, Architecture, Backend, Ecosystem, Ownership, Platform, Provenance, Resource,
     ResourceKind, VerificationStatus,
 };
 
@@ -20,12 +20,18 @@ pub struct DiscoveredToolchain {
 }
 
 impl DiscoveredToolchain {
-    pub fn to_resource(&self, vault_root: &Path) -> Resource {
-        let is_in_vault = self.executable_path.starts_with(vault_root);
-        let ownership = if is_in_vault {
-            Ownership::Managed
+    pub fn to_resource(&self, _vault_root: &Path) -> Resource {
+        let provenance = if self.ownership == Ownership::Managed {
+            Some(Provenance {
+                source_type: "vault_managed_toolchain".into(),
+                canonical_url: None,
+                expected_sha256: None,
+                actual_sha256: None,
+                manifest_path: None,
+                notes: Some(format!("Discovered via {}", self.discovery_source)),
+            })
         } else {
-            Ownership::External
+            None
         };
 
         Resource::new(
@@ -42,9 +48,9 @@ impl DiscoveredToolchain {
             },
             Some(self.executable_path.to_string_lossy().into_owned()),
             Some(self.discovery_source.clone()),
-            ownership,
+            self.ownership.clone(),
             VerificationStatus::Discovered,
-            None,
+            provenance,
             self.capabilities.clone(),
         )
     }
@@ -58,6 +64,39 @@ pub struct UniversalToolchainScanner {
 impl UniversalToolchainScanner {
     pub fn new(vault_root: PathBuf) -> Self {
         Self { vault_root }
+    }
+
+    pub fn verify_vault_ownership(&self, path: &Path) -> Ownership {
+        if !path.starts_with(&self.vault_root) {
+            return Ownership::External;
+        }
+        // Verify provenance: must have a valid ownership record, manifest, or sentinel
+        // 1. Rust runtime in vault/runtimes/rust
+        if path.starts_with(self.vault_root.join("runtimes").join("rust")) {
+            let manifest_path = self.vault_root.parent()
+                .map(|p| p.join("config").join("toolchain-artifacts.toml"))
+                .unwrap_or_default();
+            if manifest_path.is_file() {
+                return Ownership::Managed;
+            }
+        }
+        // 2. Managed MSYS2 in vault/toolchains/msys2
+        if path.starts_with(self.vault_root.join("toolchains").join("msys2")) {
+            let sentinel = self.vault_root.join("toolchains").join("msys2").join(".ulvo_managed.json");
+            if sentinel.is_file() {
+                return Ownership::Managed;
+            }
+        }
+        // 3. Ephemeral/Managed environment with .ulvo_ownership.json
+        if let Some(parent) = path.parent() {
+            if parent.join(".ulvo_ownership.json").is_file()
+                || parent.parent().map(|p| p.join(".ulvo_ownership.json").is_file()).unwrap_or(false)
+            {
+                return Ownership::Managed;
+            }
+        }
+        // Path containment alone without verified provenance metadata remains Unknown!
+        Ownership::Unknown
     }
 
     /// Scans the host system for all supported development toolchains.
@@ -110,7 +149,7 @@ impl UniversalToolchainScanner {
             for (filename, name, eco, kind, caps) in &targets {
                 let candidate = dir.join(filename);
                 if candidate.is_file() {
-                    let is_vault = candidate.starts_with(&self.vault_root);
+                    let ownership = self.verify_vault_ownership(&candidate);
                     let backend = if candidate.to_string_lossy().to_lowercase().contains("msys64") {
                         Backend::Msys2
                     } else {
@@ -124,7 +163,7 @@ impl UniversalToolchainScanner {
                         backend,
                         ecosystem: eco.clone(),
                         kind: kind.clone(),
-                        ownership: if is_vault { Ownership::Managed } else { Ownership::External },
+                        ownership,
                         discovery_source: "path".into(),
                         capabilities: caps.iter().map(|s| s.to_string()).collect(),
                     });
@@ -145,11 +184,16 @@ impl UniversalToolchainScanner {
         for (path_str, name, eco, kind, caps) in &known {
             let p = PathBuf::from(path_str);
             if p.is_file() {
+                let backend = if path_str.to_lowercase().contains("msys64") {
+                    Backend::Msys2
+                } else {
+                    Backend::Windows
+                };
                 results.push(DiscoveredToolchain {
                     name: name.to_string(),
                     executable_path: p,
                     version: None,
-                    backend: Backend::Windows,
+                    backend,
                     ecosystem: eco.clone(),
                     kind: kind.clone(),
                     ownership: Ownership::External,

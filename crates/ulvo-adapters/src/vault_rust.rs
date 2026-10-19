@@ -86,6 +86,17 @@ pub fn discover_vault_rust(
         (Platform::Linux, Architecture::X86_64, Abi::Gnu)
     };
 
+    let provenance = manifest_provenance.cloned().or_else(|| {
+        Some(Provenance {
+            source_type: "vault_rust_toolchain".into(),
+            canonical_url: None,
+            expected_sha256: None,
+            actual_sha256: None,
+            manifest_path: Some(settings_file.to_string_lossy().to_string()),
+            notes: Some("Rustup managed toolchain settings discovered in vault".into()),
+        })
+    });
+
     // 1. Rustc Compiler
     let rustc_exe = toolchain_dir.join("bin").join("rustc.exe");
     let rustc_status = evaluate_file_status(&rustc_exe, "x86_64");
@@ -102,7 +113,7 @@ pub fn discover_vault_rust(
         Some("rustup".into()),
         Ownership::Managed,
         rustc_status,
-        manifest_provenance.cloned(),
+        provenance.clone(),
         vec!["compiler".into(), "codegen".into(), host_triple.clone()],
     ));
 
@@ -122,7 +133,7 @@ pub fn discover_vault_rust(
         Some("rustup".into()),
         Ownership::Managed,
         cargo_status,
-        manifest_provenance.cloned(),
+        provenance.clone(),
         vec!["package_manager".into(), "build_tool".into()],
     ));
 
@@ -146,7 +157,7 @@ pub fn discover_vault_rust(
         Some("rustup".into()),
         Ownership::Managed,
         std_status,
-        manifest_provenance.cloned(),
+        provenance.clone(),
         vec!["standard_library".into(), "sysroot".into()],
     ));
 
@@ -171,7 +182,7 @@ pub fn discover_vault_rust(
             Some("rustup".into()),
             Ownership::Managed,
             mingw_status,
-            manifest_provenance.cloned(),
+            provenance.clone(),
             vec!["c_runtime".into(), "linker_support".into()],
         ));
     }
@@ -192,7 +203,7 @@ pub fn discover_vault_rust(
         Some("rustup".into()),
         Ownership::Managed,
         rustup_status,
-        manifest_provenance.cloned(),
+        provenance.clone(),
         vec!["toolchain_manager".into(), "installer".into()],
     ));
 
@@ -215,7 +226,7 @@ pub fn discover_vault_rust(
         Some("rustup".into()),
         Ownership::Managed,
         tc_status,
-        manifest_provenance.cloned(),
+        provenance,
         vec!["toolchain".into(), toolchain_name],
     ));
 
