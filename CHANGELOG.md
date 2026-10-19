@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
 
+## [0.2.6] - 2026-10-19
+
+### Stage 2.9.2a — Emergency Storage Recovery, Toolchain Consolidation & Gateway Hardening
+
+#### Added
+- **Emergency Storage Investigation & Space Reclamation**: Investigated root cause of drive E: free space collapse to 3.68 GB. Safely reclaimed abandoned test fixtures (`E:\ULVO_TEST`, 259.36 MB), obsolete build targets (`target-local`, 580.14 MB), and Cargo incremental cache (`debug/incremental`, 2,038.52 MB).
+- **Automated Retirement of Verified Legacy `.venv` Directories**:
+  - `Active\termux-ai-workstation\.venv`: Reclaimed **3,457.72 MB (3.46 GB)** across 31,560 files; confirmed 301/302 tests collect and pass cleanly before and after retirement.
+  - `Agents\AstraRun-Anti\.venv`: Reclaimed **886.37 MB** across 11,705 files; verified execution via `ulvo run`.
+  - `Agents\AstraRun-MiMo\.venv`: Reclaimed **694.71 MB** across 6,816 files; verified execution via `ulvo run`.
+  - Net physical storage reclaimed from legacy environments: **5,038.80 MB (~5.04 GB)**, raising drive E: free space to **6.75 GB - 7.13 GB** (a +3.45 GB net gain while preserving all test/release builds).
+- **Durability & Read-Only Registry Access**:
+  - Implemented `load_vault_registry_readonly` to ensure non-mutating commands (`vault stats`, `vault list`, `vault inspect`, `exec`) never perform disk mutations.
+  - Implemented atomic transaction engine `with_vault_registry_transaction` with automatic rollback, fail-closed journaling, and corrupt registry backup (`vault_registry.corrupt.<timestamp>.json`).
+- **Unified Execution Gateway Hardening (`ulvo exec`)**:
+  - Hardened `GatewayResolver` with strict canonical matching against approved Windows system directories (`System32`, `Wbem`, `WindowsPowerShell`), eliminating inheritance of dirty user PATH entries while guaranteeing core OS DLL resolution.
+  - Deterministic collision resolution prioritized: `Managed` > `External` > `Unknown`, verified verification status, and numeric semver version ranking.
+  - End-to-end verified execution of external toolchains via `ulvo exec gcc --version` and `ulvo exec rustc --version`.
+- **Windows File System Robustness**:
+  - Added UTF-8 BOM, UTF-16 LE, and UTF-16 BE decoding in `bounded_read` to prevent file encoding crashes on Windows filesystems.
+  - Upgraded canonical path comparison in `ulvo-core::lifecycle` and `ulvo-discovery::vault` to support relative suffix matching.
+- **Deep MSYS2 & Universal Toolchain Audit**:
+  - Fully verified MSYS2 UCRT64 toolchain: GCC 14.2.0, G++ 14.2.0, GNU Make 4.4.1, Pacman 6.1.0 across 192 packages, with package database consistency checked via `pacman -D --check`.
+  - Cataloged 29 discovered toolchains across Windows, MSYS2, and Scoop/shims without modifying any global PATH or user registry entries.
+- **AI/ML Workload Preservation**:
+  - Successfully preserved `Academic\sem5\DL\exp5` (CUDA 12.1 mismatch and direct git dependency `clip @ git+https://github.com/ultralytics/CLIP.git`), safely recording explicit blocker `BLOCKER: DIRECT_GIT_DEPENDENCY_AND_DIFFERING_CUDA_ABI`.
+
 ## [0.2.5] - 2026-10-19
 
 ### Stage 2.9.2 — Universal Vault Adoption, Resource Lifecycle & Storage Recovery

@@ -67,7 +67,7 @@ pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
     if let Some(p) = custom {
         reject_links(p)?;
         if p.exists() {
-            return Ok(p.to_path_buf());
+            return Ok(p.canonicalize().unwrap_or_else(|_| p.to_path_buf()));
         } else {
             return Err(format!("specified vault root does not exist: {}", p.display()));
         }
@@ -76,33 +76,33 @@ pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
     if let Ok(env_val) = std::env::var("ULVO_VAULT_ROOT") {
         let env_p = PathBuf::from(env_val);
         if env_p.is_dir() && reject_links(&env_p).is_ok() {
-            return Ok(env_p);
+            return Ok(env_p.canonicalize().unwrap_or(env_p));
         }
     }
 
     let direct = PathBuf::from("vault");
     if direct.is_dir() {
         reject_links(&direct)?;
-        return Ok(direct);
+        return Ok(direct.canonicalize().unwrap_or(direct));
     }
 
     if let Ok(cwd) = std::env::current_dir() {
         let candidate = cwd.join("vault");
         if candidate.is_dir() {
             reject_links(&candidate)?;
-            return Ok(candidate);
+            return Ok(candidate.canonicalize().unwrap_or(candidate));
         }
         if let Some(parent) = cwd.parent() {
             let candidate2 = parent.join("vault");
             if candidate2.is_dir() {
                 reject_links(&candidate2)?;
-                return Ok(candidate2);
+                return Ok(candidate2.canonicalize().unwrap_or(candidate2));
             }
             if let Some(grandparent) = parent.parent() {
                 let candidate3 = grandparent.join("vault");
                 if candidate3.is_dir() {
                     reject_links(&candidate3)?;
-                    return Ok(candidate3);
+                    return Ok(candidate3.canonicalize().unwrap_or(candidate3));
                 }
             }
         }
@@ -110,10 +110,10 @@ pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
 
     let well_known = PathBuf::from(r"E:\Workspace\Active\ULVO\vault");
     if well_known.is_dir() && reject_links(&well_known).is_ok() {
-        return Ok(well_known);
+        return Ok(well_known.canonicalize().unwrap_or(well_known));
     }
 
-    Ok(PathBuf::from("vault"))
+    Ok(PathBuf::from("vault").canonicalize().unwrap_or_else(|_| PathBuf::from("vault")))
 }
 
 pub fn resolve_artifact_manifest(vault_root: &Path) -> Option<Provenance> {
@@ -140,16 +140,7 @@ pub fn resolve_artifact_manifest(vault_root: &Path) -> Option<Provenance> {
     None
 }
 
-pub fn load_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegistry, String> {
-    reject_links(vault_root)?;
-    let registry_dir = vault_root.join("registry");
-    let registry_file = registry_dir.join("vault_registry.json");
-
-    if registry_file.is_file() {
-        return load_durable_vault_registry(vault_root);
-    }
-
-    // Perform initial discovery
+pub fn discover_fresh_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegistry, String> {
     let mut registry = MemoryVaultRegistry::new();
     let provenance = resolve_artifact_manifest(vault_root);
 
@@ -174,9 +165,36 @@ pub fn load_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegistry, Str
         registry.register(r).map_err(|e| e.to_string())?;
     }
 
-    // Save initial durable registry envelope
-    let _ = save_durable_vault_registry(vault_root, &registry, "INITIAL_DISCOVERY", "system");
+    Ok(registry)
+}
 
+/// Read-only vault registry loading.
+/// Reads existing persistent registry if present; otherwise runs in-memory discovery
+/// without mutating disk or creating new registry files.
+pub fn load_vault_registry_readonly(vault_root: &Path) -> Result<MemoryVaultRegistry, String> {
+    reject_links(vault_root)?;
+    let registry_dir = vault_root.join("registry");
+    let registry_file = registry_dir.join("vault_registry.json");
+
+    if registry_file.is_file() {
+        return load_durable_vault_registry(vault_root);
+    }
+
+    discover_fresh_vault_registry(vault_root)
+}
+
+pub fn load_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegistry, String> {
+    reject_links(vault_root)?;
+    let registry_dir = vault_root.join("registry");
+    let registry_file = registry_dir.join("vault_registry.json");
+
+    if registry_file.is_file() {
+        return load_durable_vault_registry(vault_root);
+    }
+
+    // Perform initial discovery and persist durable envelope
+    let registry = discover_fresh_vault_registry(vault_root)?;
+    save_durable_vault_registry(vault_root, &registry, "INITIAL_DISCOVERY", "system")?;
     Ok(registry)
 }
 
@@ -192,8 +210,21 @@ pub fn load_durable_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegis
     let content = bounded_read(&registry_file)
         .map_err(|e| format!("failed to read durable registry at {}: {e}", registry_file.display()))?;
 
-    let envelope: PersistentRegistryEnvelope = serde_json::from_str(&content)
-        .map_err(|e| format!("corrupted registry schema at {}: {e}", registry_file.display()))?;
+    let envelope: PersistentRegistryEnvelope = match serde_json::from_str(&content) {
+        Ok(env) => env,
+        Err(e) => {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let backup_file = registry_dir.join(format!("vault_registry.corrupt.{now}.json"));
+            let _ = std::fs::copy(&registry_file, &backup_file);
+            return Err(format!(
+                "REGISTRY_CORRUPTION_DETECTED: JSON parse error '{e}'. Corrupted registry preserved at {}",
+                backup_file.display()
+            ));
+        }
+    };
 
     // Verify SHA-256 integrity
     let payload_json = serde_json::to_string(&envelope.payload)
@@ -201,21 +232,33 @@ pub fn load_durable_vault_registry(vault_root: &Path) -> Result<MemoryVaultRegis
     let computed_hash = sha256_hex(payload_json.as_bytes());
 
     if computed_hash != envelope.sha256_checksum {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let backup_file = registry_dir.join(format!("vault_registry.corrupt.{now}.json"));
+        let _ = std::fs::copy(&registry_file, &backup_file);
         return Err(format!(
-            "REGISTRY_CORRUPTION_DETECTED: SHA-256 checksum mismatch (expected {}, computed {})",
-            envelope.sha256_checksum, computed_hash
+            "REGISTRY_CORRUPTION_DETECTED: SHA-256 checksum mismatch (expected {}, computed {}). Corrupted registry preserved at {}",
+            envelope.sha256_checksum, computed_hash, backup_file.display()
         ));
     }
 
     Ok(envelope.payload)
 }
 
-pub fn save_durable_vault_registry(
+/// Executes a transactional read-modify-write on the durable vault registry.
+/// Acquires the lock for the full duration of the transaction, preserves complete
+/// transaction history, handles journal writes fail-closed, and persists atomically.
+pub fn with_vault_registry_transaction<F, R>(
     vault_root: &Path,
-    registry: &MemoryVaultRegistry,
     action: &str,
     initiator: &str,
-) -> Result<(), String> {
+    f: F,
+) -> Result<R, String>
+where
+    F: FnOnce(&mut MemoryVaultRegistry) -> Result<R, String>,
+{
     reject_links(vault_root)?;
     let registry_dir = vault_root.join("registry");
     std::fs::create_dir_all(&registry_dir).map_err(|e| e.to_string())?;
@@ -224,42 +267,74 @@ pub fn save_durable_vault_registry(
     let lock_file = registry_dir.join("vault_registry.lock");
     let journal_file = registry_dir.join("journal.jsonl");
 
-    let _lock = EnvironmentFileLock::acquire(&lock_file, 5000)
-        .map_err(|e| format!("cannot acquire lock for saving durable registry: {e}"))?;
+    let _lock = EnvironmentFileLock::acquire(&lock_file, 10000)
+        .map_err(|e| format!("cannot acquire lock for registry transaction: {e}"))?;
+
+    let (mut registry, mut existing_transactions) = if registry_file.is_file() {
+        let content = bounded_read(&registry_file)
+            .map_err(|e| format!("failed to read registry for transaction: {e}"))?;
+        let envelope: PersistentRegistryEnvelope = serde_json::from_str(&content)
+            .map_err(|e| format!("corrupted registry schema: {e}"))?;
+        (envelope.payload, envelope.transactions)
+    } else {
+        (discover_fresh_vault_registry(vault_root)?, Vec::new())
+    };
+
+    let result = f(&mut registry)?;
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
-    let payload_json = serde_json::to_string(registry)
-        .map_err(|e| format!("failed to serialize registry payload: {e}"))?;
-    let checksum = sha256_hex(payload_json.as_bytes());
-
-    let mut envelope = PersistentRegistryEnvelope::new(registry.clone(), checksum, now);
-
     let tx_record = RegistryTransactionRecord {
-        transaction_id: format!("tx_{now}"),
+        transaction_id: format!("tx_{now}_{}", std::process::id()),
         timestamp_unix: now,
         action: action.to_string(),
         resource_id: "registry".to_string(),
         initiator: initiator.to_string(),
         rollback_payload: None,
     };
-    envelope.transactions.push(tx_record.clone());
+    existing_transactions.push(tx_record.clone());
 
-    // Write journal append-only
-    let tx_json = serde_json::to_string(&tx_record).unwrap_or_default();
+    // Write journal append-only; fail closed if journal cannot be written
+    let tx_json = serde_json::to_string(&tx_record)
+        .map_err(|e| format!("failed to serialize transaction record: {e}"))?;
     use std::io::Write;
-    if let Ok(mut jfile) = std::fs::OpenOptions::new().create(true).append(true).open(&journal_file) {
-        let _ = writeln!(jfile, "{}", tx_json);
-    }
+    let mut jfile = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&journal_file)
+        .map_err(|e| format!("failed to open transaction journal at {}: {e}", journal_file.display()))?;
+    writeln!(jfile, "{}", tx_json)
+        .map_err(|e| format!("failed to write transaction journal entry: {e}"))?;
+    jfile.flush()
+        .map_err(|e| format!("failed to flush transaction journal: {e}"))?;
+
+    let payload_json = serde_json::to_string(&registry)
+        .map_err(|e| format!("failed to serialize registry payload: {e}"))?;
+    let checksum = sha256_hex(payload_json.as_bytes());
+
+    let mut envelope = PersistentRegistryEnvelope::new(registry, checksum, now);
+    envelope.transactions = existing_transactions;
 
     let envelope_json = serde_json::to_string_pretty(&envelope)
         .map_err(|e| format!("failed to serialize envelope: {e}"))?;
 
     write_atomic(&registry_file, envelope_json.as_bytes())?;
-    Ok(())
+    Ok(result)
+}
+
+pub fn save_durable_vault_registry(
+    vault_root: &Path,
+    registry: &MemoryVaultRegistry,
+    action: &str,
+    initiator: &str,
+) -> Result<(), String> {
+    with_vault_registry_transaction(vault_root, action, initiator, |reg| {
+        *reg = registry.clone();
+        Ok(())
+    })
 }
 
 pub fn verify_vault_resource_by_id(

@@ -71,19 +71,54 @@ impl<'a> GatewayResolver<'a> {
         // Step 2b: Companion ecosystem directories (e.g. MSYS2 usr\bin, Python Scripts)
         match resource.ecosystem {
             ulvo_core::Ecosystem::Cpp if resource.backend == Backend::Msys2 => {
+                let mut msys2_root = exe_path.clone();
+                let mut subsystem = "UCRT64".to_string();
+
                 if let Some(parent) = exe_path.parent() {
-                    if let Some(msys2_root) = parent.parent() {
-                        let usr_bin = msys2_root.join("usr").join("bin");
-                        if usr_bin.is_dir() {
-                            let s = usr_bin.to_string_lossy().to_string();
-                            if !path_entries.contains(&s) {
-                                path_entries.push(s);
+                    let parent_name = parent.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if parent_name.eq_ignore_ascii_case("bin") {
+                        if let Some(sub_dir) = parent.parent() {
+                            let sub_name = sub_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                            if sub_name.eq_ignore_ascii_case("usr") {
+                                subsystem = "MSYS".into();
+                                msys2_root = sub_dir.parent().unwrap_or(sub_dir).to_path_buf();
+                            } else if sub_name.eq_ignore_ascii_case("ucrt64") {
+                                subsystem = "UCRT64".into();
+                                msys2_root = sub_dir.parent().unwrap_or(sub_dir).to_path_buf();
+                            } else if sub_name.eq_ignore_ascii_case("mingw64") {
+                                subsystem = "MINGW64".into();
+                                msys2_root = sub_dir.parent().unwrap_or(sub_dir).to_path_buf();
+                            } else if sub_name.eq_ignore_ascii_case("clang64") {
+                                subsystem = "CLANG64".into();
+                                msys2_root = sub_dir.parent().unwrap_or(sub_dir).to_path_buf();
+                            } else {
+                                msys2_root = sub_dir.to_path_buf();
                             }
                         }
                     }
                 }
-                process_env.insert("MSYSTEM".into(), "UCRT64".into());
+
+                let ucrt_bin = msys2_root.join("ucrt64").join("bin");
+                let usr_bin = msys2_root.join("usr").join("bin");
+                if ucrt_bin.is_dir() {
+                    let s = ucrt_bin.to_string_lossy().to_string();
+                    if !path_entries.contains(&s) {
+                        path_entries.push(s);
+                    }
+                }
+                if usr_bin.is_dir() {
+                    let s = usr_bin.to_string_lossy().to_string();
+                    if !path_entries.contains(&s) {
+                        path_entries.push(s);
+                    }
+                }
+
+                process_env.insert("MSYSTEM".into(), subsystem);
                 process_env.insert("MSYS2_PATH_TYPE".into(), "minimal".into());
+                if let Ok(temp) = std::env::var("TEMP") { process_env.insert("TEMP".into(), temp); }
+                if let Ok(tmp) = std::env::var("TMP") { process_env.insert("TMP".into(), tmp); }
+                if let Ok(profile) = std::env::var("USERPROFILE") { process_env.insert("USERPROFILE".into(), profile); }
+                if let Ok(drive) = std::env::var("SystemDrive") { process_env.insert("SystemDrive".into(), drive); }
             }
             ulvo_core::Ecosystem::Python => {
                 if let Some(parent) = exe_path.parent() {
@@ -97,6 +132,16 @@ impl<'a> GatewayResolver<'a> {
                 }
                 process_env.insert("PYTHONNOUSERSITE".into(), "1".into());
             }
+            ulvo_core::Ecosystem::Rust => {
+                let p_str = exe_path.to_string_lossy();
+                if p_str.contains("runtimes\\rust") || p_str.contains("runtimes/rust") {
+                    if let Some(pos) = p_str.find("runtimes") {
+                        let rust_root = PathBuf::from(&p_str[..pos]).join("runtimes").join("rust");
+                        process_env.insert("CARGO_HOME".into(), rust_root.join("cargo").to_string_lossy().to_string());
+                        process_env.insert("RUSTUP_HOME".into(), rust_root.join("rustup").to_string_lossy().to_string());
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -107,6 +152,9 @@ impl<'a> GatewayResolver<'a> {
             PathBuf::from(&sys_root),
             PathBuf::from(&sys_root).join("System32").join("Wbem"),
             PathBuf::from(&sys_root).join("System32").join("WindowsPowerShell").join("v1.0"),
+            PathBuf::from("C:\\Windows\\System32"),
+            PathBuf::from("C:\\Windows"),
+            PathBuf::from("C:\\System32"),
         ];
 
         for sys_dir in &approved_system_dirs {
@@ -118,13 +166,17 @@ impl<'a> GatewayResolver<'a> {
             }
         }
 
-        // If custom system_path was supplied (e.g. in tests), preserve only explicit approved matches
+        // Strictly preserve only canonical matches to approved system directories (reject arbitrary paths containing words)
         for entry in std::env::split_paths(&self.system_path) {
-            let s = entry.to_string_lossy().to_string();
-            let lower = s.to_lowercase();
-            // Retain system directory paths even if custom system_path passed
-            if (lower.contains("windows") || lower.contains("system32")) && !path_entries.contains(&s) && !s.is_empty() {
-                path_entries.push(s);
+            let is_approved = approved_system_dirs.iter().any(|appr| {
+                appr.to_string_lossy().eq_ignore_ascii_case(&entry.to_string_lossy())
+                    || (entry.canonicalize().is_ok() && appr.canonicalize().is_ok() && entry.canonicalize().unwrap() == appr.canonicalize().unwrap())
+            });
+            if is_approved {
+                let s = entry.to_string_lossy().to_string();
+                if !path_entries.contains(&s) {
+                    path_entries.push(s);
+                }
             }
         }
 
@@ -132,24 +184,12 @@ impl<'a> GatewayResolver<'a> {
         process_env.insert("PATH".to_string(), process_local_path);
 
         // Ecosystem-specific process-local variable setup (non-global)
-        match resource.ecosystem {
-            ulvo_core::Ecosystem::Rust => {
-                if let Some(parent) = exe_path.parent() {
-                    if let Some(grandparent) = parent.parent() {
-                        process_env.insert("CARGO_HOME".into(), grandparent.to_string_lossy().to_string());
-                    }
+        if resource.ecosystem == ulvo_core::Ecosystem::Python && resource.resource_kind == ResourceKind::Environment {
+            if let Some(parent) = exe_path.parent() {
+                if let Some(venv_root) = parent.parent() {
+                    process_env.insert("VIRTUAL_ENV".into(), venv_root.to_string_lossy().to_string());
                 }
             }
-            ulvo_core::Ecosystem::Python => {
-                if resource.resource_kind == ResourceKind::Environment {
-                    if let Some(parent) = exe_path.parent() {
-                        if let Some(venv_root) = parent.parent() {
-                            process_env.insert("VIRTUAL_ENV".into(), venv_root.to_string_lossy().to_string());
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
 
         Ok(GatewayResolution {
@@ -196,7 +236,7 @@ impl<'a> GatewayResolver<'a> {
         // Deterministic collision ranking:
         // Priority 1: Managed > External > Unknown
         // Priority 2: Verified > Discovered > Unverified
-        // Priority 3: Version (descending)
+        // Priority 3: Version (numeric descending)
         candidates.sort_by(|a, b| {
             let ownership_rank = |o: &Ownership| match o {
                 Ownership::Managed => 3,
@@ -218,6 +258,26 @@ impl<'a> GatewayResolver<'a> {
             let ord_stat = status_rank(&b.verification_status).cmp(&status_rank(&a.verification_status));
             if ord_stat != std::cmp::Ordering::Equal {
                 return ord_stat;
+            }
+
+            let parse_ver = |ver_opt: &Option<String>| -> (u64, u64, u64) {
+                if let Some(v) = ver_opt {
+                    let parts: Vec<u64> = v
+                        .split(['.', '-', '+'])
+                        .filter_map(|s| s.parse::<u64>().ok())
+                        .collect();
+                    (
+                        parts.get(0).copied().unwrap_or(0),
+                        parts.get(1).copied().unwrap_or(0),
+                        parts.get(2).copied().unwrap_or(0),
+                    )
+                } else {
+                    (0, 0, 0)
+                }
+            };
+            let ord_ver = parse_ver(&b.version).cmp(&parse_ver(&a.version));
+            if ord_ver != std::cmp::Ordering::Equal {
+                return ord_ver;
             }
 
             b.resource_id.0.cmp(&a.resource_id.0)

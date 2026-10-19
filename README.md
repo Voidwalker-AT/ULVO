@@ -309,8 +309,12 @@ For complete security specifications, see [docs/SECURITY.md](docs/SECURITY.md).
 - **Stage 2.4 – 2.5**: Windows Rust provisioning and native compilation [COMPLETED]
 - **Stage 2.6**: Universal Vault Registry foundation [COMPLETED]
 - **Stage 2.7 – 2.7.1**: Workspace intelligence and NTFS file identity [COMPLETED]
-- **Stage 2.8**: Controlled ephemeral Python virtual environment pilot [PLANNED]
-- **Stage 2.9+**: Multi-language orchestration (pnpm, Go, Java) and native GUI [PLANNED]
+- **Stage 2.8 – 2.8.2**: Ephemeral Python environment lifecycle & NexusNode retirement [COMPLETED]
+- **Stage 2.9**: Automated workspace-wide Python migration & storage reclamation [COMPLETED]
+- **Stage 2.9.1**: GPU-aware orchestration, toolchain inventory & pilot verification [COMPLETED]
+- **Stage 2.9.2**: Managed MSYS2 provisioning, execution gateway & deep learning retirements [COMPLETED]
+- **Stage 2.9.2a**: Emergency storage recovery, toolchain consolidation & gateway hardening [COMPLETED]
+- **Stage 2.9.3+**: Multi-language orchestration (pnpm, Go, Java) and native GUI [PLANNED]
 
 For roadmap details, see [docs/ROADMAP.md](docs/ROADMAP.md).
 

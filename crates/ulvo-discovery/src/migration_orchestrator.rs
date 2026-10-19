@@ -16,9 +16,10 @@ pub struct MigrationOrchestrator {
 
 impl MigrationOrchestrator {
     pub fn new(vault_root: PathBuf) -> Result<Self, String> {
-        let project_orchestrator = ProjectOrchestrator::new(vault_root.clone())?;
+        let canon_vault = vault_root.canonicalize().unwrap_or(vault_root);
+        let project_orchestrator = ProjectOrchestrator::new(canon_vault.clone())?;
         Ok(Self {
-            vault_root,
+            vault_root: canon_vault,
             project_orchestrator,
         })
     }

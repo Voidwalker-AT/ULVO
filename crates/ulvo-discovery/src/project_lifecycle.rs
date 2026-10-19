@@ -13,8 +13,9 @@ pub struct ProjectOrchestrator {
 
 impl ProjectOrchestrator {
     pub fn new(vault_root: PathBuf) -> Result<Self, String> {
-        let uv = UvManager::new(vault_root.clone())?;
-        Ok(Self { uv, vault_root })
+        let canon_vault = vault_root.canonicalize().unwrap_or(vault_root);
+        let uv = UvManager::new(canon_vault.clone())?;
+        Ok(Self { uv, vault_root: canon_vault })
     }
 
     pub fn uv_manager(&self) -> &UvManager {

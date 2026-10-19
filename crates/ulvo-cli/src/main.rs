@@ -268,7 +268,7 @@ fn run(cli: Cli) -> Result<i32, String> {
             let vault_path = ulvo_discovery::resolve_vault_root(vault_root.as_deref())?;
             match subcommand {
                 VaultCommands::List => {
-                    let registry = ulvo_discovery::load_vault_registry(&vault_path)?;
+                    let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
                     let resources = registry.list();
                     if cli.json {
                         let resp = ulvo_discovery::VaultListResponse {
@@ -299,7 +299,7 @@ fn run(cli: Cli) -> Result<i32, String> {
                     }
                 }
                 VaultCommands::Inspect { resource_id } => {
-                    let registry = ulvo_discovery::load_vault_registry(&vault_path)?;
+                    let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
                     let resource = registry.get_by_str(&resource_id)
                         .ok_or_else(|| format!("resource '{resource_id}' not found in registry"))?;
                     if cli.json {
@@ -336,7 +336,7 @@ fn run(cli: Cli) -> Result<i32, String> {
                     }
                 }
                 VaultCommands::Verify { resource_id } => {
-                    let mut registry = ulvo_discovery::load_vault_registry(&vault_path)?;
+                    let mut registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
                     let (resource, output) = ulvo_discovery::verify_vault_resource_by_id(
                         &mut registry,
                         &resource_id,
@@ -360,7 +360,7 @@ fn run(cli: Cli) -> Result<i32, String> {
                     }
                 }
                 VaultCommands::Stats => {
-                    let registry = ulvo_discovery::load_vault_registry(&vault_path)?;
+                    let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
                     let stats = registry.stats();
                     if cli.json {
                         let resp = ulvo_discovery::VaultStatsResponse {
@@ -1104,7 +1104,7 @@ fn run(cli: Cli) -> Result<i32, String> {
         }
         Commands::Exec { toolchain, command } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
-            let registry = ulvo_discovery::load_vault_registry(&vault_path)?;
+            let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
 
             if command.is_empty() {
                 return Err("No command specified for execution".into());

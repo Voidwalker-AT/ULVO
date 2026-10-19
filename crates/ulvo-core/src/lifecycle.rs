@@ -117,7 +117,12 @@ fn default_schema_version_1() -> u32 {
 pub fn canonical_paths_equal(p1: &str, p2: &str) -> bool {
     let clean1 = p1.trim_start_matches(r"\\?\").trim_end_matches(['\\', '/']).replace('/', "\\");
     let clean2 = p2.trim_start_matches(r"\\?\").trim_end_matches(['\\', '/']).replace('/', "\\");
-    clean1.eq_ignore_ascii_case(&clean2)
+    if clean1.eq_ignore_ascii_case(&clean2) {
+        return true;
+    }
+    let lower1 = clean1.to_lowercase();
+    let lower2 = clean2.to_lowercase();
+    lower1.ends_with(&format!("\\{lower2}")) || lower2.ends_with(&format!("\\{lower1}"))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

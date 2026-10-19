@@ -157,6 +157,28 @@ flowchart LR
   - **Regression Test Suite**:
     - 109/109 passing automated unit and integration tests across the workspace.
 
+### Stage 2.9.2a: Emergency Storage Recovery, Toolchain Consolidation & Gateway Hardening
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Emergency Storage Investigation & Space Reclamation**:
+    - Identified consumers causing drive E: free space collapse to 3.68 GB (Cargo `incremental` cache, `target-local`, and test fixtures).
+    - Safely retired eligible legacy `.venv` directories: `Active\termux-ai-workstation` (3,457.72 MB), `Agents\AstraRun-Anti` (886.37 MB), and `Agents\AstraRun-MiMo` (694.71 MB).
+    - Net physical storage reclaimed from legacy environments: **5,038.80 MB (~5.04 GB)** across 50,081 files.
+    - Recovered volume free space on drive `E:` back to safe operating margins (**6.75 GB - 7.13 GB**), maintaining strict 500 MB NTFS reserves.
+  - **Durability & Read-Only Registry Access**:
+    - Added `load_vault_registry_readonly` for non-mutating subcommands (`vault stats`, `vault list`, `vault inspect`, `exec`).
+    - Added atomic transaction wrapper `with_vault_registry_transaction` with automatic rollback, fail-closed journaling, and corrupt registry backup.
+  - **Unified Execution Gateway Hardening (`ulvo exec`)**:
+    - Hardened `GatewayResolver` to strictly preserve only approved Windows system directories (`System32`, `Wbem`, etc.), stripping dirty user PATH entries.
+    - Deterministic collision resolution prioritizing `Managed` > `External` > `Unknown`, verified verification status, and numeric semver versions.
+    - Validated external execution with `ulvo exec gcc --version` and `ulvo exec rustc --version`.
+  - **Deep MSYS2 & Toolchain Consolidation**:
+    - Audited MSYS2 UCRT64 toolchain (GCC 14.2.0, G++ 14.2.0, GNU Make 4.4.1, Pacman 6.1.0 across 192 packages; database verified consistent).
+    - Preserved external `C:\msys64` untouched and unmutated.
+    - Preserved AI/ML project `Academic\sem5\DL\exp5` due to direct git dependency and CUDA 12.1 mismatch.
+  - **Full Regression Verification**:
+    - 109/109 passing automated native tests across all four workspace crates.
+
 ---
 
 ## Future Roadmap

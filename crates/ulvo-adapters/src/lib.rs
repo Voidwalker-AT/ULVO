@@ -50,6 +50,25 @@ pub fn bounded_read(path: &Path) -> Result<String, String> {
     let mut b = Vec::new();
     f.by_ref().take(1_048_577).read_to_end(&mut b).map_err(|e| e.to_string())?;
     if b.len() > 1_048_576 { return Err("input exceeds 1 MiB".into()); }
+
+    if b.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        return String::from_utf8(b[3..].to_vec()).map_err(|e| e.to_string());
+    }
+    if b.starts_with(&[0xFF, 0xFE]) {
+        let u16_slice: Vec<u16> = b[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16(&u16_slice).map_err(|e| e.to_string());
+    }
+    if b.starts_with(&[0xFE, 0xFF]) {
+        let u16_slice: Vec<u16> = b[2..]
+            .chunks_exact(2)
+            .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+            .collect();
+        return String::from_utf16(&u16_slice).map_err(|e| e.to_string());
+    }
+
     String::from_utf8(b).map_err(|e| e.to_string())
 }
 
