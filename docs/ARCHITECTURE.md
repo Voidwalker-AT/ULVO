@@ -16,18 +16,27 @@ ULVO operates as a unified governance and orchestration layer above established 
 
 ## 1. System Layers
 
-ULVO is organized into a four-crate Cargo workspace, strictly separating pure data models from host I/O, discovery algorithms, and the command-line interface.
+ULVO is organized into a modular Cargo workspace comprising six Rust crates and a native Windows desktop application, strictly separating domain invariants, platform adapters, traversal/discovery, shared application services, the background reconciliation daemon, the CLI, and the desktop control center.
 
 ```mermaid
 graph TD
+    DESKTOP["apps/ulvo-desktop<br/>(Tauri 2 / React 19 / TypeScript / WebView2)"]
+    AGENT["ulvo-agent<br/>(Background Reconciliation Daemon / Loopback IPC)"]
     CLI["ulvo-cli<br/>(CLI Dispatcher, Human/JSON Formatters)"]
+    SERVICES["ulvo-services<br/>(Single Application Services Layer: Catalog, Provisioning, Adoption, Storage, Projects, Agent IPC)"]
     DISC["ulvo-discovery<br/>(Filesystem Traversal, Manifest Detectors, Workspace Auditing)"]
-    ADAPT["ulvo-adapters<br/>(Win32 NTFS Queries, POSIX Fallbacks, Ecosystem Adapters: uv/Rust)"]
+    ADAPT["ulvo-adapters<br/>(Win32 NTFS Queries, POSIX Fallbacks, Ecosystem Adapters: uv/Rust/MSYS2)"]
     CORE["ulvo-core<br/>(Vault Registry, Resource Models, Invariants, Pure Logic - No I/O)"]
 
+    DESKTOP --> SERVICES
+    AGENT --> SERVICES
+    CLI --> SERVICES
     CLI --> DISC
     CLI --> ADAPT
     CLI --> CORE
+    SERVICES --> DISC
+    SERVICES --> ADAPT
+    SERVICES --> CORE
     DISC --> ADAPT
     DISC --> CORE
     ADAPT --> CORE
@@ -42,11 +51,13 @@ graph TD
   - [`gpu`](../crates/ulvo-core/src/gpu.rs): GPU device descriptors, CUDA compute capability (`sm_86`), NVIDIA driver version to CUDA mapping, Deep Learning framework variant models (`+cu124` vs `+cpu`), CUDA runtime dynamic dependency graphs, and drive capacity threshold gates.
   - [`adoption`](../crates/ulvo-core/src/adoption.rs): 9-stage universal toolchain adoption lifecycle (`ExternalDiscovered` -> `CompatibilityAssessed` -> `AdoptionPlanned` -> `Staging` -> `Verified` -> `Managed`), migration strategies (`InPlaceManaged`, `CopyRelocatable`, `ReferenceExternal`), rollback manifests, and fail-closed safety rejection rules.
   - [`manifest`](../crates/ulvo-core/src/manifest.rs): Thin Project Connector Contract (`ConnectorContract`, `ConnectorComplianceVerdict`), size budget constants (`CONNECTOR_TARGET_BUDGET_BYTES` = 100 KiB, `CONNECTOR_MAX_BUDGET_BYTES` = 10 MiB), prohibited environment artifact rules, and multi-ecosystem manifest models (`NodeManifestConfig`, `RustManifestConfig`, `CppManifestConfig`, `JavaManifestConfig`, `GoManifestConfig`, `RubyManifestConfig`).
+  - [`cas`](../crates/ulvo-core/src/cas.rs): Content-Addressable Storage data models, SHA-256 digest validation, artifact metadata, and CAS deduplication accounting.
 
 ### `ulvo-adapters`
 - **Responsibility**: Host platform interactions and ecosystem-specific inspectors.
 - **Key Modules**:
   - [`fs_identity`](../crates/ulvo-adapters/src/fs_identity.rs): Native Windows Win32 API calls (`CreateFileW` with `FILE_READ_ATTRIBUTES` and `FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT`, `GetFileInformationByHandle` for 64-bit file indices, `GetCompressedFileSizeW` for physical cluster allocation), POSIX `st_dev`/`st_ino` fallbacks, FIPS 180-4 standard SHA-256 calculation, and cross-volume-safe single-instance `hardlink_or_copy_tree` materialization.
+  - [`cas_storage`](../crates/ulvo-adapters/src/cas_storage.rs): Transactional CAS payload storage, immutable read-only protection, and verified hardlinking into environments.
   - [`vault_python`](../crates/ulvo-adapters/src/vault_python.rs): Python virtual environment inspection (`pyvenv.cfg`, `conda-meta`), `site-packages` analysis, editable install detection (`direct_url.json` and `.pth` imports), `.dist-info/WHEEL` ABI tag extraction, distribution cryptographic catalog digest verification (`RECORD`/`METADATA`), and duplication analysis.
   - [`vault_uv`](../crates/ulvo-adapters/src/vault_uv.rs): `uv` ecosystem integration, ephemeral environment provisioning, single-instance shared package caching (`vault/packages/python/shared`), wheel pre-seeding, and non-destructive cleanup.
   - [`vault_rust`](../crates/ulvo-adapters/src/vault_rust.rs): Rust toolchain inspection inside the managed vault, `settings.toml` parsing, and PE/ELF binary header validation.
@@ -63,7 +74,22 @@ graph TD
   - [`project_lifecycle`](../crates/ulvo-discovery/src/project_lifecycle.rs): End-to-end ephemeral environment lifecycle, host GPU querying (`detect_host_gpu`), NTFS capacity checking with 500 MB safety reserves, project manifest loading, execution supervision, and reclaimable lease cleanup.
   - [`toolchain_inventory`](../crates/ulvo-discovery/src/toolchain_inventory.rs): Universal toolchain scanner inspecting Windows PATH, known toolchain roots, MSYS2 (`C:\msys64`), VS Code configuration, and read-only WSL registry keys across 18+ ecosystem binary families.
   - [`lock`](../crates/ulvo-discovery/src/lock.rs): File-based concurrency control and execution lease management.
-  - [`lib`](../crates/ulvo-discovery/src/lib.rs): Host PATH scanning, VS Code configuration reference detection, and native project manifest recognition (`Cargo.toml`, `package.json`, `pyproject.toml`, `.ulvo/manifest.toml`).
+
+### `ulvo-services`
+- **Responsibility**: Single application-services business logic layer serving CLI, GUI, and background agent without duplicate domain implementations.
+- **Key Modules**:
+  - [`catalog`](../crates/ulvo-services/src/catalog.rs): Verified online runtime and tool catalog provider (Python, uv, Rust, MSYS2/GCC, Go, Ruby, Node.js, Java, CMake, Ninja) and Universal Search Query Parser resolving ecosystem ambiguity into typed intents.
+  - [`provisioning`](../crates/ulvo-services/src/provisioning.rs): 10-step transactional provisioning engine (`Discover` -> `Resolve` -> `Plan` -> `Download` -> `Verify` -> `Stage` -> `Install` -> `Validate` -> `Register` -> `Commit`) with streaming SHA-256 CAS verification, capacity preflight checks (500 MB floor), and atomic rollback.
+  - [`adoption`](../crates/ulvo-services/src/adoption.rs): Machine-wide installation discovery scanner (querying `where.exe` across 18+ tools and GPU telemetry), classifying targets into 6 discovery states (`Managed`, `External`, `Adoptable`, `SystemManaged`, `Blocked`, `Unknown`).
+  - [`storage`](../crates/ulvo-services/src/storage.rs): Dual-accounting storage governance (logical vs cluster allocation via `GetCompressedFileSizeW`), hardlink sharing ratio, and cache pruning/LRU GC.
+  - [`projects`](../crates/ulvo-services/src/projects.rs): Project registry, connector initialization, and structured ephemeral environment execution.
+  - [`agent_ipc`](../crates/ulvo-services/src/agent_ipc.rs): Local loopback TCP IPC protocol on `127.0.0.1:48590` with secret bearer token auth (`vault/agent.token`).
+
+### `ulvo-agent`
+- **Responsibility**: Lightweight per-user background daemon (`ulvo-agent.exe`) performing continuous lease monitoring, orphaned environment reclamation, cache lifecycle governance, and IPC request handling.
+
+### `apps/ulvo-desktop`
+- **Responsibility**: Production-grade Windows desktop application built with Tauri 2.0, Microsoft Edge WebView2 Evergreen, React 19, and TypeScript. Provides an accessible, dark-first cockpit with eight core views: Dashboard, Discover, Installed, Projects, Storage, GPU Copilot, Adoption, and Activity/Settings.
 
 ### `ulvo-cli`
 - **Responsibility**: Command dispatching, input validation, human-readable terminal rendering, and strict JSON output serialization.
@@ -187,7 +213,13 @@ To maintain engineering clarity, all ULVO features are strictly categorized into
 | **Staged Toolchain Adoption Model** | `IMPLEMENTED` | Implemented in Stage 2.9.1 via `ulvo-core::adoption` (9-stage lifecycle, fail-closed relocation rules). |
 | **First-Class Managed MSYS2 C/C++ Toolchain** | `IMPLEMENTED` | Implemented in Stage 2.9.2 via `vault/toolchains/msys2` with `.ulvo_managed.json`, native C/C++ verification (`ulvo toolchain msys2 verify`), and zero mutation of external `C:\msys64`. |
 | **Unified Execution Gateway (`ulvo exec`)** | `IMPLEMENTED` | Implemented in Stage 2.9.2 via `ulvo exec [--toolchain <name>] -- <cmd...>` routing commands directly to vault-managed toolchains with isolated PATH. |
-| **Desktop GUI Control Plane** | `PLANNED` | Complete specification authored in Stage 2.9.1 (`docs/GUI_AND_BRANDING_SPECIFICATION.md`). |
-| **Node.js / pnpm Adapter** | `PLANNED` | Manifest parsing and discovery for JavaScript/TypeScript runtimes. |
-| **Go / Java Adapters** | `PLANNED` | Toolchain and dependency resolution for Go and JVM ecosystems. |
+| **Desktop GUI Control Plane** | `IMPLEMENTED` | Implemented in Stage 3.1 (`apps/ulvo-desktop`) using Tauri 2.0, React 19, TypeScript, and Microsoft Edge WebView2 Evergreen across eight dark-first cockpit views. |
+| **Background Reconciliation Agent** | `IMPLEMENTED` | Implemented in Stage 3.1 (`crates/ulvo-agent`) with authenticated loopback TCP IPC on `127.0.0.1:48590` (`vault/agent.token`). |
+| **Universal Online Catalog & Search** | `IMPLEMENTED` | Implemented in Stage 3.1 (`crates/ulvo-services::catalog`) supporting 10 verified toolchains and universal ambiguity-resolving search. |
+| **10-Step Transactional Provisioning Engine** | `IMPLEMENTED` | Implemented in Stage 3.1 (`crates/ulvo-services::provisioning`) with streaming SHA-256 CAS verification, capacity preflight checks (500 MB floor), and atomic rollback. |
+| **Machine-Wide Discovery & Adoption** | `IMPLEMENTED` | Implemented in Stage 3.1 (`crates/ulvo-services::adoption`) classifying host installations into 6 explicit discovery states. |
+| **Production Installer & Distribution** | `IMPLEMENTED` | Implemented in Stage 3.1 via `scripts/package-release.ps1`, `scripts/install-ulvo.ps1`, `scripts/uninstall-ulvo.ps1`, and portable zip bundle (`dist/`). |
+| **Node.js / pnpm Adapter** | `IMPLEMENTED` | Catalog entry, universal search resolution, and `.ulvo/manifest.toml` thin connector parsing for JavaScript/TypeScript runtimes. |
+| **Go / Java / Ruby / .NET Adapters** | `IMPLEMENTED` | Catalog entries, execution gateway resolution, and thin connector dependency models for Go, JVM, Ruby, and .NET. |
 | **Foreign Distribution Execution** | `BLOCKED` | Cross-boundary execution between Windows and WSL without explicit launcher. |
+

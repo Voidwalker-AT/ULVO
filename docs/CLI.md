@@ -500,11 +500,30 @@ ulvo doctor [--json]
 
 ## 13. `ulvo catalog`
 
-Renders an authoritative, formatted table or JSON catalog of all development resources (managed and discovered) registered across Windows, MSYS2, and the ULVO Vault, sorted and grouped by ecosystem.
+Authoritative online language runtime, compiler, build tool, and package catalog provider.
 
-### Syntax
+### Subcommands
+
+#### `ulvo catalog list`
+Lists all verified catalog runtimes, compilers, package managers, and build tools with their recommended version, category, and live host installation status.
 ```sh
-ulvo catalog [--json]
+ulvo catalog list [--json]
+```
+
+#### `ulvo catalog search`
+Universal search query parser resolving ecosystem ambiguity into typed intents (`RuntimeInstallation`, `ToolchainInstallation`, `GlobalToolInstallation`, `ProjectDependency`, or `Ambiguous`).
+```sh
+ulvo catalog search <QUERY> [--json]
+```
+*Examples:*
+- `ulvo catalog search python@3.12` -> RuntimeInstallation (Python 3 Runtime)
+- `ulvo catalog search "torch==2.6.0+cu124"` -> ProjectDependency (torch)
+- `ulvo catalog search cmake` -> ToolchainInstallation (CMake Build System)
+
+#### `ulvo catalog install`
+Provisions a verified runtime or toolchain from the online catalog using the 10-step transactional state machine (`Discover` -> `Resolve` -> `Plan` -> `Download` -> `Verify` -> `Stage` -> `Install` -> `Validate` -> `Register` -> `Commit`) with streaming SHA-256 CAS verification and atomic rollback.
+```sh
+ulvo catalog install <ENTRY_ID> [--version <VERSION>] [--json]
 ```
 
 ---
@@ -594,7 +613,65 @@ ulvo run [--keep-env] <PROJECT_PATH> -- <COMMAND...>
 
 ---
 
-## 20. Non-Mutating Execution Guarantee
+## 20. `ulvo agent`
+
+Manages the configurable per-user ULVO background reconciliation daemon communicating over loopback TCP IPC (`127.0.0.1:48590`) with bearer token authentication (`vault/agent.token`).
+
+### Subcommands
+
+#### `ulvo agent status`
+Inspects background agent status and IPC connectivity.
+```sh
+ulvo agent status [--json]
+```
+
+#### `ulvo agent reconcile`
+Triggers an immediate background lease and storage cache reconciliation cycle.
+```sh
+ulvo agent reconcile [--json]
+```
+
+#### `ulvo agent stop`
+Sends a graceful termination signal to the running background agent daemon.
+```sh
+ulvo agent stop [--json]
+```
+
+#### `ulvo agent run`
+Runs the background reconciliation agent daemon in the current process.
+```sh
+ulvo agent run [--port <PORT>]
+```
+
+---
+
+## 21. `ulvo cache`
+
+Unified multi-ecosystem package cache governance, cluster allocation reporting, and storage budget enforcement across uv, cargo, pnpm, go, gem, and pacman.
+
+### Subcommands
+
+#### `ulvo cache status`
+Displays exact physical cluster allocation and cache directory paths for each coordinated package manager.
+```sh
+ulvo cache status [--json]
+```
+
+#### `ulvo cache prune`
+Prunes stale, unreferenced package cache artifacts and temporary downloads while preserving active shared packages.
+```sh
+ulvo cache prune [--dry-run] [--json]
+```
+
+#### `ulvo cache gc`
+Executes deep garbage collection subject to a configurable storage ceiling (e.g. `--max-gb 10`).
+```sh
+ulvo cache gc [--max-gb <GB>] [--dry-run] [--json]
+```
+
+---
+
+## 22. Non-Mutating Execution Guarantee
 
 - Global environment variables (`PATH`, `PYTHONPATH`) and Windows registry keys are never altered.
 - All temporary environments and package caches reside exclusively inside `vault/`.
@@ -602,4 +679,5 @@ ulvo run [--keep-env] <PROJECT_PATH> -- <COMMAND...>
 - All temporary test fixtures use process-level ownership sentinels.
 - Legacy environment retirement requires explicit authorization and passes 10 safety gates.
 - Toolchain discovery is metadata-only and never launches or moves external installations.
+
 
