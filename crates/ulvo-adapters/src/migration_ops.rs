@@ -62,8 +62,10 @@ pub fn inspect_candidate_dependencies(
     let uv_lock = project_dir.join("uv.lock");
     let poetry_lock = project_dir.join("poetry.lock");
     let pipfile_lock = project_dir.join("Pipfile.lock");
+    let pdm_lock = project_dir.join("pdm.lock");
     let req_lock = project_dir.join("requirements.lock");
     let req_lock_txt = project_dir.join("requirements-lock.txt");
+    let req_release_lock = project_dir.join("requirements-release.lock");
 
     let has_lock = if uv_lock.is_file() {
         sources.push("uv.lock".to_string());
@@ -74,14 +76,35 @@ pub fn inspect_candidate_dependencies(
     } else if pipfile_lock.is_file() {
         sources.push("Pipfile.lock".to_string());
         true
+    } else if pdm_lock.is_file() {
+        sources.push("pdm.lock".to_string());
+        true
     } else if req_lock.is_file() {
         sources.push("requirements.lock".to_string());
         true
     } else if req_lock_txt.is_file() {
         sources.push("requirements-lock.txt".to_string());
         true
+    } else if req_release_lock.is_file() {
+        sources.push("requirements-release.lock".to_string());
+        true
     } else {
-        false
+        // Also check any file ending in .lock
+        let mut found = false;
+        if let Ok(entries) = std::fs::read_dir(project_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.ends_with(".lock") && !name.starts_with('.') {
+                        sources.push(name);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        found
     };
 
     // Check for manifests
@@ -187,12 +210,39 @@ pub fn extract_installed_packages(env_path: &Path) -> Vec<String> {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if name.ends_with(".dist-info") {
+                    let dist_path = entry.path();
                     let stem = &name[..name.len() - 10];
                     if let Some(pos) = stem.rfind('-') {
                         let pkg_name = &stem[..pos];
                         let pkg_version = &stem[pos + 1..];
                         if !matches!(pkg_name, "pip" | "setuptools" | "wheel") {
-                            pkgs.push(format!("{pkg_name}=={pkg_version}"));
+                            // Check for PEP 610 direct_url.json
+                            let direct_url_file = dist_path.join("direct_url.json");
+                            let mut direct_handled = false;
+                            if direct_url_file.is_file() {
+                                if let Ok(json_str) = bounded_read(&direct_url_file) {
+                                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                                        if let Some(url) = val.get("url").and_then(|u| u.as_str()) {
+                                            if let Some(vcs_info) = val.get("vcs_info") {
+                                                let vcs = vcs_info.get("vcs").and_then(|v| v.as_str()).unwrap_or("git");
+                                                let commit = vcs_info.get("commit_id").and_then(|c| c.as_str());
+                                                if let Some(c) = commit {
+                                                    pkgs.push(format!("{pkg_name} @ {vcs}+{url}@{c}"));
+                                                } else {
+                                                    pkgs.push(format!("{pkg_name} @ {vcs}+{url}"));
+                                                }
+                                                direct_handled = true;
+                                            } else {
+                                                pkgs.push(format!("{pkg_name} @ {url}"));
+                                                direct_handled = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if !direct_handled {
+                                pkgs.push(format!("{pkg_name}=={pkg_version}"));
+                            }
                         }
                     }
                 }
@@ -254,10 +304,43 @@ pub fn generate_project_manifest(
 
     // Determine requirements files or generate derived requirements.txt if none exist
     let mut req_files = Vec::new();
+    let req_release_lock = project_dir.join("requirements-release.lock");
+    let req_lock = project_dir.join("requirements.lock");
+    let req_lock_txt = project_dir.join("requirements-lock.txt");
     let req_txt = project_dir.join("requirements.txt");
     let pyproject = project_dir.join("pyproject.toml");
 
-    if req_txt.is_file() {
+    let (_, _, is_ml) = inspect_candidate_dependencies(project_dir, env_path);
+
+    if req_release_lock.is_file() {
+        req_files.push("requirements-release.lock".to_string());
+    } else if req_lock.is_file() {
+        req_files.push("requirements.lock".to_string());
+    } else if req_lock_txt.is_file() {
+        req_files.push("requirements-lock.txt".to_string());
+    } else if is_ml {
+        // AI/ML environment requires pinned lockfile to guarantee identical wheel resolution
+        let pkgs = extract_installed_packages(env_path);
+        if !pkgs.is_empty() {
+            let mut lines = Vec::new();
+            lines.push("# Auto-pinned from working legacy environment for ML reproducibility".to_string());
+            for p in &pkgs {
+                if let Some(pos) = p.find("+cu") {
+                    let cu_tag = &p[pos + 1..];
+                    lines.push(format!("--extra-index-url https://download.pytorch.org/whl/{cu_tag}"));
+                    break;
+                }
+            }
+            lines.extend(pkgs);
+            let content = lines.join("\n") + "\n";
+            write_atomic(&req_lock, content.as_bytes())?;
+            req_files.push("requirements.lock".to_string());
+        } else if req_txt.is_file() {
+            req_files.push("requirements.txt".to_string());
+        } else if pyproject.is_file() {
+            req_files.push("pyproject.toml".to_string());
+        }
+    } else if req_txt.is_file() {
         req_files.push("requirements.txt".to_string());
     } else if pyproject.is_file() {
         req_files.push("pyproject.toml".to_string());

@@ -156,7 +156,9 @@ impl UvManager {
                 .arg("--python")
                 .arg(&env_python)
                 .arg("--cache-dir")
-                .arg(&self.paths.uv_cache_dir);
+                .arg(&self.paths.uv_cache_dir)
+                .arg("--index-strategy")
+                .arg("unsafe-best-match");
 
             let out = cmd.output().map_err(|e| format!("failed to execute uv pip install: {e}"))?;
             if !out.status.success() {
