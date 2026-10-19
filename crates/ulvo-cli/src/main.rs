@@ -296,6 +296,20 @@ enum ProjectCommands {
         #[arg(long)]
         runtime_version: Option<String>,
     },
+    /// Onboard a project by scanning for ecosystems, monorepos, and generating .ulvo connector
+    Onboard {
+        #[arg(default_value = ".")]
+        project_path: PathBuf,
+        /// Onboarding policy (manual, prompt, auto)
+        #[arg(long, default_value = "prompt")]
+        policy: String,
+        /// Force overwrite of existing .ulvo/manifest.toml if present
+        #[arg(long)]
+        force: bool,
+        /// Automatically accept onboarding prompt without interactive confirmation
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
     /// Inspect a project's ULVO manifest and environment configuration
     Inspect {
         project_path: PathBuf,
@@ -858,6 +872,9 @@ fn run(cli: Cli) -> Result<i32, String> {
             match subcommand {
                 ProjectCommands::Init { project_path, ecosystem, runtime_version } => {
                     run_project_init(project_path, ecosystem, runtime_version, cli.json)
+                }
+                ProjectCommands::Onboard { project_path, policy, force, yes } => {
+                    run_project_onboard(project_path, &policy, force, yes, cli.json)
                 }
                 ProjectCommands::Inspect { project_path } => {
                     let result = orchestrator.inspect(&project_path)?;
@@ -2118,71 +2135,81 @@ fn run_project_init(
         ));
     }
 
-    let (ecosystem, version, dep_block) = match ecosystem_opt.as_deref() {
-        Some("python") => (
-            "python",
-            runtime_opt.unwrap_or_else(|| "3.11".to_string()),
-            "\n[python]\nrequirements = [\"requirements.txt\"]\n".to_string(),
-        ),
-        Some("rust") => (
-            "rust",
-            runtime_opt.unwrap_or_else(|| "1.96.0".to_string()),
-            "\n[rust]\ntoolchain = \"1.96.0\"\n".to_string(),
-        ),
-        Some("node") | Some("nodejs") => (
-            "node",
-            runtime_opt.unwrap_or_else(|| "24.15".to_string()),
-            "\n[node]\npackage_json = \"package.json\"\n".to_string(),
-        ),
-        Some("go") => (
-            "go",
-            runtime_opt.unwrap_or_else(|| "1.26.5".to_string()),
-            "\n[go]\ngomod = \"go.mod\"\n".to_string(),
-        ),
-        Some("ruby") => (
-            "ruby",
-            runtime_opt.unwrap_or_else(|| "4.0.1".to_string()),
-            "\n[ruby]\ngemfile = \"Gemfile\"\n".to_string(),
-        ),
-        Some("cpp") | Some("c") => (
-            "cpp",
-            runtime_opt.unwrap_or_else(|| "gcc-14.2.0".to_string()),
-            "\n[cpp]\nbuild_system = \"cmake\"\nmanifest = \"CMakeLists.txt\"\n".to_string(),
-        ),
-        Some("java") => (
-            "java",
-            runtime_opt.unwrap_or_else(|| "21".to_string()),
-            "\n[java]\njdk = \"21\"\nbuild_tool = \"maven\"\nmanifest = \"pom.xml\"\n".to_string(),
-        ),
-        _ => {
-            if clean_path.join("Cargo.toml").is_file() {
-                ("rust", "1.96.0".to_string(), "\n[rust]\ntoolchain = \"1.96.0\"\n".to_string())
-            } else if clean_path.join("package.json").is_file() {
-                ("node", "24.15".to_string(), "\n[node]\npackage_json = \"package.json\"\n".to_string())
-            } else if clean_path.join("go.mod").is_file() {
-                ("go", "1.26.5".to_string(), "\n[go]\ngomod = \"go.mod\"\n".to_string())
-            } else if clean_path.join("Gemfile").is_file() {
-                ("ruby", "4.0.1".to_string(), "\n[ruby]\ngemfile = \"Gemfile\"\n".to_string())
-            } else {
-                ("python", "3.11".to_string(), "\n[python]\nrequirements = [\"requirements.txt\"]\n".to_string())
-            }
-        }
-    };
-
     let proj_name = clean_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("my-project");
 
-    let manifest_content = format!(
-        r#"schema_version = 1
+    let manifest_content = if let Some(ref eco) = ecosystem_opt {
+        let (ecosystem, version, dep_block) = match eco.to_lowercase().as_str() {
+            "python" => (
+                "python",
+                runtime_opt.unwrap_or_else(|| "3.11".to_string()),
+                "\n[python]\nrequirements = [\"requirements.txt\"]\n".to_string(),
+            ),
+            "rust" => (
+                "rust",
+                runtime_opt.unwrap_or_else(|| "1.96.0".to_string()),
+                "\n[rust]\ntoolchain = \"1.96.0\"\n".to_string(),
+            ),
+            "node" | "nodejs" => (
+                "node",
+                runtime_opt.unwrap_or_else(|| "24.15".to_string()),
+                "\n[node]\npackage_json = \"package.json\"\n".to_string(),
+            ),
+            "go" => (
+                "go",
+                runtime_opt.unwrap_or_else(|| "1.26.5".to_string()),
+                "\n[go]\ngomod = \"go.mod\"\n".to_string(),
+            ),
+            "ruby" => (
+                "ruby",
+                runtime_opt.unwrap_or_else(|| "4.0.1".to_string()),
+                "\n[ruby]\ngemfile = \"Gemfile\"\n".to_string(),
+            ),
+            "cpp" | "c" => (
+                "cpp",
+                runtime_opt.unwrap_or_else(|| "gcc-14.2.0".to_string()),
+                "\n[cpp]\nbuild_system = \"cmake\"\nmanifest = \"CMakeLists.txt\"\n".to_string(),
+            ),
+            "java" => (
+                "java",
+                runtime_opt.unwrap_or_else(|| "21".to_string()),
+                "\n[java]\njdk = \"21\"\nbuild_tool = \"maven\"\nmanifest = \"pom.xml\"\n".to_string(),
+            ),
+            other => {
+                return Err(format!("unknown ecosystem '{other}'; supported: python, rust, node, go, ruby, cpp, java"));
+            }
+        };
+
+        format!(
+            r#"schema_version = 1
 name = "{}"
 
 [runtimes]
 {} = "{}"
 {}"#,
-        proj_name, ecosystem, version, dep_block
-    );
+            proj_name, ecosystem, version, dep_block
+        )
+    } else {
+        let report = ulvo_discovery::scan_project_ecosystems(&clean_path, None)?;
+        if !report.detected_ecosystems.is_empty() {
+            ulvo_discovery::generate_manifest_toml(&report)
+        } else {
+            format!(
+                r#"schema_version = 1
+name = "{}"
+
+[runtimes]
+python = "3.11"
+
+[python]
+requirements = ["requirements.txt"]
+"#,
+                proj_name
+            )
+        }
+    };
 
     std::fs::create_dir_all(&ulvo_dir).map_err(|e| format!("failed to create .ulvo directory: {e}"))?;
     std::fs::write(&manifest_path, manifest_content.as_bytes())
@@ -2195,18 +2222,127 @@ name = "{}"
             "status": "INITIALIZED",
             "project_name": proj_name,
             "manifest_path": manifest_path.to_string_lossy(),
-            "ecosystem": ecosystem,
-            "runtime_version": version,
             "thin_connector_compliant": audit_res.is_ok(),
         });
         println!("{}", serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?);
     } else {
         println!("ULVO Project Initialized ({})", proj_name);
         println!("  Connector Path:        {}", manifest_path.display());
-        println!("  Ecosystem:             {}", ecosystem);
-        println!("  Target Runtime:        {}", version);
         println!("  Thin Connector Budget: COMPLIANT (< 100 KiB target met)");
         println!("  Next Steps: Run 'ulvo run {} -- <cmd>' or 'ulvo project status {}'", clean_path.display(), clean_path.display());
+    }
+
+    Ok(0)
+}
+
+fn run_project_onboard(
+    project_path: PathBuf,
+    policy_str: &str,
+    force: bool,
+    yes: bool,
+    cli_json: bool,
+) -> Result<i32, String> {
+    let policy: ulvo_core::OnboardingPolicy = policy_str.parse()?;
+    let clean_path = ulvo_core::strip_unc_prefix(&project_path);
+    let report = ulvo_discovery::scan_project_ecosystems(&clean_path, Some(policy))?;
+
+    if cli_json {
+        if report.action_verdict == "ALREADY_INITIALIZED" && !force {
+            let res = serde_json::json!({
+                "status": "ALREADY_INITIALIZED",
+                "report": report,
+                "message": "Project is already onboarded. Use --force to regenerate .ulvo/manifest.toml",
+            });
+            println!("{}", serde_json::to_string_pretty(&res).map_err(|e| e.to_string())?);
+            return Ok(0);
+        }
+
+        if report.action_verdict == "NO_ECOSYSTEM_DETECTED" {
+            let res = serde_json::json!({
+                "status": "NO_ECOSYSTEM_DETECTED",
+                "report": report,
+                "message": "No recognized development ecosystem found in project directory.",
+            });
+            println!("{}", serde_json::to_string_pretty(&res).map_err(|e| e.to_string())?);
+            return Ok(1);
+        }
+
+        if report.action_verdict == "MANUAL_ACTION_REQUIRED" && !yes && !force {
+            let res = serde_json::json!({
+                "status": "MANUAL_REQUIRED",
+                "report": report,
+                "message": "Onboarding policy is MANUAL. Pass --yes or --force to onboard.",
+            });
+            println!("{}", serde_json::to_string_pretty(&res).map_err(|e| e.to_string())?);
+            return Ok(0);
+        }
+
+        let result = ulvo_discovery::apply_onboarding(&clean_path, &report, force)?;
+        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+        return Ok(0);
+    }
+
+    println!("============================================================");
+    println!(" ULVO Universal Project Onboarding Engine                   ");
+    println!("============================================================");
+    println!("  Project Name:      {}", report.project_name);
+    println!("  Path:              {}", report.project_path);
+    println!("  Monorepo:          {}", if report.is_monorepo { "Yes" } else { "No" });
+    if report.is_monorepo {
+        println!("  Subprojects:       {}", report.subprojects.join(", "));
+    }
+    println!("  Trusted Workspace: {}", if report.is_trusted_workspace { "Yes" } else { "No" });
+    println!("  Policy:            {:?}", report.policy);
+    println!("  Status:            {}", report.action_verdict);
+    println!();
+
+    if report.detected_ecosystems.is_empty() {
+        println!("  [WARN] No recognized development ecosystem detected.");
+        return Ok(1);
+    }
+
+    println!("Discovered Ecosystems:");
+    for eco in &report.detected_ecosystems {
+        let sub = if eco.relative_path.is_empty() { "root" } else { &eco.relative_path };
+        println!("  • {} ({}) -> default runtime {}", eco.kind, sub, eco.recommended_runtime_version);
+        println!("    manifests: {}", eco.manifest_files.join(", "));
+    }
+    println!();
+
+    if report.has_existing_connector && !force {
+        println!("  Project already has .ulvo/manifest.toml. Use --force to overwrite.");
+        return Ok(0);
+    }
+
+    let should_apply = match report.policy {
+        ulvo_core::OnboardingPolicy::Manual => yes || force,
+        ulvo_core::OnboardingPolicy::AutoForTrustedWorkspaces => report.is_trusted_workspace || yes || force,
+        ulvo_core::OnboardingPolicy::Prompt => {
+            if yes || force {
+                true
+            } else {
+                print!("  Proceed with onboarding and generate .ulvo/manifest.toml? [y/N]: ");
+                use std::io::Write;
+                let _ = std::io::stdout().flush();
+                let mut input = String::new();
+                if std::io::stdin().read_line(&mut input).is_ok() {
+                    let ans = input.trim().to_lowercase();
+                    ans == "y" || ans == "yes"
+                } else {
+                    false
+                }
+            }
+        }
+    };
+
+    if should_apply {
+        let result = ulvo_discovery::apply_onboarding(&clean_path, &report, force)?;
+        println!("  [OK] Successfully onboarded project!");
+        println!("  Connector: {}", result.manifest_path);
+        println!("  Ecosystems configured: {}", result.ecosystems.join(", "));
+        println!("  Thin connector (< 100 KiB): {}", if result.thin_connector_compliant { "VERIFIED" } else { "NON-COMPLIANT" });
+    } else {
+        println!("  Onboarding deferred per policy or user input.");
     }
 
     Ok(0)

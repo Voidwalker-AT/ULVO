@@ -358,5 +358,44 @@ flowchart LR
   - **Regression Verification**:
     - 177 unit and integration tests passing (`cargo test`).
 
+---
+
+### Stage 3.3: Universal Multi-Ecosystem Onboarding, Global Gateway & Machine-Wide Consolidation
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Runtime Independence & PATH Isolation Audit (`scripts/test-runtime-independence.ps1`)**:
+    - Complete toolchain execution under clean isolated system PATH (`C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem`).
+    - Rust 1.96.0 & MSYS2 GCC 14.2.0 verified `FULLY_MANAGED` inside vault.
+    - Python verified `MANAGED_WITH_EXTERNAL_DEPENDENCIES`.
+    - Go, Ruby, Node, Java verified `EXTERNAL_REFERENCE` via gateway.
+    - Audit evidence: `docs/evidence/stage3-3/runtime-independence-audit.json`.
+  - **Package Store Hardlink Safety & Read-Only Protection (`scripts/test-package-store-safety.ps1`)**:
+    - Verified hardlink persistence under cache pruning: shared store retains files intact when cache entries are deleted.
+    - Enforced `ReadOnly` attributes on all 17,714 files in `vault/packages/python/shared` (4.512 GB).
+    - Audit evidence: `docs/evidence/stage3-3/package-store-safety-audit.json`.
+  - **Whole-Vault Physical Storage Accounting (`scripts/measure-whole-vault-accounting.ps1`)**:
+    - Audited 198,164 files across 15 vault and workspace categories with global NTFS inode deduplication.
+    - 24.818 GB logical allocation vs 19.850 GB unique physical disk space; 4.627 GB deduplicated.
+    - Audit evidence: `docs/evidence/stage3-3/whole-vault-physical-accounting.json`.
+  - **Universal Multi-Ecosystem Onboarding Engine (`ulvo project onboard`)**:
+    - Added scanner & thin connector generator supporting Python, Node, Rust, Go, Ruby, Java, C/C++, and monorepos (container directories `apps/`, `services/`, `packages/`, `crates/`, `modules/`).
+    - Added CLI command `ulvo project onboard [PATH] [--policy <policy>] [--force] [-y]`.
+    - 12 automated verification tests passed: `docs/evidence/stage3-3/universal-onboarding-verification.json`.
+  - **Global Gateway Registry & Zero Language Pollution (`scripts/verify-global-gateway.ps1`)**:
+    - Registered `E:\Workspace\Active\ULVO\bin` in Windows User PATH.
+    - Purged 8 leaked ephemeral environment script paths from User PATH in Windows Registry.
+    - Verified global `ulvo --version` and missing tool diagnostics without exposing language compilers on global PATH.
+    - Audit evidence: `docs/evidence/stage3-3/global-gateway-verification.json`.
+  - **IDE Integration Blueprint (`docs/evidence/stage3-3/ide-integration-assessment.md`)**:
+    - Configured settings for VS Code, Cursor, Windsurf, Antigravity, PowerShell, Terminal, and Git pre-commit hooks to eliminate unmanaged `.venv` spawning.
+  - **Machine-Wide External Toolchain Retirement Matrix (`docs/evidence/stage3-3/external-toolchain-retirement-matrix.md`)**:
+    - Cataloged 11.75 GB on `C:` across 7 toolchains with transition protocols and rollback procedures. Zero deletions on `C:`.
+  - **Real Project Regression Suite (`scripts/test-real-project-regression.ps1`)**:
+    - 9/9 tests passed: `CrossModalLab` (PyTorch CUDA matmul on RTX 2050 GPU, 0 project bloat), `NexusNode` (unittests + socket binding lifecycle), `AstraRun` (Python 3.13), polyglot Go/Ruby/C++/Node execution.
+    - Evidence: `docs/evidence/stage3-3/project-regression-suite.json`.
+  - **Regression Verification**:
+    - 182 unit and integration tests passing (`cargo test`).
+
+
 
 

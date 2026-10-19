@@ -9,6 +9,7 @@ pub mod gpu;
 pub mod adoption;
 pub mod manifest;
 pub mod cas;
+pub mod onboarding;
 
 pub use resource::*;
 pub use registry::*;
@@ -19,6 +20,7 @@ pub use gpu::*;
 pub use adoption::*;
 pub use manifest::*;
 pub use cas::*;
+pub use onboarding::*;
 
 use std::path::{Path, PathBuf};
 

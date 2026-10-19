@@ -1,0 +1,75 @@
+﻿{
+    "schema_version":  1,
+    "real_package_samples":  [
+                                 {
+                                     "File":  "torch_cpu.dll",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\torch\\lib\\torch_cpu.dll",
+                                     "Links":  2,
+                                     "Inode":  "83574700:30000000653EE",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  239.62,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "torch_cuda.dll",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\torch\\lib\\torch_cuda.dll",
+                                     "Links":  2,
+                                     "Inode":  "83574700:40000000653F0",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  912.92,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "expr.py",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\sympy\\core\\expr.py",
+                                     "Links":  2,
+                                     "Inode":  "83574700:400000005D4E1",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  0.14,
+                                     "Valid":  true
+                                 },
+                                 {
+                                     "File":  "__init__.py",
+                                     "Path":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared\\numpy\\__init__.py",
+                                     "Links":  1,
+                                     "Inode":  "83574700:500000002DDC8",
+                                     "ReadOnly":  false,
+                                     "SizeMB":  0.03,
+                                     "Valid":  true
+                                 }
+                             ],
+    "overall_status":  "FAIL",
+    "safety_checks":  [
+                          {
+                              "Check":  "Real Package Hardlink Inodes \u0026 Reference Counts",
+                              "Passed":  true,
+                              "Details":  "Sample files in shared store correctly report valid NTFS inodes and links."
+                          },
+                          {
+                              "Check":  "Cache Prune Unlink Resilience",
+                              "Passed":  true,
+                              "Details":  "Deleting uv-cache entry safely decrements link count without deleting or altering shared store data."
+                          },
+                          {
+                              "Check":  "Atomic Package Replacement Safety",
+                              "Passed":  false,
+                              "Details":  "Atomic replacement of cache package breaks the hardlink safely, preserving original shared package untouched."
+                          },
+                          {
+                              "Check":  "In-Place Write Protection",
+                              "Passed":  true,
+                              "Details":  "Read-only file attribute strictly blocks standard application write handles."
+                          },
+                          {
+                              "Check":  "Shared Store Read-Only Attribute Hardening",
+                              "Passed":  true,
+                              "Details":  "All 17714 files across 21 packages in shared store now have ReadOnly attributes enforced."
+                          },
+                          {
+                              "Check":  "PyTorch CUDA Post-Hardening Functionality",
+                              "Passed":  true,
+                              "Details":  "PyTorch 2.6.0+cu124 executes CUDA tensor operations on physical NVIDIA RTX 2050 GPU with zero regressions."
+                          }
+                      ],
+    "timestamp_utc":  "2026-10-19T19:44:34.3629849+00:00"
+}

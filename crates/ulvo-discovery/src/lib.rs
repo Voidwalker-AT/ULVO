@@ -10,6 +10,8 @@ pub mod toolchain_inventory;
 pub use toolchain_inventory::*;
 pub mod connector;
 pub use connector::*;
+pub mod onboarding;
+pub use onboarding::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;

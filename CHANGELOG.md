@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-10-20
 
+### Stage 3.3 — Universal Multi-Ecosystem Onboarding, Global Gateway & Machine-Wide Consolidation
+
+#### Runtime Independence & PATH Isolation Audit (`scripts/test-runtime-independence.ps1`)
+- **Hermetic Toolchain Verification**:
+  - Audited all managed runtimes under strict, hermetic Windows PATH isolation (`C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem`).
+  - Rust 1.96.0 (`vault/runtimes/rust/cargo`) and MSYS2 GCC 14.2.0 (`vault/toolchains/msys2/ucrt64`) verified as `FULLY_MANAGED` inside the vault, compiling and executing independently of host tools.
+  - Python categorized as `MANAGED_WITH_EXTERNAL_DEPENDENCIES` (package assets hosted in vault, orchestrated via standalone `uv` binary).
+  - Go 1.26.5, Ruby 4.0.1, Node.js 24.15.0, and Java 21.0.4 verified as `EXTERNAL_REFERENCE` resolved deterministically through the ULVO Unified Gateway.
+  - Generated complete audit evidence at `docs/evidence/stage3-3/runtime-independence-audit.json`.
+
+#### Package Store Safety & Immutability Enforcement (`scripts/test-package-store-safety.ps1`)
+- **Hardlink Severing & Read-Only Protection**:
+  - Verified NTFS hardlink persistence under cache pruning: deleting cache entries severs the link without affecting shared store files (hardlink count decrements cleanly from 2 to 1).
+  - Enforced `ReadOnly` attributes across all 17,714 files in `vault/packages/python/shared` (4.512 GB logical), preventing in-place mutation or corruption by downstream package managers or editable installs.
+  - Re-verified PyTorch CUDA tensor matmul on physical NVIDIA GeForce RTX 2050 Laptop GPU under strict read-only store protection.
+  - Generated complete audit evidence at `docs/evidence/stage3-3/package-store-safety-audit.json`.
+
+#### Whole-Vault Physical Storage Accounting (`scripts/measure-whole-vault-accounting.ps1`)
+- **Global Inode Deduplication Across 15 Categories**:
+  - Engineered whole-vault dual-accounting scanner tracking Win32 `(VolumeSerialNumber, FileIndexHigh, FileIndexLow)` identities globally.
+  - Audited 198,164 files across 15 vault and workspace categories.
+  - Reconciled **24.818 GB** (23.114 GiB) logical allocation against **19.850 GB** (18.487 GiB) unique physical disk consumption.
+  - Verified that 13,590 files (4.39 GB) in `vault/packages/python/shared` share physical inodes with `vault/packages/python/uv-cache`, adding only ~122 MB of unique physical bytes on disk.
+  - Documented complete inventory breakdown at `docs/evidence/stage3-3/whole-vault-physical-accounting.json`.
+
+#### Universal Multi-Ecosystem Project Onboarding Engine (`ulvo project onboard`)
+- **Automated Ecosystem Detection & Thin Connector Generation**:
+  - Implemented `OnboardingPolicy` (`MANUAL`, `PROMPT`, `AUTO_FOR_TRUSTED_WORKSPACES`) and `EcosystemKind` in `ulvo-core`.
+  - Added recursive project scanner in `ulvo-discovery` detecting Python (`pyproject.toml`, `requirements.txt`), Node.js (`package.json`), Rust (`Cargo.toml`), Go (`go.mod`), Ruby (`Gemfile`), Java (`pom.xml`, `build.gradle`), and C/C++ (`CMakeLists.txt`, `Makefile`).
+  - Added monorepo container traversal (scanning `apps/`, `services/`, `packages/`, `crates/`, `modules/` up to 2 levels deep).
+  - Added CLI command `ulvo project onboard [PATH] [--policy <policy>] [--force] [-y]`.
+  - Automated 12-test onboarding verification suite (`scripts/test-universal-onboarding.ps1`): 12/12 passed (`docs/evidence/stage3-3/universal-onboarding-verification.json`).
+
+#### Global Gateway Registry & User PATH Hygiene (`scripts/verify-global-gateway.ps1`)
+- **Zero Language Pollution Invariant**:
+  - Registered `E:\Workspace\Active\ULVO\bin` in Windows User PATH.
+  - Detected and permanently purged 8 leaked ephemeral environment script paths from User PATH in Windows Registry.
+  - Verified global `ulvo --version` invocation from `C:\`, `E:\`, and temporary folders.
+  - Verified tool missing diagnostics: missing tools fail gracefully with clear actionable registry errors.
+  - Verified that underlying language binaries (`cargo.exe`, `gcc.exe`, `g++.exe`) remain hidden from global PATH, preventing machine-wide toolchain collisions.
+  - Evidence documented at `docs/evidence/stage3-3/global-gateway-verification.json`.
+
+#### IDE Integration Assessment & Toolchain Retirement Matrix
+- **IDE Integration Blueprint (`docs/evidence/stage3-3/ide-integration-assessment.md`)**:
+  - Formulated comprehensive configuration patterns for VS Code, Cursor, Windsurf, Google Antigravity, PowerShell profiles, Windows Terminal, and Git pre-commit hooks to eliminate unmanaged `.venv` spawning.
+- **Machine-Wide External Toolchain Retirement Matrix (`docs/evidence/stage3-3/external-toolchain-retirement-matrix.md`)**:
+  - Cataloged 11.75 GB of external toolchains on `C:` (Rustup, MSYS2, Python 3.11/3.13, Go, Ruby, Node, Java).
+  - Defined prerequisite verification, transition phases, and rollback mechanisms.
+  - Enforced strict Human Acceptance Gate: **Zero external files or toolchains deleted on C:**.
+
+#### Real Project Regression Suite (`scripts/test-real-project-regression.ps1`)
+- **9/9 Passing Real-World Verifications**:
+  - `CrossModalLab`: PyTorch CUDA 4096x4096 matmul completed on NVIDIA GeForce RTX 2050 GPU (387 ms, 200 MB VRAM) with zero `.venv` project tree bloat.
+  - `NexusNode`: 20 unit tests passed; network socket binding and clean lifecycle release verified on port 58945.
+  - `AstraRun`: Python 3.13.0 resolved and executed inside vault environment.
+  - Polyglot execution: Go 1.26.5 compiled and ran, Ruby 4.0.1 executed, MSYS2 GCC 14.2.0 compiled and ran native C++ binary, Node.js v24.15.0 executed via gateway.
+  - Evidence documented at `docs/evidence/stage3-3/project-regression-suite.json`.
+
+#### Full Test Suite Verification
+- **182 unit and integration tests passing** across all workspace crates with zero failures (`cargo test`).
+
+---
+
 ### Stage 3.2 — Storage Optimization, Package Store Deduplication & Toolchain Consolidation
 
 #### Storage Footprint Audit & Verified Physical Accounting

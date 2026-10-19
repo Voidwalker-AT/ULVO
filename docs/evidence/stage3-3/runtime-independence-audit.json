@@ -1,0 +1,90 @@
+﻿{
+    "schema_version":  1,
+    "runtimes":  [
+                     {
+                         "Name":  "Rust",
+                         "Ecosystem":  "rust",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\cargo.exe",
+                         "VaultExists":  true,
+                         "ExternalPath":  "C:\\Users\\hp\\.cargo\\bin\\cargo.exe",
+                         "ExternalExists":  false,
+                         "Classification":  "FULLY_MANAGED",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "cargo 1.96.0 (30a34c682 2026-05-25)",
+                         "Details":  "Rust 1.96.0 toolchain is physically contained in vault and compiles/executes in full isolation."
+                     },
+                     {
+                         "Name":  "MSYS2 C/C++",
+                         "Ecosystem":  "cpp",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\gcc.exe",
+                         "VaultExists":  true,
+                         "ExternalPath":  "C:\\msys64\\ucrt64\\bin\\gcc.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "FULLY_MANAGED",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "gcc.exe (Rev3, Built by MSYS2 project) 14.2.0\r\nCopyright (C) 2024 Free Software Foundation, Inc.\r\nThis is free software; see the source for copying conditions.  There is NO\r\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+                         "Details":  "MSYS2 GCC/G++ 14.2.0 physically contained in vault with complete UCRT64 environment."
+                     },
+                     {
+                         "Name":  "Python (Shared \u0026 uv)",
+                         "Ecosystem":  "python",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared",
+                         "VaultExists":  true,
+                         "ExternalPath":  "C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "MANAGED_WITH_EXTERNAL_DEPENDENCIES",
+                         "IsolatedExecutionPass":  false,
+                         "Output":  "",
+                         "Details":  "Shared PyTorch/CUDA packages reside in vault, but uv package manager executable resides at C:\\Users\\hp\\.local\\bin\\uv.exe."
+                     },
+                     {
+                         "Name":  "Go",
+                         "Ecosystem":  "go",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\go\\bin\\go.exe",
+                         "VaultExists":  false,
+                         "ExternalPath":  "C:\\Program Files\\Go\\bin\\go.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "EXTERNAL_REFERENCE",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "go version go1.26.5 windows/amd64",
+                         "Details":  "Executable resides on C:; resolved through ULVO gateway via process-local redirection without vault-contained binary payload."
+                     },
+                     {
+                         "Name":  "Ruby",
+                         "Ecosystem":  "ruby",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\ruby\\bin\\ruby.exe",
+                         "VaultExists":  false,
+                         "ExternalPath":  "C:\\Ruby40-x64\\bin\\ruby.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "EXTERNAL_REFERENCE",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "ruby 4.0.1 (2026-01-13 revision e04267a14b) +PRISM [x64-mingw-ucrt]",
+                         "Details":  "Executable resides on C:; resolved through ULVO gateway via process-local redirection without vault-contained binary payload."
+                     },
+                     {
+                         "Name":  "Node.js",
+                         "Ecosystem":  "node_js",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\node\\node.exe",
+                         "VaultExists":  false,
+                         "ExternalPath":  "C:\\Program Files\\nodejs\\node.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "EXTERNAL_REFERENCE",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "v24.15.0",
+                         "Details":  "Executable resides on C:; resolved through ULVO gateway via process-local redirection without vault-contained binary payload."
+                     },
+                     {
+                         "Name":  "Java",
+                         "Ecosystem":  "java",
+                         "VaultPath":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\java\\bin\\java.exe",
+                         "VaultExists":  false,
+                         "ExternalPath":  "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+                         "ExternalExists":  true,
+                         "Classification":  "EXTERNAL_REFERENCE",
+                         "IsolatedExecutionPass":  true,
+                         "Output":  "openjdk version \"21.0.4\" 2024-07-16 LTS\r\nOpenJDK Runtime Environment Temurin-21.0.4+7 (build 21.0.4+7-LTS)\r\nOpenJDK 64-Bit Server VM Temurin-21.0.4+7 (build 21.0.4+7-LTS, mixed mode, sharing)",
+                         "Details":  "Executable resides on C:; resolved through ULVO gateway via process-local redirection without vault-contained binary payload."
+                     }
+                 ],
+    "timestamp_utc":  "2026-10-19T19:40:15.9603486+00:00"
+}

@@ -10,4 +10,6 @@ Write-Host "Building ulvo release binary..." -ForegroundColor Cyan
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed with exit code $LASTEXITCODE"
 }
-Write-Host "Build successful." -ForegroundColor Green
+Copy-Item -Path "target\release\ulvo.exe" -Destination "bin\ulvo.exe" -Force
+Write-Host "Build and sync to bin/ulvo.exe successful." -ForegroundColor Green
+

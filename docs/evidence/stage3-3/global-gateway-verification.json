@@ -1,0 +1,35 @@
+﻿{
+    "cleaned_leaked_entries":  [
+
+                               ],
+    "schema_version":  1,
+    "missing_tool_exit_code":  1,
+    "zero_pollution_verified":  true,
+    "gateway_registered_in_user_path":  true,
+    "gateway_binary_bytes":  7433836,
+    "missing_tool_error_message":  "ulvo: tool \u0027nonexistent_tool_xyz\u0027 could not be resolved in the ULVO Vault Registry",
+    "cleaned_leaked_entries_count":  0,
+    "gateway_binary":  "E:\\Workspace\\Active\\ULVO\\bin\\ulvo.exe",
+    "timestamp_utc":  "2026-10-19T20:11:08.9306626+00:00",
+    "missing_tool_diagnostic_verified":  true,
+    "directory_invocations":  [
+                                  {
+                                      "Directory":  "C:\\",
+                                      "ExitCode":  0,
+                                      "Output":  "ulvo 1.2.0",
+                                      "Success":  true
+                                  },
+                                  {
+                                      "Directory":  "E:\\",
+                                      "ExitCode":  0,
+                                      "Output":  "ulvo 1.2.0",
+                                      "Success":  true
+                                  },
+                                  {
+                                      "Directory":  "C:\\Users\\hp\\AppData\\Local\\Temp\\",
+                                      "ExitCode":  0,
+                                      "Output":  "ulvo 1.2.0",
+                                      "Success":  true
+                                  }
+                              ]
+}

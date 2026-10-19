@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: **ULVO Stage 3.2 / v1.2.0 Release Candidate**. ULVO delivers the native Windows Desktop Control Center (`ulvo-desktop.exe`), online verified runtime & tool catalog, universal search query resolution, 10-step transactional provisioning engine with cryptographic SHA-256 verification and preflight disk safety floor, background reconciliation agent (`ulvo-agent.exe`) on local loopback IPC, dual-accounting storage governance, package store NTFS hardlink deduplication (+4.41 GB recovered on E:), release build artifact pruning (+1.33 GB recovered on E:), machine-wide toolchain inventory on `C:` (11.75 GB identified with Human Approval Gate), multi-language gateway execution (GCC/G++, Go, Ruby, Node, Java, CUDA GPU), zero persistent project `.venv` environments, and self-contained portable distribution with production installer.
+> **Current Development Status**: **ULVO Stage 3.3 / v1.2.0 Release Candidate**. ULVO delivers the native Windows Desktop Control Center (`ulvo-desktop.exe`), online verified runtime & tool catalog, universal search query resolution, 10-step transactional provisioning engine, background reconciliation agent (`ulvo-agent.exe`) on local loopback IPC, dual-accounting storage governance with global Win32 inode deduplication across 15 categories, read-only immutable package store, universal multi-ecosystem project onboarding (`ulvo project onboard`), single-entry global gateway on User PATH (`bin\ulvo.exe`) without language pollution, IDE integration blueprint (zero `.venv` sprawl), real-world verified execution on NVIDIA RTX 2050 CUDA GPU, and 182 passing workspace tests.
 
 ---
 

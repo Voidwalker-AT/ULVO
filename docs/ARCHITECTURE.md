@@ -52,6 +52,7 @@ graph TD
   - [`adoption`](../crates/ulvo-core/src/adoption.rs): 9-stage universal toolchain adoption lifecycle (`ExternalDiscovered` -> `CompatibilityAssessed` -> `AdoptionPlanned` -> `Staging` -> `Verified` -> `Managed`), migration strategies (`InPlaceManaged`, `CopyRelocatable`, `ReferenceExternal`), rollback manifests, and fail-closed safety rejection rules.
   - [`manifest`](../crates/ulvo-core/src/manifest.rs): Thin Project Connector Contract (`ConnectorContract`, `ConnectorComplianceVerdict`), size budget constants (`CONNECTOR_TARGET_BUDGET_BYTES` = 100 KiB, `CONNECTOR_MAX_BUDGET_BYTES` = 10 MiB), prohibited environment artifact rules, and multi-ecosystem manifest models (`NodeManifestConfig`, `RustManifestConfig`, `CppManifestConfig`, `JavaManifestConfig`, `GoManifestConfig`, `RubyManifestConfig`).
   - [`cas`](../crates/ulvo-core/src/cas.rs): Content-Addressable Storage data models, SHA-256 digest validation, artifact metadata, and CAS deduplication accounting.
+  - [`onboarding`](../crates/ulvo-core/src/onboarding.rs): Universal project onboarding models (`OnboardingPolicy` [Manual, Prompt, Auto], `EcosystemKind`, `DetectedEcosystem`, `ProjectOnboardingReport`, `OnboardResult`).
 
 ### `ulvo-adapters`
 - **Responsibility**: Host platform interactions and ecosystem-specific inspectors.
@@ -74,6 +75,7 @@ graph TD
   - [`project_lifecycle`](../crates/ulvo-discovery/src/project_lifecycle.rs): End-to-end ephemeral environment lifecycle, host GPU querying (`detect_host_gpu`), NTFS capacity checking with 500 MB safety reserves, project manifest loading, execution supervision, and reclaimable lease cleanup.
   - [`toolchain_inventory`](../crates/ulvo-discovery/src/toolchain_inventory.rs): Universal toolchain scanner inspecting Windows PATH, known toolchain roots, MSYS2 (`C:\msys64`), VS Code configuration, and read-only WSL registry keys across 18+ ecosystem binary families.
   - [`lock`](../crates/ulvo-discovery/src/lock.rs): File-based concurrency control and execution lease management.
+  - [`onboarding`](../crates/ulvo-discovery/src/onboarding.rs): Universal project onboarding engine (`ProjectOnboardingEngine`) providing recursive ecosystem scanning, monorepo container traversal, and thin connector manifest generation.
 
 ### `ulvo-services`
 - **Responsibility**: Single application-services business logic layer serving CLI, GUI, and background agent without duplicate domain implementations.
