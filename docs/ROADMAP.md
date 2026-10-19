@@ -391,8 +391,11 @@ flowchart LR
   - **Machine-Wide External Toolchain Retirement Matrix (`docs/evidence/stage3-3/external-toolchain-retirement-matrix.md`)**:
     - Cataloged 11.75 GB on `C:` across 7 toolchains with transition protocols and rollback procedures. Zero deletions on `C:`.
   - **Real Project Regression Suite (`scripts/test-real-project-regression.ps1`)**:
-    - 9/9 tests passed: `CrossModalLab` (PyTorch CUDA matmul on RTX 2050 GPU, 0 project bloat), `NexusNode` (unittests + socket binding lifecycle), `AstraRun` (Python 3.13), polyglot Go/Ruby/C++/Node execution.
+    - 11/11 tests passed: `CrossModalLab` (PyTorch CUDA matmul on RTX 2050 GPU, 0 project bloat), `NexusNode` (unittests + socket binding lifecycle + HTTP server GET /health handling and shutdown), `AstraRun` (Python 3.13), polyglot Go/Ruby/C++/Node/Java OpenJDK 21 execution.
     - Evidence: `docs/evidence/stage3-3/project-regression-suite.json`.
+  - **Resource Governance Benchmarks (`scripts/benchmark-resource-governance.ps1`)**:
+    - Native python startup: 31 ms; ULVO cold start: 1,576 ms; ULVO warm start: 1,608 ms; peak control plane memory: 6.8 MB.
+    - Evidence: `docs/evidence/stage3-3/resource-governance-benchmark.json`.
   - **Regression Verification**:
     - 182 unit and integration tests passing (`cargo test`).
 

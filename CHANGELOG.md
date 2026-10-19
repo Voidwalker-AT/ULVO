@@ -60,12 +60,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enforced strict Human Acceptance Gate: **Zero external files or toolchains deleted on C:**.
 
 #### Real Project Regression Suite (`scripts/test-real-project-regression.ps1`)
-- **9/9 Passing Real-World Verifications**:
-  - `CrossModalLab`: PyTorch CUDA 4096x4096 matmul completed on NVIDIA GeForce RTX 2050 GPU (387 ms, 200 MB VRAM) with zero `.venv` project tree bloat.
+- **11/11 Passing Real-World Verifications**:
+  - `CrossModalLab`: PyTorch CUDA 4096x4096 matmul completed on NVIDIA GeForce RTX 2050 GPU (470 ms, 200 MB VRAM) with zero `.venv` project tree bloat.
   - `NexusNode`: 20 unit tests passed; network socket binding and clean lifecycle release verified on port 58945.
+  - `NexusNode`: HTTP server startup, `GET /health` request handling (HTTP 200 `{"status": "healthy", "engine": "NexusNode", "orchestrator": "ULVO"}`), and clean socket shutdown verified on port 58948.
   - `AstraRun`: Python 3.13.0 resolved and executed inside vault environment.
   - Polyglot execution: Go 1.26.5 compiled and ran, Ruby 4.0.1 executed, MSYS2 GCC 14.2.0 compiled and ran native C++ binary, Node.js v24.15.0 executed via gateway.
+  - Polyglot Java: Eclipse Adoptium Temurin OpenJDK 21 compiled native Java class with `javac` and executed with `java` through the gateway.
   - Evidence documented at `docs/evidence/stage3-3/project-regression-suite.json`.
+
+#### Resource Governance & Latency Benchmarks (`scripts/benchmark-resource-governance.ps1`)
+- Direct Native Python: 31 ms median startup latency.
+- ULVO Cold Start: 1,576 ms (complete lifecycle: connector contract verification, specification hash, environment resolution, execution, and lease cleanup).
+- ULVO Warm Start: 1,608 ms median repeated execution.
+- Memory Working Set: Native Win32 CLI parent working set bounded at 6.8 MB (< 15 MB budget, zero garbage collector pauses).
+- Evidence documented at `docs/evidence/stage3-3/resource-governance-benchmark.json`.
 
 #### Full Test Suite Verification
 - **182 unit and integration tests passing** across all workspace crates with zero failures (`cargo test`).

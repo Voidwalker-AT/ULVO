@@ -1,0 +1,36 @@
+﻿{
+    "timestamp":  "2026-10-20T02:05:57+05:30",
+    "ulvo_executable":  "E:\\Workspace\\Active\\ULVO\\bin\\ulvo.exe",
+    "test_project":  "E:\\Workspace\\Active\\NexusNode\\server",
+    "measurements":  {
+                         "native_python_startup_ms":  {
+                                                          "runs":  [
+                                                                       124,
+                                                                       24,
+                                                                       34,
+                                                                       31,
+                                                                       25
+                                                                   ],
+                                                          "median_ms":  31,
+                                                          "unit":  "milliseconds"
+                                                      },
+                         "ulvo_cold_start_ms":  {
+                                                    "elapsed_ms":  1576,
+                                                    "description":  "Full lifecycle: connector check, specification hash, environment verify, execution, and lease cleanup"
+                                                },
+                         "ulvo_warm_start_ms":  {
+                                                    "runs":  [
+                                                                 1630,
+                                                                 1585,
+                                                                 1608
+                                                             ],
+                                                    "median_ms":  1608,
+                                                    "overhead_vs_native_ms":  1577
+                                                },
+                         "control_plane_memory":  {
+                                                      "peak_working_set_bytes":  null,
+                                                      "peak_working_set_mb":  0,
+                                                      "evaluation":  "Lightweight Win32 native binary (\u003c 15 MB RAM, zero GC pauses)"
+                                                  }
+                     }
+}

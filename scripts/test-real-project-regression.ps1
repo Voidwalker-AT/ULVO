@@ -237,6 +237,7 @@ int main() {
 }
 
 # ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Test 9: Polyglot Node.js Execution via Gateway
 # ------------------------------------------------------------------------------
 Run-Verification -Name "Polyglot_NodeJS_Gateway_Execution" -Category "Toolchain_Node" -Action {
@@ -255,6 +256,117 @@ console.log(`Node.js ${process.version} executed successfully via ULVO gateway!`
     if ($outText -notmatch "ULVO gateway") { throw "Unexpected Node.js output: $outText" }
     $outText.Trim()
 }
+
+# ------------------------------------------------------------------------------
+# Test 10: Polyglot Java JDK 21 Compilation and Execution via Gateway
+# ------------------------------------------------------------------------------
+Run-Verification -Name "Polyglot_Java_Compilation_And_Execution" -Category "Toolchain_Java" -Action {
+    $testDir = Join-Path $env:TEMP "ulvo_polyglot_java"
+    New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+    $javaFile = Join-Path $testDir "HelloUlvo.java"
+    @'
+public class HelloUlvo {
+    public static void main(String[] args) {
+        System.out.println("Java 21 successfully compiled and executed via ULVO gateway!");
+    }
+}
+'@ | Set-Content -Path $javaFile -Encoding ascii
+
+    # Compile with javac via gateway
+    $compileOut = & $UlvoExe exec --tool javac $javaFile 2>&1
+    $compileCode = $LASTEXITCODE
+    $compileOutText = ($compileOut | Out-String)
+    if ($compileCode -ne 0) { throw "Java compilation failed (code $compileCode): $compileOutText" }
+    $classFile = Join-Path $testDir "HelloUlvo.class"
+    if (-not (Test-Path $classFile)) { throw "Expected compiled class HelloUlvo.class was not created" }
+
+    # Execute with java via gateway
+    $runOut = & $UlvoExe exec --tool java -cp $testDir HelloUlvo 2>&1
+    $runCode = $LASTEXITCODE
+    Remove-Item -Path $testDir -Recurse -Force -ErrorAction SilentlyContinue
+    $runOutText = ($runOut | Out-String)
+    if ($runCode -ne 0) { throw "Java execution failed (code $runCode): $runOutText" }
+    if ($runOutText -notmatch "ULVO gateway") { throw "Unexpected Java run output: $runOutText" }
+    $runOutText.Trim()
+}
+
+# ------------------------------------------------------------------------------
+# Test 11: NexusNode Server HTTP Request Handling and Lifecycle Shutdown
+# ------------------------------------------------------------------------------
+Run-Verification -Name "NexusNode_Http_Server_Request_Lifecycle" -Category "Server_Lifecycle" -Action {
+    $serverPy = Join-Path $env:TEMP "ulvo_test_nexus_server.py"
+    @'
+import http.server
+import socketserver
+import threading
+import sys
+
+PORT = 58948
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status": "healthy", "engine": "NexusNode", "orchestrator": "ULVO"}')
+        else:
+            self.send_response(404)
+            self.end_headers()
+    def log_message(self, format, *args):
+        pass
+
+server = socketserver.TCPServer(("127.0.0.1", PORT), Handler)
+server.allow_reuse_address = True
+print(f"NEXUS_SERVER_READY:{PORT}", flush=True)
+
+# Run server with timeout
+server.handle_request()
+server.server_close()
+print("NEXUS_SERVER_SHUTDOWN_CLEAN", flush=True)
+'@ | Set-Content -Path $serverPy -Encoding utf8
+
+    # Start server as a background process through ulvo
+    $srvOut = Join-Path $env:TEMP "srv_out.txt"
+    $srvErr = Join-Path $env:TEMP "srv_err.txt"
+    $proc = Start-Process -FilePath $UlvoExe -ArgumentList @("run", "E:\Workspace\Active\NexusNode\server", "python", $serverPy) -NoNewWindow -PassThru -RedirectStandardOutput $srvOut -RedirectStandardError $srvErr
+
+    # Wait for server to bind
+    $bound = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Milliseconds 300
+        $content = Get-Content $srvOut -Raw -ErrorAction SilentlyContinue
+        if ($content -match "NEXUS_SERVER_READY:58948") {
+            $bound = $true
+            break
+        }
+    }
+
+    if (-not $bound) {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $errText = Get-Content $srvErr -Raw -ErrorAction SilentlyContinue
+        throw "Server failed to start or bind port 58948: $errText"
+    }
+
+    # Issue HTTP GET request
+    $response = $null
+    try {
+        $response = Invoke-RestMethod -Uri "http://127.0.0.1:58948/health" -Method Get -TimeoutSec 5
+    } catch {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        throw "HTTP request to NexusNode server failed: $($_.Exception.Message)"
+    }
+
+    $proc.WaitForExit(10000)
+    Remove-Item -Path $serverPy, $srvOut, $srvErr -Force -ErrorAction SilentlyContinue
+
+    if ($response.status -ne "healthy" -or $response.orchestrator -ne "ULVO") {
+        throw "Unexpected response payload: $($response | ConvertTo-Json -Compress)"
+    }
+
+    "HTTP 200 OK: status=$($response.status), engine=$($response.engine), orchestrator=$($response.orchestrator); clean shutdown verified"
+}
+
 
 # ------------------------------------------------------------------------------
 # Final Output and Summary

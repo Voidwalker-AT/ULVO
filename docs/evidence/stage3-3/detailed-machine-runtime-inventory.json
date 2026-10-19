@@ -1,0 +1,262 @@
+﻿{
+    "timestamp":  "2026-10-20T02:03:26+05:30",
+    "machine_name":  "LAPTOP-UE0PTA5H",
+    "os_version":  "Microsoft Windows 11 Home Single Language (Build 26100)",
+    "total_resources_audited":  7,
+    "runtimes":  [
+                     {
+                         "name":  "Rust Toolchain",
+                         "ecosystem":  "rust",
+                         "actual_executable_path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\cargo.exe",
+                         "canonical_filesystem_identity":  "83574700:00050000:0004EA06",
+                         "runtime_version":  "cargo 1.96.0 / rustc 1.96.0",
+                         "architecture_and_abi":  "x86_64-pc-windows-gnu (and msvc compatible)",
+                         "package_manager":  "cargo",
+                         "installation_owner":  "ULVO Vault (Single-Root Managed)",
+                         "native_dependencies":  [
+                                                     "Windows UCRT",
+                                                     "MinGW/MSVC runtime"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "ntdll.dll",
+                                                  "kernel32.dll",
+                                                  "ws2_32.dll",
+                                                  "advapi32.dll",
+                                                  "userenv.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "CARGO_HOME",
+                                                       "RUSTUP_HOME",
+                                                       "RUSTC"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "None (hermetic single-root vault containment)"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "ULVO CLI",
+                                                         "ulvo-desktop",
+                                                         "ulvo-core",
+                                                         "ulvo-adapters",
+                                                         "ulvo-discovery",
+                                                         "ulvo-services"
+                                                     ],
+                         "physically_resides_inside_ulvo":  true,
+                         "depends_on_external_c_drive":  false,
+                         "management_classification":  "FULLY_MANAGED"
+                     },
+                     {
+                         "name":  "MSYS2 GCC C/C++ Compiler",
+                         "ecosystem":  "cpp",
+                         "actual_executable_path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\gcc.exe",
+                         "canonical_filesystem_identity":  "83574700:001F0000:0000A605",
+                         "runtime_version":  "gcc 14.2.0 (Rev3, Built by MSYS2 project)",
+                         "architecture_and_abi":  "x86_64-w64-mingw32 / UCRT64",
+                         "package_manager":  "pacman (MSYS2)",
+                         "installation_owner":  "ULVO Vault (Adopted Toolchain Subsystem)",
+                         "native_dependencies":  [
+                                                     "Universal C Runtime (UCRT)"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "ucrtbase.dll",
+                                                  "kernel32.dll",
+                                                  "msvcrt.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "MINGW_PREFIX",
+                                                       "MSYSTEM"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "None (process-local redirection)"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "ULVO C/C++ builds",
+                                                         "Native Windows wheel compilation",
+                                                         "Tauri native modules"
+                                                     ],
+                         "physically_resides_inside_ulvo":  true,
+                         "depends_on_external_c_drive":  false,
+                         "management_classification":  "FULLY_MANAGED"
+                     },
+                     {
+                         "name":  "Python (Shared Store + uv Engine)",
+                         "ecosystem":  "python",
+                         "actual_executable_path":  "C:\\Users\\hp\\.local\\bin\\uv.exe",
+                         "canonical_filesystem_identity":  "E44BA095:004E0000:00091319",
+                         "runtime_version":  "uv 0.6.5 (resolving Python 3.11.16 \u0026 3.13.0)",
+                         "architecture_and_abi":  "x86_64-pc-windows-msvc (cp311, cp313)",
+                         "package_manager":  "uv / pip",
+                         "installation_owner":  "User Local (uv.exe) / ULVO Vault (Shared Package Store)",
+                         "native_dependencies":  [
+                                                     "Windows MSVC C Runtime",
+                                                     "CUDA 12.4 Runtime (nvcuda.dll, nvrtc64.dll)"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "python311.dll",
+                                                  "python313.dll",
+                                                  "vcruntime140.dll",
+                                                  "vcruntime140_1.dll",
+                                                  "torch_cuda.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "UV_CACHE_DIR",
+                                                       "PYTHONPATH",
+                                                       "VIRTUAL_ENV",
+                                                       "CUDA_HOME"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "HKCU\\Software\\Python\\PythonCore (optional host lookups)"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "CrossModalLab",
+                                                         "NexusNode",
+                                                         "AstraRun",
+                                                         "Antigravity AI subagents"
+                                                     ],
+                         "physically_resides_inside_ulvo":  true,
+                         "depends_on_external_c_drive":  true,
+                         "management_classification":  "MANAGED_WITH_EXTERNAL_DEPENDENCIES"
+                     },
+                     {
+                         "name":  "Go Toolchain",
+                         "ecosystem":  "go",
+                         "actual_executable_path":  "C:\\Program Files\\Go\\bin\\go.exe",
+                         "canonical_filesystem_identity":  "E44BA095:000A0000:00155F5E",
+                         "runtime_version":  "go1.26.5 windows/amd64",
+                         "architecture_and_abi":  "windows/amd64",
+                         "package_manager":  "go modules",
+                         "installation_owner":  "System MSI (C:\\Program Files\\Go)",
+                         "native_dependencies":  [
+                                                     "Windows Native Win32 Subsystem"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "ntdll.dll",
+                                                  "kernel32.dll",
+                                                  "ws2_32.dll",
+                                                  "winmm.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "GOROOT",
+                                                       "GOPATH",
+                                                       "GOPROXY"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "HKLM\\SOFTWARE\\GoProgrammingLanguage"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "System utilities",
+                                                         "Docker / Kubernetes tooling",
+                                                         "Microservices"
+                                                     ],
+                         "physically_resides_inside_ulvo":  false,
+                         "depends_on_external_c_drive":  true,
+                         "management_classification":  "EXTERNAL_REFERENCE"
+                     },
+                     {
+                         "name":  "Ruby Runtime",
+                         "ecosystem":  "ruby",
+                         "actual_executable_path":  "C:\\Ruby34-x64\\bin\\ruby.exe",
+                         "canonical_filesystem_identity":  "N/A",
+                         "runtime_version":  "ruby 4.0.1 (x64-mingw-ucrt)",
+                         "architecture_and_abi":  "x64-mingw-ucrt",
+                         "package_manager":  "gem / bundler",
+                         "installation_owner":  "RubyInstaller (C:\\Ruby34-x64)",
+                         "native_dependencies":  [
+                                                     "Universal C Runtime (UCRT)"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "x64-ucrt-ruby340.dll",
+                                                  "ucrtbase.dll",
+                                                  "kernel32.dll",
+                                                  "ws2_32.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "GEM_HOME",
+                                                       "GEM_PATH",
+                                                       "RUBYLIB"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "None"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "Jekyll static sites",
+                                                         "Automation scripts",
+                                                         "CocoaPods tooling"
+                                                     ],
+                         "physically_resides_inside_ulvo":  false,
+                         "depends_on_external_c_drive":  true,
+                         "management_classification":  "EXTERNAL_REFERENCE"
+                     },
+                     {
+                         "name":  "Node.js JavaScript Runtime",
+                         "ecosystem":  "node_js",
+                         "actual_executable_path":  "C:\\Program Files\\nodejs\\node.exe",
+                         "canonical_filesystem_identity":  "E44BA095:00C50000:0002D6C5",
+                         "runtime_version":  "v24.15.0",
+                         "architecture_and_abi":  "win-x64 (V8 Engine)",
+                         "package_manager":  "npm v10.x / pnpm / corepack",
+                         "installation_owner":  "System MSI (C:\\Program Files\\nodejs)",
+                         "native_dependencies":  [
+                                                     "Windows Native Win32 Subsystem",
+                                                     "OpenSSL 3.x embedded"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "ntdll.dll",
+                                                  "kernel32.dll",
+                                                  "dbghelp.dll",
+                                                  "iphlpapi.dll",
+                                                  "userenv.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "NODE_PATH",
+                                                       "npm_config_prefix"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "HKLM\\SOFTWARE\\Node.js"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "Tauri desktop CLI",
+                                                         "OmniRoute frontend",
+                                                         "Vite build servers",
+                                                         "VS Code extensions"
+                                                     ],
+                         "physically_resides_inside_ulvo":  false,
+                         "depends_on_external_c_drive":  true,
+                         "management_classification":  "EXTERNAL_REFERENCE"
+                     },
+                     {
+                         "name":  "Java OpenJDK (Temurin)",
+                         "ecosystem":  "java",
+                         "actual_executable_path":  "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+                         "canonical_filesystem_identity":  "E44BA095:00090000:0002FA9E",
+                         "runtime_version":  "openjdk 21.0.4+7-LTS (Temurin)",
+                         "architecture_and_abi":  "windows-amd64 HotSpot 64-Bit Server VM",
+                         "package_manager":  "maven / gradle",
+                         "installation_owner":  "Adoptium MSI (C:\\Program Files\\Eclipse Adoptium)",
+                         "native_dependencies":  [
+                                                     "Windows MSVC C Runtime"
+                                                 ],
+                         "dll_dependencies":  [
+                                                  "jvm.dll",
+                                                  "kernel32.dll",
+                                                  "msvcp140.dll",
+                                                  "vcruntime140.dll",
+                                                  "advapi32.dll"
+                                              ],
+                         "environment_variables":  [
+                                                       "JAVA_HOME",
+                                                       "JDK_HOME"
+                                                   ],
+                         "registry_dependencies":  [
+                                                       "HKLM\\SOFTWARE\\Eclipse Adoptium"
+                                                   ],
+                         "known_project_consumers":  [
+                                                         "Android Studio",
+                                                         "Gradle build tooling",
+                                                         "Language Server for Java"
+                                                     ],
+                         "physically_resides_inside_ulvo":  false,
+                         "depends_on_external_c_drive":  true,
+                         "management_classification":  "EXTERNAL_REFERENCE"
+                     }
+                 ]
+}
