@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "mission": "ULVO Stage 3.0.1 - Physical Disk Recovery & Lifecycle Hardening",
+  "timestamp_initial": "2026-10-19T11:27:32Z",
+  "timestamp_completed": "2026-10-19T12:21:00Z",
+  "volume": {
+    "drive": "E:",
+    "filesystem": "NTFS",
+    "total_capacity_bytes": 223279575040,
+    "initial_free_bytes": 6001418240,
+    "initial_free_gb": 5.589,
+    "final_free_bytes": 25732075520,
+    "final_free_gb": 23.965,
+    "net_physical_bytes_recovered": 19730657280,
+    "net_physical_gb_recovered": 18.375,
+    "target_15gb_passed": true,
+    "stretch_target_25gb_passed": true
+  },
+  "discrepancy_analysis_18gb": {
+    "root_cause_1": "NTFS Hardlink Inode Sharing: Deleting project environments decremented file link counts from 2 to 1 without freeing physical clusters because uv-cache/archive-v0 retained identical links.",
+    "root_cause_2": "Dead Wheel Archives in uv-cache: PyTorch archives (torch-2.5.1+cu121: 4.24 GB, torch-2.14.0+cu130: 2.81 GB, torch-2.14.0 cpu: 0.44 GB) remained unreferenced in archive-v0 with nlink=1.",
+    "root_cause_3": "Unlinked Duplication between Shared Store and uv Cache: vault/packages/python/shared and vault/packages/python/uv-cache stored independent physical copies without hardlink deduplication.",
+    "root_cause_4": "Cargo Debug Build Artifacts: target/debug accumulated 4.76 GB of intermediate unoptimized objects."
+  },
+  "reclamation_ledger": [
+    {
+      "operation_id": "OP-1",
+      "target": "target/debug and target/x86_64-pc-windows-gnu/debug",
+      "category": "Build Intermediates",
+      "physical_delta_bytes": 4511744000,
+      "description": "ULVO debug builds and GNU debug objects removed; release binary bin/ulvo.exe preserved"
+    },
+    {
+      "operation_id": "OP-2",
+      "target": "E:\\cache\\uv",
+      "category": "Legacy External Cache",
+      "physical_delta_bytes": 5035012096,
+      "description": "Legacy standalone uv cache superseded by ULVO vault/packages/python/uv-cache"
+    },
+    {
+      "operation_id": "OP-3",
+      "target": "E:\\Workspace\\Tools\\pdfcraft\\.next and out",
+      "category": "Next.js Build Outputs",
+      "physical_delta_bytes": 2127159296,
+      "description": "Disposable Next.js build cache and static exports"
+    },
+    {
+      "operation_id": "OP-4",
+      "target": "E:\\Workspace\\Tools\\Filee/**/bin and obj",
+      "category": ".NET Build Outputs",
+      "physical_delta_bytes": 4934914048,
+      "description": "C#/.NET compilation output binaries and object caches"
+    },
+    {
+      "operation_id": "OP-5",
+      "target": "E:\\Workspace\\Active\\local_ai_workflow\\dist",
+      "category": "Electron Build Outputs",
+      "physical_delta_bytes": 581849088,
+      "description": "Gitignored packaged Electron application binaries"
+    },
+    {
+      "operation_id": "OP-6",
+      "target": "E:\\Workspace\\Active\\AstraRun\\build",
+      "category": "PyInstaller Intermediate Cache",
+      "physical_delta_bytes": 259379200,
+      "description": "Disposable PyInstaller intermediate build tree"
+    },
+    {
+      "operation_id": "OP-7",
+      "target": "E:\\Workspace\\Tools\\OmenCore/**/bin and obj",
+      "category": ".NET Build Outputs",
+      "physical_delta_bytes": 232341504,
+      "description": "OmenCore compilation output directories"
+    },
+    {
+      "operation_id": "OP-8",
+      "target": "E:\\Workspace\\Active\\Aegic_NFC\\android\\AegisNFC\\app\\build",
+      "category": "Gradle Build Outputs",
+      "physical_delta_bytes": 200122368,
+      "description": "Android Gradle compiler intermediates"
+    },
+    {
+      "operation_id": "OP-9",
+      "target": "E:\\Workspace\\Academic\\sem2\\.conda",
+      "category": "Obsolete Conda Environment",
+      "physical_delta_bytes": 499494912,
+      "description": "Abandoned legacy semester 2 conda environment (18,559 files)"
+    },
+    {
+      "operation_id": "OP-10",
+      "target": "vault/packages/python/uv-cache/archive-v0 PySide6",
+      "category": "Unreferenced uv Wheel Archive",
+      "physical_delta_bytes": 718364672,
+      "description": "Unreferenced PySide6 6.12.0 extracted wheel archive with nlink=1"
+    },
+    {
+      "operation_id": "OP-11",
+      "target": "vault/packages/python/uv-cache/archive-v0 CPU Torch 2.14.0",
+      "category": "Unreferenced uv Wheel Archive",
+      "physical_delta_bytes": 470548480,
+      "description": "Unreferenced CPU torch-2.14.0 extracted wheel archive with nlink=1"
+    }
+  ],
+  "preserved_essential_resources": [
+    {
+      "path": "E:\\cache\\huggingface",
+      "logical_gb": 9.564,
+      "reason": "Active SmolVLM2 model weights required for CrossModalLab"
+    },
+    {
+      "path": "E:\\Workspace\\Shared\\envs\\ds-base",
+      "logical_gb": 4.12,
+      "reason": "Active centralized Jupyter kernel environment for interactive notebooks"
+    },
+    {
+      "path": "E:\\Docker\\DockerDesktopWSL",
+      "logical_gb": 12.4,
+      "reason": "WSL virtual disk storage for Docker containers"
+    },
+    {
+      "path": "vault/packages/python/shared/torch-2.6.0+cu124",
+      "logical_gb": 4.512,
+      "reason": "Shared CUDA PyTorch wheel for ULVO GPU execution across ML projects"
+    }
+  ],
+  "architectural_improvements": {
+    "cas_gc_hardlink_accounting": "Fixed CAS GC to check link_count == 1 before reporting physical bytes reclaimed and record volume_free_bytes_delta",
+    "failed_reclamation_lifecycle": "Added EnvironmentLifecycleState::FailedReclamation to prevent silently masking unlinked or lingering directories",
+    "pre_materialization_recovery": "Implemented scan_and_reclaim_abandoned_environments() in ulvo-discovery to clean crashed runs and stale leases",
+    "cache_governance_cli": "Implemented ulvo cache status, ulvo cache prune [--dry-run], and ulvo cache gc [--max-gb <GB>]",
+    "structured_run_execution": "Added ulvo run --json returning RunExecutionResult with exit_code, duration_ms, cleanup_verdict, residual_environment_path, and physical_storage_delta_bytes",
+    "python_lazy_imports": "Implemented __getattr__ lazy imports in Academic/sem5/DL/exp1/main.py reducing startup latency from >35s to 252ms"
+  }
+}

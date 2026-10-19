@@ -458,6 +458,9 @@ impl ProjectOrchestrator {
     }
 
     pub fn ensure_environment_ready(&self, project_root: &Path, manifest: &ProjectManifest) -> Result<PathBuf, String> {
+        // Crash recovery check: clean up abandoned environments from dead processes before materialization
+        let _ = self.scan_and_reclaim_abandoned_environments();
+
         let py_req = manifest.runtimes.get("python")
             .cloned()
             .unwrap_or_else(|| ">=3.8".to_string());
@@ -620,15 +623,18 @@ impl ProjectOrchestrator {
         Ok(env_path)
     }
 
-    pub fn run(
+    pub fn run_structured(
         &self,
         path: &Path,
         command_args: &[String],
         keep_env: bool,
-    ) -> Result<i32, String> {
+    ) -> Result<RunExecutionResult, String> {
+        let start_time = std::time::Instant::now();
         let root = self.resolve_project_root(path)?;
         self.enforce_connector_contract(&root)?;
         let manifest = self.load_manifest(&root)?;
+
+        let disk_before = ulvo_adapters::get_disk_free_bytes(&self.vault_root).ok();
 
         let env_path = self.ensure_environment_ready(&root, &manifest)?;
         let lock_file = env_path.join(".ulvo_lease.lock");
@@ -683,24 +689,6 @@ impl ProjectOrchestrator {
         });
 
         // Release lease under lock - GUARANTEED TO RUN regardless of exec_result!
-        let is_quiescent = {
-            let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 15000)?;
-            let mut lease = self.read_or_create_lease(&env_path, &root);
-            lease.active_pids.retain(|&p| p != my_pid);
-            lease.leased_processes.retain(|p| p.pid != my_pid);
-            self.clean_dead_processes(&mut lease);
-
-            if lease.leased_processes.is_empty() && lease.active_pids.is_empty() {
-                lease.state = EnvironmentLifecycleState::Reclaimable;
-            } else {
-                lease.state = EnvironmentLifecycleState::Executing;
-            }
-            lease.updated_at_unix = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
-            self.write_lease(&env_path, &lease)?;
-            lease.leased_processes.is_empty() && lease.active_pids.is_empty()
-        };
-
-        // Default lifecycle policy: EPHEMERAL
         let is_persistent = manifest.lifecycle.as_ref()
             .and_then(|l| l.policy.as_deref())
             .map(|p| p.eq_ignore_ascii_case("persistent"))
@@ -709,13 +697,56 @@ impl ProjectOrchestrator {
             .and_then(|l| l.allow_reclaim_on_quiescence)
             .map(|allow| !allow)
             .unwrap_or(false);
-
         let default_ephemeral = !is_persistent && !explicit_no_reclaim;
         let should_reclaim = default_ephemeral && !keep_env;
 
-        if should_reclaim && is_quiescent {
-            let _ = self.reclaim_internal_with_project(&env_path, Some(&root));
-        }
+        let is_quiescent = {
+            let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 15000)?;
+            let mut lease = self.read_or_create_lease(&env_path, &root);
+            lease.active_pids.retain(|&p| p != my_pid);
+            lease.leased_processes.retain(|p| p.pid != my_pid);
+            self.clean_dead_processes(&mut lease);
+
+            if lease.leased_processes.is_empty() && lease.active_pids.is_empty() {
+                if should_reclaim {
+                    lease.state = EnvironmentLifecycleState::Reclaimable;
+                } else {
+                    lease.state = EnvironmentLifecycleState::Ready;
+                }
+            } else {
+                lease.state = EnvironmentLifecycleState::Executing;
+            }
+            lease.updated_at_unix = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
+            self.write_lease(&env_path, &lease)?;
+            lease.leased_processes.is_empty() && lease.active_pids.is_empty()
+        };
+
+        let cleanup_verdict = if keep_env {
+            CleanupVerdict::RetainedByFlag
+        } else if !default_ephemeral {
+            CleanupVerdict::RetainedByPolicy
+        } else if !is_quiescent {
+            CleanupVerdict::SkippedActiveLeases
+        } else if should_reclaim {
+            match self.reclaim_internal_with_project(&env_path, Some(&root)) {
+                Ok(()) => CleanupVerdict::ReclaimedSuccess,
+                Err(e) => {
+                    eprintln!(
+                        "Warning: Post-execution environment reclamation failed for '{}': {}",
+                        env_path.display(),
+                        e
+                    );
+                    if let Ok(_lock) = ulvo_adapters::EnvironmentFileLock::acquire(&lock_file, 5000) {
+                        let mut lease = self.read_or_create_lease(&env_path, &root);
+                        lease.state = EnvironmentLifecycleState::FailedReclamation;
+                        let _ = self.write_lease(&env_path, &lease);
+                    }
+                    CleanupVerdict::FailedReclamation { reason: e }
+                }
+            }
+        } else {
+            CleanupVerdict::RetainedByPolicy
+        };
 
         // Verify project-local environment was not recreated during execution
         let local_venv = root.join(".venv");
@@ -726,7 +757,86 @@ impl ProjectOrchestrator {
             );
         }
 
-        exec_result
+        let disk_after = ulvo_adapters::get_disk_free_bytes(&self.vault_root).ok();
+        let volume_free_delta = match (disk_before, disk_after) {
+            (Some(b), Some(a)) => Some(a as i64 - b as i64),
+            _ => None,
+        };
+
+        let residual_env = if env_path.exists() {
+            Some(env_path.to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        let active_state = self.get_current_state(&env_path);
+        let duration_ms = start_time.elapsed().as_millis() as u64;
+
+        let exit_code = exec_result?;
+
+        Ok(RunExecutionResult {
+            schema_version: 1,
+            exit_code,
+            duration_ms,
+            cleanup_verdict,
+            residual_environment_path: residual_env,
+            active_lease_state: active_state,
+            physical_storage_delta_bytes: volume_free_delta,
+        })
+    }
+
+    pub fn run(
+        &self,
+        path: &Path,
+        command_args: &[String],
+        keep_env: bool,
+    ) -> Result<i32, String> {
+        let result = self.run_structured(path, command_args, keep_env)?;
+        Ok(result.exit_code)
+    }
+
+    pub fn scan_and_reclaim_abandoned_environments(&self) -> Result<usize, String> {
+        let envs_dir = &self.uv.vault_paths().environments_dir;
+        if !envs_dir.is_dir() {
+            return Ok(0);
+        }
+        let mut reclaimed = 0;
+        if let Ok(entries) = std::fs::read_dir(envs_dir) {
+            for entry in entries.flatten() {
+                let ep = entry.path();
+                if !ep.is_dir() {
+                    continue;
+                }
+                let lease_file = ep.join(".ulvo_lease.json");
+                let ownership_file = ep.join(".ulvo_ownership.json");
+                if ownership_file.is_file() {
+                    let mut can_clean = false;
+                    if lease_file.is_file() {
+                        if let Ok(content) = std::fs::read_to_string(&lease_file) {
+                            if let Ok(mut lease) = serde_json::from_str::<EnvironmentLease>(&content) {
+                                self.clean_dead_processes(&mut lease);
+                                if lease.leased_processes.is_empty() && (
+                                    lease.state == EnvironmentLifecycleState::FailedReclamation
+                                    || lease.state == EnvironmentLifecycleState::Executing
+                                ) {
+                                    can_clean = true;
+                                }
+                            }
+                        }
+                    } else {
+                        // Orphaned environment with missing lease file
+                        can_clean = true;
+                    }
+
+                    if can_clean {
+                        if self.reclaim_internal(&ep).is_ok() {
+                            reclaimed += 1;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(reclaimed)
     }
 
     pub fn reclaim(&self, path: &Path) -> Result<EnvironmentReclaimReport, String> {
@@ -976,6 +1086,251 @@ impl ProjectOrchestrator {
         let json = serde_json::to_string_pretty(lease)
             .map_err(|e| format!("failed to serialize lease: {e}"))?;
         ulvo_adapters::write_atomic(&lease_file, json.as_bytes())
+    }
+
+    /// Returns exact physical allocation across all managed package-manager caches.
+    pub fn cache_status(&self) -> Result<PackageCacheStatusReport, String> {
+        let vp = &self.vault_root;
+        let packages_dir = vp.join("packages");
+        let uv_cache = packages_dir.join("python").join("uv-cache");
+        let shared_pkgs = packages_dir.join("python").join("shared");
+        let cas_dir = packages_dir.join("cas");
+        let cargo_registry = vp.join("runtimes").join("rust").join("cargo").join("registry");
+
+        let mut package_managers = Vec::new();
+        let mut total_physical_bytes = 0u64;
+        let mut total_files = 0usize;
+
+        // 1. Python UV Cache (Reclaimable)
+        if uv_cache.is_dir() {
+            let (bytes, files) = ulvo_adapters::calculate_physical_dir_size(&uv_cache);
+            total_physical_bytes += bytes;
+            total_files += files;
+            package_managers.push(PackageManagerCacheStats {
+                name: "Python (uv-cache)".to_string(),
+                cache_path: uv_cache.to_string_lossy().into_owned(),
+                physical_bytes: bytes,
+                file_count: files,
+                classification: CacheClassification::Reclaimable,
+                detail: "Extracted wheel archives and download caches".to_string(),
+            });
+        }
+
+        // 2. Python Shared Package Store (Essential)
+        if shared_pkgs.is_dir() {
+            let (bytes, files) = ulvo_adapters::calculate_physical_dir_size(&shared_pkgs);
+            total_physical_bytes += bytes;
+            total_files += files;
+            package_managers.push(PackageManagerCacheStats {
+                name: "Python (shared)".to_string(),
+                cache_path: shared_pkgs.to_string_lossy().into_owned(),
+                physical_bytes: bytes,
+                file_count: files,
+                classification: CacheClassification::Essential,
+                detail: "Verified shared immutable packages (e.g. PyTorch/CUDA)".to_string(),
+            });
+        }
+
+        // 3. Content-Addressable Store (Essential)
+        if cas_dir.is_dir() {
+            let (bytes, files) = ulvo_adapters::calculate_physical_dir_size(&cas_dir);
+            total_physical_bytes += bytes;
+            total_files += files;
+            package_managers.push(PackageManagerCacheStats {
+                name: "Universal CAS".to_string(),
+                cache_path: cas_dir.to_string_lossy().into_owned(),
+                physical_bytes: bytes,
+                file_count: files,
+                classification: CacheClassification::Essential,
+                detail: "Content-addressed immutable artifact store".to_string(),
+            });
+        }
+
+        // 4. Cargo / Rust Registry (Reclaimable)
+        if cargo_registry.is_dir() {
+            let (bytes, files) = ulvo_adapters::calculate_physical_dir_size(&cargo_registry);
+            total_physical_bytes += bytes;
+            total_files += files;
+            package_managers.push(PackageManagerCacheStats {
+                name: "Rust (Cargo)".to_string(),
+                cache_path: cargo_registry.to_string_lossy().into_owned(),
+                physical_bytes: bytes,
+                file_count: files,
+                classification: CacheClassification::Reclaimable,
+                detail: "Cargo crates.io index and downloaded .crate archives".to_string(),
+            });
+        }
+
+        Ok(PackageCacheStatusReport {
+            schema_version: 1,
+            vault_packages_dir: packages_dir.to_string_lossy().into_owned(),
+            total_physical_bytes,
+            total_files,
+            package_managers,
+        })
+    }
+
+    /// Prunes unreferenced wheels, expired metadata, and superseded package versions from the cache.
+    pub fn cache_prune(&self, dry_run: bool) -> Result<PackageCachePruneReport, String> {
+        let vp = &self.vault_root;
+        let uv_cache = vp.join("packages").join("python").join("uv-cache");
+        let disk_before = ulvo_adapters::get_disk_free_bytes(vp).ok();
+
+        let mut unreferenced_found = 0usize;
+        let mut unreferenced_reclaimed = 0usize;
+        let mut physical_reclaimed = 0u64;
+        let mut details = Vec::new();
+
+        // 1. Run uv cache prune via uv executable
+        if let Ok(cmd) = std::process::Command::new(self.uv.uv_executable())
+            .arg("cache")
+            .arg("prune")
+            .arg("--cache-dir")
+            .arg(&uv_cache)
+            .output()
+        {
+            let uv_msg = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+            if !uv_msg.is_empty() {
+                details.push(format!("uv cache prune: {uv_msg}"));
+            }
+        }
+
+        // 2. Scan archive-v0 for unreferenced extracted archives with link_count == 1
+        let archive_dir = uv_cache.join("archive-v0");
+        if archive_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&archive_dir) {
+                for entry in entries.flatten() {
+                    let ep = entry.path();
+                    if !ep.is_dir() {
+                        continue;
+                    }
+                    let is_unreferenced = if let Ok(mut files) = std::fs::read_dir(&ep) {
+                        if let Some(Ok(sf)) = files.next() {
+                            if let Ok((_id, info)) = ulvo_adapters::query_file_identity_and_size(&sf.path()) {
+                                info.link_count == 1
+                            } else {
+                                false
+                            }
+                        } else {
+                            true
+                        }
+                    } else {
+                        false
+                    };
+
+                    if is_unreferenced {
+                        let (bytes, count) = ulvo_adapters::calculate_physical_dir_size(&ep);
+                        unreferenced_found += 1;
+                        if !dry_run {
+                            if std::fs::remove_dir_all(&ep).is_ok() {
+                                unreferenced_reclaimed += 1;
+                                physical_reclaimed += bytes;
+                                details.push(format!("reclaimed unreferenced archive {} ({} bytes, {} files)", entry.file_name().to_string_lossy(), bytes, count));
+                            }
+                        } else {
+                            details.push(format!("would reclaim unreferenced archive {} ({} bytes, {} files)", entry.file_name().to_string_lossy(), bytes, count));
+                        }
+                    }
+                }
+            }
+        }
+
+        let disk_after = ulvo_adapters::get_disk_free_bytes(vp).ok();
+        let volume_delta = match (disk_before, disk_after) {
+            (Some(b), Some(a)) => Some(a as i64 - b as i64),
+            _ => None,
+        };
+
+        Ok(PackageCachePruneReport {
+            schema_version: 1,
+            vault_packages_dir: uv_cache.to_string_lossy().into_owned(),
+            unreferenced_archives_found: unreferenced_found,
+            unreferenced_archives_reclaimed: unreferenced_reclaimed,
+            physical_bytes_reclaimed: physical_reclaimed,
+            volume_free_bytes_delta: volume_delta,
+            is_dry_run: dry_run,
+            details,
+        })
+    }
+
+    /// Deep garbage collection subject to a configurable storage budget.
+    pub fn cache_gc(&self, max_gb: Option<f64>, dry_run: bool) -> Result<PackageCacheGcReport, String> {
+        let vp = &self.vault_root;
+        let uv_cache = vp.join("packages").join("python").join("uv-cache");
+        let (bytes_before, _) = ulvo_adapters::calculate_physical_dir_size(&uv_cache);
+        let disk_before = ulvo_adapters::get_disk_free_bytes(vp).ok();
+
+        let budget_bytes = max_gb.map(|gb| (gb * 1_073_741_824.0) as u64);
+        let mut reclaimed_packages = Vec::new();
+        let mut physical_reclaimed = 0u64;
+
+        if let Some(budget) = budget_bytes {
+            if bytes_before > budget {
+                let excess = bytes_before - budget;
+                let archive_dir = uv_cache.join("archive-v0");
+                if archive_dir.is_dir() {
+                    if let Ok(entries) = std::fs::read_dir(&archive_dir) {
+                        let mut candidates = Vec::new();
+                        for entry in entries.flatten() {
+                            let ep = entry.path();
+                            if !ep.is_dir() {
+                                continue;
+                            }
+                            let meta = entry.metadata().ok();
+                            let mtime = meta.and_then(|m| m.modified().ok()).unwrap_or(SystemTime::UNIX_EPOCH);
+                            let (bytes, _) = ulvo_adapters::calculate_physical_dir_size(&ep);
+                            candidates.push((ep, bytes, mtime));
+                        }
+                        candidates.sort_by_key(|c| c.2);
+
+                        for (path, bytes, _) in candidates {
+                            if physical_reclaimed >= excess {
+                                break;
+                            }
+                            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                            if !dry_run {
+                                if std::fs::remove_dir_all(&path).is_ok() {
+                                    physical_reclaimed += bytes;
+                                    reclaimed_packages.push(name);
+                                }
+                            } else {
+                                physical_reclaimed += bytes;
+                                reclaimed_packages.push(name);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            let prune_rep = self.cache_prune(dry_run)?;
+            physical_reclaimed = prune_rep.physical_bytes_reclaimed;
+            reclaimed_packages = prune_rep.details;
+        }
+
+        let bytes_after = if !dry_run {
+            let (b, _) = ulvo_adapters::calculate_physical_dir_size(&uv_cache);
+            b
+        } else {
+            bytes_before.saturating_sub(physical_reclaimed)
+        };
+
+        let disk_after = ulvo_adapters::get_disk_free_bytes(vp).ok();
+        let volume_delta = match (disk_before, disk_after) {
+            (Some(b), Some(a)) => Some(a as i64 - b as i64),
+            _ => None,
+        };
+
+        Ok(PackageCacheGcReport {
+            schema_version: 1,
+            vault_packages_dir: uv_cache.to_string_lossy().into_owned(),
+            target_budget_bytes: budget_bytes,
+            bytes_before,
+            bytes_after,
+            physical_bytes_reclaimed: physical_reclaimed,
+            volume_free_bytes_delta: volume_delta,
+            is_dry_run: dry_run,
+            reclaimed_packages,
+        })
     }
 
     pub fn detect_host_gpu() -> Option<HostGpuInfo> {

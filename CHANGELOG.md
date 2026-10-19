@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-10-19
+
+### Stage 3.0.1 — Physical Storage Recovery, Exact Accounting & Lifecycle Hardening
+
+#### Added & Improved
+- **Physical Free Space Recovery on E:**:
+  - Baseline Drive E: Free Space: `6,001,418,240` bytes (5.589 GiB / 6.001 GB).
+  - Initial Recovery Target (15 GB free): **PASSED** (reached 22.774 GB).
+  - Stretch Recovery Target (25 GB free): **PASSED** (reached `25,732,075,520` bytes = **25.732 GB decimal / 23.965 GiB**).
+  - Total Physical Disk Space Recovered on `E:`: **`19,730,657,280` bytes (+19.731 GB / +18.375 GiB)** across 11 safe, audited operations:
+    - OP-1: Removed ULVO `target/debug` and GNU debug intermediates (+4.512 GB).
+    - OP-2: Reclaimed superseded external cache `E:\cache\uv` (+5.035 GB).
+    - OP-3: Reclaimed disposable `pdfcraft` Next.js `.next` and `out` build outputs (+2.127 GB).
+    - OP-4: Reclaimed `Filee` .NET `bin`/`obj` build outputs (+4.935 GB).
+    - OP-5: Reclaimed `local_ai_workflow` gitignored Electron `dist` output (+554.89 MB).
+    - OP-6: Reclaimed `AstraRun` PyInstaller intermediate `build` directory (+247.36 MB).
+    - OP-7: Reclaimed `OmenCore` .NET `bin`/`obj` build outputs (+221.58 MB).
+    - OP-8: Reclaimed `AegisNFC` Android Gradle compiler intermediate `build` cache (+190.85 MB).
+    - OP-9: Reclaimed abandoned legacy `Academic/sem2/.conda` environment (18,559 files, +476.36 MB).
+    - OP-10 & OP-11: Reclaimed unreferenced PySide6 and CPU torch archives from `vault/packages/python/uv-cache/archive-v0` (+1.189 GB).
+  - Strictly preserved all source repositories, git trees, datasets, active SmolVLM2 model weights (`E:\cache\huggingface`), active Jupyter kernels (`E:\Workspace\Shared\envs\ds-base`), and Docker WSL disks.
+
+- **18.21 GB Discrepancy Investigation & Storage Accounting Hardening**:
+  - Thoroughly investigated and documented the 4 root causes of why Stage 3.0 environment deletion didn't yield physical disk space: NTFS hardlink inode sharing with `uv-cache/archive-v0`, unreferenced dead torch wheel archives, unlinked duplication between shared store and uv cache, and unoptimized Cargo debug build trees.
+  - Hardened CAS GC accounting in `crates/ulvo-adapters/src/cas_storage.rs`: verified `link_count == 1` before attributing physical disk space recovery and added `volume_free_bytes_delta` Win32 tracking.
+  - Added Hardlink Sharing Ratio (`total_logical / total_physical`) reporting to `ulvo env audit`.
+
+- **Package Cache Governance Engine & CLI (`ulvo-cli`, `ulvo-discovery`)**:
+  - `ulvo cache status [--json]`: Granular storage reporting for vault packages broken down by ecosystem (uv-cache, shared wheels, universal CAS, Cargo registry) with storage classifications.
+  - `ulvo cache prune [--dry-run] [--json]`: Safe pruning of unreferenced wheel archives with `nlink == 1` while protecting actively linked packages.
+  - `ulvo cache gc [--max-gb <GB>] [--dry-run] [--json]`: Budget-capped LRU garbage collector enforcing physical package cache quotas.
+
+- **Lifecycle Hardening & Structured Execution**:
+  - Added `EnvironmentLifecycleState::FailedReclamation` to `crates/ulvo-core/src/lifecycle.rs` to prevent masked deletion errors.
+  - Added pre-materialization crash recovery (`scan_and_reclaim_abandoned_environments()`) to clean abandoned directories and dead process leases before launching new runs.
+  - Implemented `ulvo run --json` returning structured `RunExecutionResult` (exit code, duration ms, cleanup verdict, residual environment path, active lease state, physical storage delta).
+
+- **Python Lazy Imports & Benchmark**:
+  - Implemented `__getattr__` module-level lazy import dispatcher in `Academic/sem5/DL/exp1/main.py` for PyTorch, Torchvision, and Matplotlib.
+  - Benchmark result: `--version` reduced from >35,000 ms to **252 ms**, and `--help` reduced to **285 ms**, achieving sub-500ms target.
+
+- **Workspace Verification & Testing**:
+  - Verified 159 tests passing across all 4 workspace crates (`ulvo-core`, `ulvo-adapters`, `ulvo-discovery`, `ulvo-cli`).
+  - Cross-project execution verified on `Academic/sem5/DL/exp1` (CUDA True, RTX 2050, 0 lingering envs) and `Active/CrossModalLab` (PIL 12.3.0, 0 lingering envs).
+  - `ulvo doctor` confirmed READY across all 7 language ecosystems and host GPU.
+
+---
+
 ## [1.1.0] - 2026-10-19
 
 ### Stage 3.0 — Zero Persistent Project Environments, Automatic Reclamation & Storage Cache Governance

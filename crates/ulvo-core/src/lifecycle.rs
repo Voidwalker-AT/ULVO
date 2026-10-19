@@ -12,6 +12,7 @@ pub enum EnvironmentLifecycleState {
     Reclaimable,
     Reclaimed,
     Failed,
+    FailedReclamation,
 }
 
 impl std::fmt::Display for EnvironmentLifecycleState {
@@ -26,13 +27,14 @@ impl std::fmt::Display for EnvironmentLifecycleState {
             Self::Reclaimable => write!(f, "RECLAIMABLE"),
             Self::Reclaimed => write!(f, "RECLAIMED"),
             Self::Failed => write!(f, "FAILED"),
+            Self::FailedReclamation => write!(f, "FAILED_RECLAMATION"),
         }
     }
 }
 
 impl EnvironmentLifecycleState {
     pub fn is_reclaimable(&self) -> bool {
-        matches!(self, Self::Released | Self::Reclaimable | Self::Failed)
+        matches!(self, Self::Released | Self::Reclaimable | Self::Failed | Self::FailedReclamation)
     }
 
     pub fn can_transition_to(&self, next: EnvironmentLifecycleState) -> bool {
@@ -49,13 +51,18 @@ impl EnvironmentLifecycleState {
             (Ready, Reclaimable) => true,
             (Executing, Released) => true,
             (Executing, Failed) => true,
+            (Executing, FailedReclamation) => true,
             (Released, Executing) => true,
             (Released, Reclaimable) => true,
             (Released, Reclaimed) => true,
             (Reclaimable, Reclaimed) => true,
             (Reclaimable, Executing) => true,
+            (Reclaimable, FailedReclamation) => true,
             (Failed, Reclaimed) => true,
             (Failed, Materializing) => true,
+            (FailedReclamation, Reclaimed) => true,
+            (FailedReclamation, Materializing) => true,
+            (FailedReclamation, Executing) => true,
             _ => false,
         }
     }
@@ -339,6 +346,79 @@ pub struct VaultEnvironmentsGcReport {
     pub physical_bytes_reclaimed: u64,
     pub volume_free_bytes_delta: Option<i64>,
     pub reclaimed_items: Vec<EnvironmentReclaimReport>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CleanupVerdict {
+    ReclaimedSuccess,
+    RetainedByPolicy,
+    RetainedByFlag,
+    FailedReclamation { reason: String },
+    SkippedActiveLeases,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunExecutionResult {
+    pub schema_version: u32,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub cleanup_verdict: CleanupVerdict,
+    pub residual_environment_path: Option<String>,
+    pub active_lease_state: EnvironmentLifecycleState,
+    pub physical_storage_delta_bytes: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CacheClassification {
+    Essential,
+    Reclaimable,
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageManagerCacheStats {
+    pub name: String,
+    pub cache_path: String,
+    pub physical_bytes: u64,
+    pub file_count: usize,
+    pub classification: CacheClassification,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageCacheStatusReport {
+    pub schema_version: u32,
+    pub vault_packages_dir: String,
+    pub total_physical_bytes: u64,
+    pub total_files: usize,
+    pub package_managers: Vec<PackageManagerCacheStats>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageCachePruneReport {
+    pub schema_version: u32,
+    pub vault_packages_dir: String,
+    pub unreferenced_archives_found: usize,
+    pub unreferenced_archives_reclaimed: usize,
+    pub physical_bytes_reclaimed: u64,
+    pub volume_free_bytes_delta: Option<i64>,
+    pub is_dry_run: bool,
+    pub details: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageCacheGcReport {
+    pub schema_version: u32,
+    pub vault_packages_dir: String,
+    pub target_budget_bytes: Option<u64>,
+    pub bytes_before: u64,
+    pub bytes_after: u64,
+    pub physical_bytes_reclaimed: u64,
+    pub volume_free_bytes_delta: Option<i64>,
+    pub is_dry_run: bool,
+    pub reclaimed_packages: Vec<String>,
 }
 
 #[cfg(test)]

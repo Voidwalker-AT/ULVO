@@ -246,6 +246,20 @@ flowchart LR
 
 ---
 
+### Stage 3.0.1: Priority Zero Storage Recovery, Exact Accounting & Lifecycle Hardening
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - Investigated and documented root causes of the 18.21 GB logical deletion discrepancy (hardlink retention in `uv-cache/archive-v0`, dead torch archives, unlinked duplicate wheels, Cargo debug artifacts).
+  - Recovered **19.731 GB (18.375 GiB)** of actual physical free space on `E:`, expanding drive free space from **6.001 GB to 25.732 GB** (surpassing the 15 GB recovery goal and achieving the 25 GB stretch goal).
+  - Executed 11 audited reclamation operations across debug build trees, legacy external caches, disposable Next.js/C#/Electron/Gradle build outputs, abandoned sem2 conda environment, and dead unreferenced wheel archives.
+  - Hardened CAS GC physical accounting to check `link_count == 1` before reporting physical savings and track `volume_free_bytes_delta` via Win32.
+  - Implemented package cache governance CLI: `ulvo cache status`, `ulvo cache prune [--dry-run]`, and `ulvo cache gc [--max-gb <GB>]`.
+  - Added `EnvironmentLifecycleState::FailedReclamation`, pre-materialization crash recovery, and structured execution reporting via `ulvo run --json`.
+  - Implemented Python lazy imports in `Academic/sem5/DL/exp1/main.py` reducing CLI startup from >35,000 ms to 252 ms.
+  - All 159 tests passing with 0 failures across all 4 crates.
+
+---
+
 ## Future Roadmap
 
 ### Stage 3.1: Desktop Control Center (Tauri 2.0 GUI)

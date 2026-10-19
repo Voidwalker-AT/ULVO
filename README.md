@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: **ULVO Stage 3.0 / v1.1.0**. ULVO enforces zero persistent project-specific environments under the vault, default ephemeral lifecycle with automatic post-execution reclamation, vault environment auditing and pruning (`ulvo env audit/prune`), package cache governance (`ulvo storage cache-audit/cache-prune`), single universal execution gateway (`bin/ulvo.exe`), an authoritative Vault Registry, native Windows toolchains, a cryptographically hardened CAS, and safe storage reclamation.
+> **Current Development Status**: **ULVO Stage 3.0.1 / v1.1.1**. ULVO delivers verified physical storage recovery (+19.73 GB reclaimed, 25.73 GB free on E:), exact hardlink-aware CAS accounting, zero persistent project-specific environments under the vault, default ephemeral lifecycle with automatic post-execution reclamation, package cache governance (`ulvo cache status/prune/gc`), vault environment auditing and pruning (`ulvo env audit/prune`), structured JSON execution telemetry (`ulvo run --json`), and single universal execution gateway (`bin/ulvo.exe`).
 
 ---
 
@@ -325,6 +325,7 @@ For complete security specifications, see [docs/SECURITY.md](docs/SECURITY.md).
 - **Stage 2.9.4a**: CAS immutability, transactional materialization & adversarial hardening [COMPLETED]
 - **Stage 1.0.0**: System-wide consolidation, single gateway, universal catalog, and release readiness [COMPLETED]
 - **Stage 3.0**: Zero persistent project environments, automatic ephemeral reclamation & storage cache governance [COMPLETED]
+- **Stage 3.0.1**: Priority Zero storage recovery (+19.73 GB), exact accounting, cache governance CLI & lifecycle hardening [COMPLETED]
 - **Stage 3.1**: Desktop Control Center (Tauri 2.0 GUI) [BLOCKED pending host Tauri build prerequisites]
 
 For roadmap details, see [docs/ROADMAP.md](docs/ROADMAP.md).

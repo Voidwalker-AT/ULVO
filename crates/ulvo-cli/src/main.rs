@@ -88,6 +88,11 @@ enum Commands {
     Doctor,
     /// Universal catalog of managed and available language runtimes, compilers, and toolchains
     Catalog,
+    /// Package-cache governance, audit, and storage budgets
+    Cache {
+        #[command(subcommand)]
+        subcommand: CacheCommands,
+    },
     /// Universal storage intelligence, vault accounting, and deduplication reporting
     Storage {
         #[command(subcommand)]
@@ -95,6 +100,24 @@ enum Commands {
         /// Workspace or project path to analyze (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum CacheCommands {
+    /// Show exact physical allocation per package manager (uv, cargo, npm, etc.)
+    Status,
+    /// Remove unreferenced wheels, expired metadata, and superseded package versions while preserving latest verified versions
+    Prune {
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Deep garbage collection subject to a configurable storage budget (e.g. --max-gb)
+    Gc {
+        #[arg(long)]
+        max_gb: Option<f64>,
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -904,8 +927,79 @@ fn run(cli: Cli) -> Result<i32, String> {
         Commands::Run { project_path, keep_env, reclaim: _, command } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
             let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
-            let exit_code = orchestrator.run(&project_path, &command, keep_env)?;
-            Ok(exit_code)
+            let exec_res = orchestrator.run_structured(&project_path, &command, keep_env)?;
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&exec_res).map_err(|e| e.to_string())?);
+            }
+            Ok(exec_res.exit_code)
+        }
+        Commands::Cache { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
+            match subcommand {
+                CacheCommands::Status => {
+                    let rep = orchestrator.cache_status()?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&rep).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Package Cache Governance Status");
+                        println!("  Vault Packages Dir:      {}", rep.vault_packages_dir);
+                        println!("  Total Physical Storage:  {} bytes ({:.2} MB, {:.2} GB)", rep.total_physical_bytes, rep.total_physical_bytes as f64 / 1_048_576.0, rep.total_physical_bytes as f64 / 1_073_741_824.0);
+                        println!("  Total Managed Files:     {}", rep.total_files);
+                        println!();
+                        println!("  Package Manager   | Policy      | Files       | Physical MB | Detail");
+                        println!("  ------------------------------------------------------------------------------------------");
+                        for pm in &rep.package_managers {
+                            println!("  {:<17} | {:<11?} | {:<11} | {:>11.2} | {}",
+                                pm.name,
+                                pm.classification,
+                                pm.file_count,
+                                pm.physical_bytes as f64 / 1_048_576.0,
+                                pm.detail
+                            );
+                        }
+                    }
+                    Ok(0)
+                }
+                CacheCommands::Prune { dry_run } => {
+                    let rep = orchestrator.cache_prune(dry_run)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&rep).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Package Cache Prune ({})", if rep.is_dry_run { "DRY RUN" } else { "EXECUTED" });
+                        println!("  Target:                      {}", rep.vault_packages_dir);
+                        println!("  Unreferenced Archives Found: {}", rep.unreferenced_archives_found);
+                        println!("  Archives Reclaimed:          {}", rep.unreferenced_archives_reclaimed);
+                        println!("  Physical Storage Reclaimed:  {} bytes ({:.2} MB)", rep.physical_bytes_reclaimed, rep.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                        if let Some(delta) = rep.volume_free_bytes_delta {
+                            println!("  Volume Free Space Delta:     {} bytes ({:.2} MB)", delta, delta as f64 / 1_048_576.0);
+                        }
+                        for d in &rep.details {
+                            println!("    - {}", d);
+                        }
+                    }
+                    Ok(0)
+                }
+                CacheCommands::Gc { max_gb, dry_run } => {
+                    let rep = orchestrator.cache_gc(max_gb, dry_run)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&rep).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Package Cache Deep Garbage Collection ({})", if rep.is_dry_run { "DRY RUN" } else { "EXECUTED" });
+                        println!("  Target:                      {}", rep.vault_packages_dir);
+                        if let Some(b) = rep.target_budget_bytes {
+                            println!("  Storage Budget:              {} bytes ({:.2} GB)", b, b as f64 / 1_073_741_824.0);
+                        }
+                        println!("  Cache Size Before:           {:.2} MB", rep.bytes_before as f64 / 1_048_576.0);
+                        println!("  Cache Size After:            {:.2} MB", rep.bytes_after as f64 / 1_048_576.0);
+                        println!("  Physical Storage Reclaimed:  {} bytes ({:.2} MB)", rep.physical_bytes_reclaimed, rep.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                        if let Some(delta) = rep.volume_free_bytes_delta {
+                            println!("  Volume Free Space Delta:     {} bytes ({:.2} MB)", delta, delta as f64 / 1_048_576.0);
+                        }
+                    }
+                    Ok(0)
+                }
+            }
         }
         Commands::Env { subcommand } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
@@ -974,6 +1068,12 @@ fn run(cli: Cli) -> Result<i32, String> {
                         println!("  Unknown Directories:    {}", audit.unknown_environments);
                         println!("  Total Logical Storage:  {} bytes ({:.2} MB)", audit.total_logical_bytes, audit.total_logical_bytes as f64 / 1_048_576.0);
                         println!("  Total Physical Storage: {} bytes ({:.2} MB)", audit.total_physical_bytes, audit.total_physical_bytes as f64 / 1_048_576.0);
+                        let sharing_ratio = if audit.total_physical_bytes > 0 {
+                            audit.total_logical_bytes as f64 / audit.total_physical_bytes as f64
+                        } else {
+                            1.0
+                        };
+                        println!("  Hardlink Sharing Ratio: {:.2}x", sharing_ratio);
                         println!();
                         println!("  Environment ID                         | State        | Active | Physical MB | Owner Project");
                         println!("  --------------------------------------------------------------------------------------------------");

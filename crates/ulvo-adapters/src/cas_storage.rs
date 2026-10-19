@@ -14,6 +14,7 @@ pub struct CasGcReport {
     pub unreferenced_artifacts_found: usize,
     pub artifacts_reclaimed: usize,
     pub physical_bytes_reclaimed: u64,
+    pub volume_free_bytes_delta: Option<i64>,
     pub remaining_artifacts: usize,
     pub remaining_bytes: u64,
     pub is_dry_run: bool,
@@ -515,6 +516,7 @@ impl CasStorageManager {
             ));
         }
 
+        let disk_before = crate::get_disk_free_bytes(&self.vault_root).ok();
         let _lock = EnvironmentFileLock::acquire(&self.lock_path, 5000)?;
         let mut manifest = self.load_manifest()?;
 
@@ -547,11 +549,24 @@ impl CasStorageManager {
                 });
                 let _ = writeln!(journal, "{}", journal_entry);
 
+                // Check hardlink count: physical recovery is 0 if other hardlinks reference the same NTFS inode!
+                let mut freed_phys = 0u64;
+                if let Ok((_id, info)) = crate::query_file_identity_and_size(&object_path) {
+                    if info.link_count == 1 {
+                        freed_phys = match info.allocated_bytes {
+                            Some(alloc) if alloc > 0 => alloc,
+                            _ => candidate.size_bytes,
+                        };
+                    }
+                } else {
+                    freed_phys = candidate.size_bytes;
+                }
+
                 // Unlink file; clear read-only first
                 let _ = set_file_readonly(&object_path, false);
                 if fs::remove_file(&object_path).is_ok() {
                     manifest.artifacts.remove(id);
-                    bytes_reclaimed += candidate.size_bytes;
+                    bytes_reclaimed += freed_phys;
                     reclaimed_count += 1;
                 } else {
                     // Filesystem deletion failed; retain manifest record to avoid phantom deletion
@@ -566,10 +581,17 @@ impl CasStorageManager {
         manifest.recompute_logical_bytes();
         self.save_manifest(&manifest)?;
 
+        let disk_after = crate::get_disk_free_bytes(&self.vault_root).ok();
+        let volume_free_delta = match (disk_before, disk_after) {
+            (Some(b), Some(a)) => Some(a as i64 - b as i64),
+            _ => None,
+        };
+
         Ok(CasGcReport {
             unreferenced_artifacts_found: plan.candidates_for_reclamation.len(),
             artifacts_reclaimed: reclaimed_count,
             physical_bytes_reclaimed: bytes_reclaimed,
+            volume_free_bytes_delta: volume_free_delta,
             remaining_artifacts: manifest.total_artifacts,
             remaining_bytes: manifest.unique_cas_bytes,
             is_dry_run: false,
@@ -591,6 +613,7 @@ impl CasStorageManager {
                 unreferenced_artifacts_found: plan.candidates_for_reclamation.len(),
                 artifacts_reclaimed: 0,
                 physical_bytes_reclaimed: 0,
+                volume_free_bytes_delta: None,
                 remaining_artifacts: self.load_manifest()?.total_artifacts,
                 remaining_bytes: plan.total_reclaimable_bytes,
                 is_dry_run: true,
@@ -960,7 +983,8 @@ mod tests {
         assert!(rep1.is_dry_run);
         assert_eq!(rep1.artifacts_reclaimed, 0);
 
-        // Release reference
+        // Release reference and clean up consumer environment file
+        fs::remove_file(&target_file).unwrap();
         manager.release_artifact_consumer(art_id.as_str(), "proj_1").unwrap();
 
         // Plan with active PID: blocked
