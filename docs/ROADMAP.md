@@ -260,11 +260,35 @@ flowchart LR
 
 ---
 
-## Future Roadmap
+---
 
-### Stage 3.1: Desktop Control Center (Tauri 2.0 GUI)
-- **Status**: `BLOCKED` (Pending host Tauri 2.0 / web frontend build prerequisites)
-- **Objectives**:
-  - Native Windows desktop application consuming the Rust core via Tauri 2.0.
-  - Interactive cockpit for GPU telemetry, active leases, storage deduplication, and staged toolchain adoption.
-  - Architectural and visual design fully specified in [docs/GUI_AND_BRANDING_SPECIFICATION.md](GUI_AND_BRANDING_SPECIFICATION.md).
+### Stage 3.1: Windows Desktop Control Center, Online Catalog, Provisioning Engine, Background Agent & Production Installer
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Native Desktop GUI (`ulvo-desktop.exe`)**:
+    - Built using **Tauri 2.0**, React 19, TypeScript, and Microsoft Edge WebView2 Evergreen.
+    - Fully implemented for Windows using native `x86_64-pc-windows-gnu` and MSYS2 UCRT64 GCC 14.2.0.
+    - Dark-first visual design system adhering to `docs/GUI_AND_BRANDING_SPECIFICATION.md` (`#08090C`, `#11141A`, `#00E5FF`, `#00E676`, `#76B900`).
+    - Eight complete visual cockpit views: Dashboard, Discover, Installed, Projects, Storage, GPU Copilot, Adoption, Activity & Settings.
+    - Honest first-run onboarding empty state ("Welcome to ULVO", no assumed runtimes, guided host discovery).
+  - **Shared Application Services Layer (`crates/ulvo-services`)**:
+    - Unified application-services crate serving CLI, GUI, and background agent without duplicating lifecycle logic.
+    - **Online Runtime & Tool Catalog**: Verified catalog covering Python, Rust, Go, Ruby, Node.js, OpenJDK Java, GCC/MSYS2, CMake, Ninja, and uv.
+    - **Universal Search Engine**: Parses queries into typed intents (`RuntimeInstallation`, `ToolchainInstallation`, `GlobalToolInstallation`, `ProjectDependency`, `Ambiguous`).
+    - **10-Step Provisioning Engine**: Implements the full transactional state machine (`Discover` -> `Resolve` -> `Plan` -> `Download` -> `Verify` -> `Stage` -> `Install` -> `Validate` -> `Register` -> `Commit`) with disk safety preflight (500 MB floor), destination containment checks, streaming SHA-256 CAS verification, atomic rollback on failure, and orphaned transaction crash recovery.
+    - **Storage Intelligence**: Dual-accounting (logical footprint vs single-instance physical allocation via `GetCompressedFileSizeW`), hardlink sharing ratio, and package cache pruning/LRU GC.
+  - **Background Agent Daemon (`crates/ulvo-agent`)**:
+    - Standalone daemon executable `ulvo-agent.exe` communicating over local loopback TCP IPC on `127.0.0.1:48590`.
+    - Authenticated via per-user secret bearer token (`vault/agent.token`).
+    - Actions supported: `Ping`, `Status`, `ReconcileLeases`, `EnforceCacheBudget`, `CheckUpdates`, `Shutdown`.
+  - **CLI Parity (`ulvo-cli`)**:
+    - Added `ulvo catalog [list | search <QUERY> | install <ENTRY_ID>]`.
+    - Added `ulvo agent [status | reconcile | stop | run]`.
+  - **Production Distribution & Installer**:
+    - `scripts/package-release.ps1`: Automates deterministic staging and generation of `dist/ulvo-v1.2.0-windows-x64-portable.zip` (11.65 MB) with `SHA256SUMS.txt`.
+    - `scripts/install-ulvo.ps1`: Per-user Windows installer configuring User PATH, Start Menu, Desktop shortcuts, and Add/Remove Programs registry without administrator privileges.
+    - `scripts/uninstall-ulvo.ps1`: Clean uninstaller safely preserving user vault data.
+  - **Verification**:
+    - 100% test pass rate across all 6 workspace crates (`cargo test --workspace`).
+    - Physical free space on drive E: maintained healthy (~17 GB free).
+

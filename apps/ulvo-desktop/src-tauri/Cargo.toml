@@ -1,0 +1,26 @@
+[package]
+name = "ulvo-desktop"
+version = "1.2.0"
+description = "ULVO Control Center"
+authors = ["Voidwalker-AT <anmol392005@gmail.com>"]
+edition = "2021"
+
+[lib]
+name = "ulvo_desktop_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+ulvo-core = { workspace = true }
+ulvo-adapters = { workspace = true }
+ulvo-discovery = { workspace = true }
+ulvo-services = { workspace = true }
+
+
+

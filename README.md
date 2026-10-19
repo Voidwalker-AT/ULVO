@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: **ULVO Stage 3.0.1 / v1.1.1**. ULVO delivers verified physical storage recovery (+19.73 GB reclaimed, 25.73 GB free on E:), exact hardlink-aware CAS accounting, zero persistent project-specific environments under the vault, default ephemeral lifecycle with automatic post-execution reclamation, package cache governance (`ulvo cache status/prune/gc`), vault environment auditing and pruning (`ulvo env audit/prune`), structured JSON execution telemetry (`ulvo run --json`), and single universal execution gateway (`bin/ulvo.exe`).
+> **Current Development Status**: **ULVO Stage 3.1 / v1.2.0 Release Candidate**. ULVO delivers the native Windows Desktop Control Center (`ulvo-desktop.exe`), online verified runtime & tool catalog, universal search query resolution, 10-step transactional provisioning engine with cryptographic SHA-256 verification and preflight disk safety floor, background reconciliation agent (`ulvo-agent.exe`) on local loopback IPC, dual-accounting storage governance, zero persistent project `.venv` environments, and self-contained portable distribution with production installer.
 
 ---
 

@@ -87,7 +87,15 @@ enum Commands {
     /// System-wide diagnostic check verifying vault durability, gateway, runtimes, GPU and storage
     Doctor,
     /// Universal catalog of managed and available language runtimes, compilers, and toolchains
-    Catalog,
+    Catalog {
+        #[command(subcommand)]
+        subcommand: Option<CatalogCommands>,
+    },
+    /// Background reconciliation agent management
+    Agent {
+        #[command(subcommand)]
+        subcommand: AgentCommands,
+    },
     /// Package-cache governance, audit, and storage budgets
     Cache {
         #[command(subcommand)]
@@ -100,6 +108,37 @@ enum Commands {
         /// Workspace or project path to analyze (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum CatalogCommands {
+    /// List all verified catalog runtimes, compilers, and tools
+    List,
+    /// Universal search resolving ecosystem ambiguity (e.g. python@3.12, torch==2.6.0+cu124)
+    Search {
+        query: String,
+    },
+    /// Provision a verified runtime or toolchain via the 10-step transaction engine
+    Install {
+        entry_id: String,
+        #[arg(long)]
+        version: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AgentCommands {
+    /// Inspect background agent status and IPC connectivity
+    Status,
+    /// Trigger an immediate lease and cache reconciliation cycle
+    Reconcile,
+    /// Gracefully shutdown running background agent
+    Stop,
+    /// Run the background agent daemon directly
+    Run {
+        #[arg(long, default_value_t = ulvo_services::DEFAULT_AGENT_PORT)]
+        port: u16,
     },
 }
 
@@ -1607,7 +1646,8 @@ fn run(cli: Cli) -> Result<i32, String> {
             Ok(code)
         }
         Commands::Doctor => run_doctor(cli.json),
-        Commands::Catalog => run_catalog(cli.json),
+        Commands::Catalog { subcommand } => run_catalog(subcommand, cli.json),
+        Commands::Agent { subcommand } => run_agent(subcommand, cli.json),
         Commands::Storage { subcommand, path } => run_storage(subcommand, path, cli.json),
     }
 }
@@ -1812,37 +1852,136 @@ fn run_doctor(cli_json: bool) -> Result<i32, String> {
     Ok(if all_pass { 0 } else { 1 })
 }
 
-fn run_catalog(cli_json: bool) -> Result<i32, String> {
+fn run_catalog(subcommand: Option<CatalogCommands>, cli_json: bool) -> Result<i32, String> {
     let vault_path = ulvo_discovery::resolve_vault_root(None)?;
-    let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
-    let mut resources = registry.list();
-    resources.sort_by(|a, b| format!("{:?}:{}", a.ecosystem, a.name).cmp(&format!("{:?}:{}", b.ecosystem, b.name)));
+    let svc = ulvo_services::UlvoServices::new(&vault_path);
 
-    if cli_json {
-        let resp = ulvo_discovery::VaultListResponse {
-            schema_version: 1,
-            total_resources: resources.len(),
-            resources: resources.into_iter().cloned().collect(),
-        };
-        println!("{}", serde_json::to_string_pretty(&resp).map_err(|e| e.to_string())?);
-    } else {
-        println!("ULVO Universal Development Resource Catalog ({} resources)", resources.len());
-        println!("  {:<10} | {:<16} | {:<12} | {:<10} | {:<8} | {}", "ECOSYSTEM", "NAME", "VERSION", "OWNERSHIP", "BACKEND", "EXECUTABLE PATH");
-        println!("  {}", "-".repeat(95));
-        for r in resources {
-            let path_str = r.installation_path.as_deref().unwrap_or("-");
-            println!(
-                "  {:<10} | {:<16} | {:<12} | {:<10} | {:<8} | {}",
-                format!("{:?}", r.ecosystem),
-                r.name,
-                r.version.as_deref().unwrap_or("unknown"),
-                format!("{:?}", r.ownership),
-                format!("{:?}", r.backend),
-                path_str
-            );
+    match subcommand.unwrap_or(CatalogCommands::List) {
+        CatalogCommands::List => {
+            let entries = svc.catalog().list_catalog();
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&entries).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Universal Development Resource Catalog ({} verified entries)", entries.len());
+                println!("  {:<14} | {:<24} | {:<12} | {:<14?} | {}", "ID", "DISPLAY NAME", "RECOMMENDED", "CATEGORY", "STATUS");
+                println!("  {}", "-".repeat(85));
+                for e in &entries {
+                    let st = match &e.installed_status {
+                        ulvo_services::InstalledStatus::NotInstalled => "AVAILABLE".to_string(),
+                        ulvo_services::InstalledStatus::Installed { version, .. } => format!("INSTALLED ({version})"),
+                        ulvo_services::InstalledStatus::UpdateAvailable { current, latest } => format!("UPDATE ({current}->{latest})"),
+                    };
+                    println!("  {:<14} | {:<24} | {:<12} | {:<14?} | {}", e.id, e.display_name, e.recommended_version, e.category, st);
+                }
+            }
+            Ok(0)
+        }
+        CatalogCommands::Search { query } => {
+            let res = svc.catalog().resolve_query(&query);
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&res).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Universal Search Resolution");
+                println!("  Query:            {}", res.raw_query);
+                println!("  Intent:           {:?}", res.intent);
+                if let Some(ref eco) = res.ecosystem_hint {
+                    println!("  Ecosystem Hint:   {:?}", eco);
+                }
+                println!("  Suggested Action: {}", res.suggested_action);
+                println!("  Matches Found:    {}", res.matched_entries.len());
+                for m in &res.matched_entries {
+                    println!("    - {:<12} {:<24} (rec: {})", m.id, m.display_name, m.recommended_version);
+                }
+            }
+            Ok(0)
+        }
+        CatalogCommands::Install { entry_id, version } => {
+            let plan = svc.provisioning().plan_provisioning(&entry_id, version.as_deref())?;
+            println!("ULVO Provisioning Engine (10-Step Transaction Model)");
+            println!("  Transaction ID:   {}", plan.transaction_id);
+            println!("  Entry:            {} v{}", plan.display_name, plan.version);
+            println!("  Target Vault:     {}", plan.target_vault_path.display());
+            println!("  Required Space:   {:.2} MB", plan.required_bytes as f64 / 1_048_576.0);
+            println!("  Safety Reserve:   {:.2} MB", plan.safety_reserve_bytes as f64 / 1_048_576.0);
+            println!("\nExecuting transaction...");
+            let res = svc.provisioning().execute_transaction(&plan, |stage, pct| {
+                println!("  [{:>3.0}%] {:?}", (pct * 100.0) as u32, stage);
+            })?;
+            println!("\nProvisioning Successful!");
+            println!("  Installed Path:   {}", res.installed_path.display());
+            println!("  SHA-256 Verified: {}", res.sha256_verified);
+            println!("  Resource ID:      {}", res.registered_resource_id);
+            Ok(0)
         }
     }
-    Ok(0)
+}
+
+fn run_agent(subcommand: AgentCommands, cli_json: bool) -> Result<i32, String> {
+    let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+    let svc = ulvo_services::UlvoServices::new(&vault_path);
+
+    match subcommand {
+        AgentCommands::Status => {
+            match svc.agent().send_request(ulvo_services::AgentAction::Status) {
+                Ok(resp) => {
+                    if cli_json {
+                        println!("{}", serde_json::to_string_pretty(&resp).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Background Agent Status: ONLINE");
+                        println!("  Message: {}", resp.message);
+                        if let Some(d) = resp.data {
+                            println!("  Data:    {}", d);
+                        }
+                    }
+                    Ok(0)
+                }
+                Err(e) => {
+                    if cli_json {
+                        println!("{}", serde_json::json!({ "online": false, "error": e }));
+                    } else {
+                        println!("ULVO Background Agent Status: OFFLINE ({})", e);
+                    }
+                    Ok(0)
+                }
+            }
+        }
+        AgentCommands::Reconcile => {
+            let res = svc.agent().send_request(ulvo_services::AgentAction::ReconcileLeases)
+                .or_else(|_| {
+                    println!("Agent daemon not running; running reconciliation in-process...");
+                    svc.agent().run_reconciliation_cycle().map(|data| ulvo_services::AgentResponse {
+                        success: true,
+                        message: "In-process reconciliation complete".into(),
+                        data: Some(data),
+                    })
+                })?;
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&res).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Agent Reconciliation: {}", res.message);
+                if let Some(d) = res.data {
+                    println!("  Summary: {}", d);
+                }
+            }
+            Ok(0)
+        }
+        AgentCommands::Stop => {
+            match svc.agent().send_request(ulvo_services::AgentAction::Shutdown) {
+                Ok(resp) => {
+                    println!("ULVO Agent: {}", resp.message);
+                    Ok(0)
+                }
+                Err(e) => {
+                    println!("ULVO Agent is not running ({e})");
+                    Ok(0)
+                }
+            }
+        }
+        AgentCommands::Run { port } => {
+            svc.agent().serve(port)?;
+            Ok(0)
+        }
+    }
 }
 
 fn run_toolchain_list(cli_json: bool) -> Result<i32, String> {
@@ -2246,6 +2385,10 @@ mod tests {
         assert!(Cli::try_parse_from(["ulvo", "doctor", "--json"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "catalog"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "catalog", "--json"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "catalog", "search", "python@3.12"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "catalog", "install", "python", "--version", "3.12.0"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "agent", "status"]).is_ok());
+        assert!(Cli::try_parse_from(["ulvo", "agent", "reconcile"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "storage"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "storage", "report"]).is_ok());
         assert!(Cli::try_parse_from(["ulvo", "toolchain", "list"]).is_ok());

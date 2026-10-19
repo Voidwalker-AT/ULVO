@@ -1,9 +1,17 @@
 [workspace]
-members = ["crates/ulvo-core", "crates/ulvo-adapters", "crates/ulvo-discovery", "crates/ulvo-cli"]
+members = [
+    "crates/ulvo-core",
+    "crates/ulvo-adapters",
+    "crates/ulvo-discovery",
+    "crates/ulvo-services",
+    "crates/ulvo-agent",
+    "crates/ulvo-cli",
+    "apps/ulvo-desktop/src-tauri"
+]
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
 license = "MIT"
 
@@ -15,3 +23,4 @@ clap = { version = "4", features = ["derive"] }
 ulvo-core = { path = "crates/ulvo-core" }
 ulvo-adapters = { path = "crates/ulvo-adapters" }
 ulvo-discovery = { path = "crates/ulvo-discovery" }
+ulvo-services = { path = "crates/ulvo-services" }

@@ -11,5 +11,6 @@ path = "src/main.rs"
 ulvo-core.workspace = true
 ulvo-adapters.workspace = true
 ulvo-discovery.workspace = true
+ulvo-services.workspace = true
 clap.workspace = true
 serde_json.workspace = true

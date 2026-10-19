@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-10-19
+
+### Stage 3.1 — Windows Desktop Control Center, Online Catalog, Provisioning Engine, Background Agent & Production Installer
+
+#### Added & Improved
+- **Native Windows Desktop Control Center (`ulvo-desktop.exe`)**:
+  - High-density visual cockpit constructed with **Tauri 2.0**, React 19, TypeScript, and a dark-first visual language (`#08090C` void black, `#11141A` surface, `#00E5FF` cyan glow, `#00E676` emerald, `#76B900` NVIDIA/CUDA green) following `docs/GUI_AND_BRANDING_SPECIFICATION.md`.
+  - Native build compatibility on Windows using `x86_64-pc-windows-gnu` and MSYS2 UCRT64 GCC 14.2.0 linking with Microsoft Edge WebView2 Evergreen Runtime.
+  - Eight modular views:
+    1. **Dashboard**: Live system health, Drive E: free space with 500 MB safety floor, single-root vault physical allocation, active process leases, and background agent status.
+    2. **Discover**: Online catalog grid with categories, version browsing, publisher metadata, and 10-step transactional installation.
+    3. **Installed**: List of vault-managed resources with durable verification badges and SHA-256 integrity confirmation.
+    4. **Projects**: Real-time project connector tracking (`.ulvo/manifest.toml`), active OS process leases, and one-click safe reclamation of inactive ephemeral environments.
+    5. **Storage**: Side-by-side dual-accounting display (logical footprint vs single-instance physical allocation), hardlink sharing ratio, and cache controls (prune unreferenced wheels, enforce budget).
+    6. **GPU Copilot**: Real-time NVIDIA GeForce RTX 2050 telemetry (4096 MiB VRAM, driver 596.49, compute capability sm_86) affirming system-managed display driver boundaries.
+    7. **Adoption**: 6-state host discovery (`Managed`, `External`, `Adoptable`, `SystemManaged`, `Blocked`, `Unknown`) with one-click adoption into Universal Vault Registry.
+    8. **Activity & Settings**: Audit trail, transaction journal, staging crash recovery, and customizable preferences (`vault/config/preferences.json`).
+  - **First-Run Onboarding Flow**: Honest empty state ("Welcome to ULVO", no assumed runtimes, guided host discovery and initial provisioning recommendations).
+
+- **Unified Application Services Layer (`ulvo-services`)**:
+  - Created crate `crates/ulvo-services` as the single authoritative application backend serving CLI, GUI, and background agent with zero duplicate execution or lifecycle logic.
+  - **Online Runtime & Tool Catalog (`CatalogService`)**: Curated verified catalog for Python, Rust, Go, Ruby, Node.js, OpenJDK Java, GCC/MSYS2, CMake, Ninja, and uv.
+  - **Universal Search Engine**: Query parser resolving ecosystem ambiguity into explicit intents (`RuntimeInstallation`, `ToolchainInstallation`, `GlobalToolInstallation`, `ProjectDependency`, `Ambiguous`).
+  - **10-Step Provisioning Engine (`ProvisioningEngine`)**: Implemented transactional state machine (`Discover` -> `Resolve` -> `Plan` -> `Download` -> `Verify` -> `Stage` -> `Install` -> `Validate` -> `Register` -> `Commit`) with disk safety preflights (500 MB floor), destination containment checks, streaming SHA-256 CAS verification, atomic rollback on failure, and orphaned transaction crash recovery.
+  - **Storage Intelligence (`StorageService`)**: Dual-accounting (logical vs cluster allocation via `GetCompressedFileSizeW`), hardlink sharing ratio, and package cache pruning/LRU GC.
+  - **Adoption Scanner (`AdoptionService`)**: Host tool discovery across Windows PATH and hardware telemetry via `nvidia-smi`.
+
+- **Configurable Per-User Background Agent (`ulvo-agent.exe`)**:
+  - Created crate `crates/ulvo-agent` providing a lightweight background daemon communicating over loopback TCP IPC on `127.0.0.1:48590`.
+  - Authenticated via per-user secret bearer token (`vault/agent.token`).
+  - Handlers for `Ping`, `Status`, `ReconcileLeases` (dead process cleanup and abandoned environment recovery), `EnforceCacheBudget`, `CheckUpdates`, and graceful `Shutdown`.
+
+- **CLI Parity (`ulvo-cli`)**:
+  - `ulvo catalog [list]`: Lists verified catalog entries with installation status.
+  - `ulvo catalog search <QUERY>`: Resolves universal search queries into actionable intents.
+  - `ulvo catalog install <ENTRY_ID> [--version <VER>]`: Executes the 10-step provisioning transaction directly from the command line.
+  - `ulvo agent status`: Queries running daemon status over loopback IPC.
+  - `ulvo agent reconcile`: Triggers immediate lease reconciliation (via daemon or in-process fallback).
+  - `ulvo agent stop` & `ulvo agent run`: Daemon lifecycle control.
+
+- **Production Packaging & Distribution**:
+  - `scripts/package-release.ps1`: Automates staging, portable zip generation (`dist/ulvo-v1.2.0-windows-x64-portable.zip`), and cryptographic `SHA256SUMS.txt` generation.
+  - `scripts/install-ulvo.ps1`: Per-user Windows installer configuring User PATH, Start Menu, Desktop shortcuts, and Add/Remove Programs registry without administrator privileges.
+  - `scripts/uninstall-ulvo.ps1`: Clean uninstaller safely preserving user vault data.
+
+---
+
 ## [1.1.1] - 2026-10-19
 
 ### Stage 3.0.1 — Physical Storage Recovery, Exact Accounting & Lifecycle Hardening
