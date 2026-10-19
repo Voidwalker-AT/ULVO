@@ -41,6 +41,7 @@ graph TD
   - [`workspace`](../crates/ulvo-core/src/workspace.rs): Storage accounting models, `WorkspaceAuditReport`, `PythonEnvironment`, `InstalledPackage`, `PackageDuplication`, and mathematically bounded `StorageSavingsReport`.
   - [`gpu`](../crates/ulvo-core/src/gpu.rs): GPU device descriptors, CUDA compute capability (`sm_86`), NVIDIA driver version to CUDA mapping, Deep Learning framework variant models (`+cu124` vs `+cpu`), CUDA runtime dynamic dependency graphs, and drive capacity threshold gates.
   - [`adoption`](../crates/ulvo-core/src/adoption.rs): 9-stage universal toolchain adoption lifecycle (`ExternalDiscovered` -> `CompatibilityAssessed` -> `AdoptionPlanned` -> `Staging` -> `Verified` -> `Managed`), migration strategies (`InPlaceManaged`, `CopyRelocatable`, `ReferenceExternal`), rollback manifests, and fail-closed safety rejection rules.
+  - [`manifest`](../crates/ulvo-core/src/manifest.rs): Thin Project Connector Contract (`ConnectorContract`, `ConnectorComplianceVerdict`), size budget constants (`CONNECTOR_TARGET_BUDGET_BYTES` = 100 KiB, `CONNECTOR_MAX_BUDGET_BYTES` = 10 MiB), prohibited environment artifact rules, and multi-ecosystem manifest models (`NodeManifestConfig`, `RustManifestConfig`, `CppManifestConfig`, `JavaManifestConfig`, `GoManifestConfig`, `RubyManifestConfig`).
 
 ### `ulvo-adapters`
 - **Responsibility**: Host platform interactions and ecosystem-specific inspectors.
@@ -55,13 +56,13 @@ graph TD
 ### `ulvo-discovery`
 - **Responsibility**: Safe filesystem traversal, workspace scanning, multi-ecosystem manifest detection, and lifecycle orchestration.
 - **Key Modules**:
+  - [`connector`](../crates/ulvo-discovery/src/connector.rs): Thin Project Connector Audit Engine (`audit_project_connector`), recursive directory scanning, reparse point rejection, prohibited artifact detection, single file size limits (1 MiB), and native manifest cross-referencing.
   - [`vault`](../crates/ulvo-discovery/src/vault.rs): Single-root vault management, durable envelope persistence, `load_vault_registry_readonly` for zero-mutation queries, atomic transaction execution via `with_vault_registry_transaction`, corrupt state backup (`vault_registry.corrupt.<timestamp>.json`), and fail-closed journaling.
   - [`workspace_audit`](../crates/ulvo-discovery/src/workspace_audit.rs): Safe read-only recursive traversal, junction/symlink reparse point rejection, inaccessible directory tracking, physical cluster accumulation without double-counting, and non-mutating storage savings estimation.
   - [`workspace_migration`](../crates/ulvo-discovery/src/workspace_migration.rs): Workspace-wide Python virtual environment discovery, 7-stage migration lifecycle, safety gate evaluation, and conditional retirement planning.
   - [`project_lifecycle`](../crates/ulvo-discovery/src/project_lifecycle.rs): End-to-end ephemeral environment lifecycle, host GPU querying (`detect_host_gpu`), NTFS capacity checking with 500 MB safety reserves, project manifest loading, execution supervision, and reclaimable lease cleanup.
   - [`toolchain_inventory`](../crates/ulvo-discovery/src/toolchain_inventory.rs): Universal toolchain scanner inspecting Windows PATH, known toolchain roots, MSYS2 (`C:\msys64`), VS Code configuration, and read-only WSL registry keys across 18+ ecosystem binary families.
   - [`lock`](../crates/ulvo-discovery/src/lock.rs): File-based concurrency control and execution lease management.
-  - [`vault`](../crates/ulvo-discovery/src/vault.rs): Local vault directory scanning, resource discovery, and registry reconciliation against on-disk states.
   - [`lib`](../crates/ulvo-discovery/src/lib.rs): Host PATH scanning, VS Code configuration reference detection, and native project manifest recognition (`Cargo.toml`, `package.json`, `pyproject.toml`, `.ulvo/manifest.toml`).
 
 ### `ulvo-cli`

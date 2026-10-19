@@ -175,6 +175,14 @@ enum ProjectCommands {
     Doctor {
         project_path: PathBuf,
     },
+    /// Audit and verify the lightweight .ulvo project connector contract
+    Connector {
+        project_path: PathBuf,
+    },
+    /// Report comprehensive project status, active leases, and connector health
+    Status {
+        project_path: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -626,6 +634,54 @@ fn run(cli: Cli) -> Result<i32, String> {
                         }
                     }
                     Ok(if all_passed { 0 } else { 1 })
+                }
+                ProjectCommands::Connector { project_path } => {
+                    let result = orchestrator.audit_connector(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Thin Project Connector Audit ({})", result.project_path);
+                        println!("  Compliance Verdict:   {}", result.compliance_verdict);
+                        println!("  Manifest Path:        {}", result.manifest_path);
+                        println!("  Connector Directory:  {}", result.connector_dir);
+                        println!("  Total Size:           {} bytes ({:.2} KiB)", result.total_bytes, result.total_bytes as f64 / 1024.0);
+                        println!("  File Count:           {}", result.file_count);
+                        println!("  Target Budget (100K): {}", if result.is_within_target_budget { "PASSED (<= 100 KiB)" } else { "EXCEEDED (> 100 KiB)" });
+                        println!("  Max Budget (10M):     {}", if result.is_within_max_budget { "PASSED (<= 10 MiB)" } else { "VIOLATION (> 10 MiB)" });
+                        println!("  Prohibited Artifacts: {}", if result.prohibited_entries_detected.is_empty() { "none (clean)".to_string() } else { format!("DETECTED: {}", result.prohibited_entries_detected.join(", ")) });
+                        println!("  Native Manifests:     {}", if result.referenced_native_manifests.is_empty() { "none referenced".to_string() } else { result.referenced_native_manifests.join(", ") });
+                        if !result.diagnostics.is_empty() {
+                            println!("\n  Diagnostics:");
+                            for diag in &result.diagnostics {
+                                println!("    - {diag}");
+                            }
+                        }
+                    }
+                    let ok = matches!(result.compliance_verdict, ulvo_core::ConnectorComplianceVerdict::Compliant | ulvo_core::ConnectorComplianceVerdict::TargetBudgetExceeded);
+                    Ok(if ok { 0 } else { 1 })
+                }
+                ProjectCommands::Status { project_path } => {
+                    let result = orchestrator.status(&project_path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Project Status ({})", result.project_path);
+                        println!("  Environment ID:       {}", result.environment_id);
+                        println!("  Environment Path:     {}", result.environment_path);
+                        println!("  Lifecycle State:      {}", result.state);
+                        println!("  Materialized:         {}", result.is_materialized);
+                        println!("  Active Processes:     {} (PIDs: {:?})", result.active_pids.len(), result.active_pids);
+                        println!("  Quiescent:            {}", result.is_quiescent);
+                        println!("  Can Reclaim:          {}", result.can_reclaim);
+                        println!("  Python Executable:    {}", result.python_executable.as_deref().unwrap_or("none"));
+                        println!("  Python Version:       {}", result.python_version.as_deref().unwrap_or("none"));
+                        println!("  Specification Hash:   {}", result.specification_hash.as_deref().unwrap_or("none"));
+                        if let Some(ref c) = result.connector {
+                            println!("  Connector Status:     {}", c.compliance_verdict);
+                            println!("  Connector Size:       {} bytes ({:.2} KiB)", c.total_bytes, c.total_bytes as f64 / 1024.0);
+                        }
+                    }
+                    Ok(0)
                 }
             }
         }

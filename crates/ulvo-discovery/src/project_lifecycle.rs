@@ -62,6 +62,43 @@ impl ProjectOrchestrator {
         Ok(manifest)
     }
 
+    pub fn audit_connector(&self, path: &Path) -> Result<ConnectorContract, String> {
+        let root = self.resolve_project_root(path)?;
+        crate::connector::audit_project_connector(&root)
+    }
+
+    pub fn enforce_connector_contract(&self, path: &Path) -> Result<ConnectorContract, String> {
+        let contract = self.audit_connector(path)?;
+        match contract.compliance_verdict {
+            ConnectorComplianceVerdict::MissingManifest => {
+                return Err("CONNECTOR_CONTRACT_VIOLATION: Missing .ulvo/manifest.toml connector contract. Run 'ulvo migrate apply' or create .ulvo/manifest.toml.".into());
+            }
+            ConnectorComplianceVerdict::InvalidManifest => {
+                return Err("CONNECTOR_CONTRACT_VIOLATION: Invalid .ulvo/manifest.toml syntax or unsupported schema_version.".into());
+            }
+            ConnectorComplianceVerdict::MaxBudgetExceeded => {
+                return Err(format!(
+                    "CONNECTOR_CONTRACT_VIOLATION: .ulvo directory exceeded maximum metadata budget of 10 MiB (current: {} bytes). The .ulvo folder is a connector, not an environment.",
+                    contract.total_bytes
+                ));
+            }
+            ConnectorComplianceVerdict::ProhibitedArtifactDetected => {
+                return Err(format!(
+                    "CONNECTOR_CONTRACT_VIOLATION: Prohibited environment artifacts detected inside .ulvo: {}. Runtimes, virtual environments, and caches must live in the vault.",
+                    contract.prohibited_entries_detected.join(", ")
+                ));
+            }
+            ConnectorComplianceVerdict::TargetBudgetExceeded => {
+                eprintln!(
+                    "Warning: .ulvo directory ({} bytes) exceeds recommended 100 KiB target budget.",
+                    contract.total_bytes
+                );
+            }
+            ConnectorComplianceVerdict::Compliant => {}
+        }
+        Ok(contract)
+    }
+
     pub fn compute_environment_id(&self, project_root: &Path) -> String {
         let canonical_str = project_root.to_string_lossy().to_lowercase();
         let hash = sha256_hex(canonical_str.as_bytes());
@@ -94,15 +131,32 @@ impl ProjectOrchestrator {
             .unwrap_or_else(|| ">=3.8".to_string());
 
         let mut dep_fingerprints = Vec::new();
-        let mut dep_paths = Vec::new();
+        let mut dep_paths = manifest.referenced_native_manifests();
 
         if let Some(ref pm) = manifest.package_manager {
             for r in &pm.requirements {
-                dep_paths.push(r.clone());
+                if !dep_paths.contains(r) {
+                    dep_paths.push(r.clone());
+                }
             }
         }
-        if dep_paths.is_empty() && project_root.join("requirements.txt").is_file() {
-            dep_paths.push("requirements.txt".to_string());
+        if dep_paths.is_empty() {
+            for fallback in &[
+                "requirements.txt",
+                "pyproject.toml",
+                "uv.lock",
+                "package.json",
+                "pnpm-lock.yaml",
+                "Cargo.toml",
+                "Cargo.lock",
+                "go.mod",
+                "pom.xml",
+                "Gemfile",
+            ] {
+                if project_root.join(fallback).is_file() {
+                    dep_paths.push(fallback.to_string());
+                }
+            }
         }
 
         for rel in &dep_paths {
@@ -191,6 +245,22 @@ impl ProjectOrchestrator {
     pub fn doctor(&self, path: &Path) -> Result<ProjectDoctorReport, String> {
         let root = self.resolve_project_root(path)?;
         let mut checks = Vec::new();
+
+        // 0. Thin Connector Contract Check
+        let connector_res = self.audit_connector(&root);
+        let (connector_passed, connector_msg, connector_contract) = match connector_res {
+            Ok(c) => {
+                let passed = matches!(c.compliance_verdict, ConnectorComplianceVerdict::Compliant | ConnectorComplianceVerdict::TargetBudgetExceeded);
+                let msg = format!("{}: {} (total: {} bytes across {} files)", c.compliance_verdict, if passed { "OK" } else { "Failed" }, c.total_bytes, c.file_count);
+                (passed, msg, Some(c))
+            }
+            Err(e) => (false, format!("Failed to audit connector: {e}"), None),
+        };
+        checks.push(DoctorCheck {
+            name: "Thin Connector Contract".into(),
+            passed: connector_passed,
+            message: connector_msg,
+        });
 
         // 1. Manifest check
         let manifest_res = self.load_manifest(&root);
@@ -334,6 +404,7 @@ impl ProjectOrchestrator {
             environment_state: state,
             active_processes: active_pids.len(),
             checks,
+            connector: connector_contract,
         })
     }
 
@@ -366,6 +437,8 @@ impl ProjectOrchestrator {
             None
         };
 
+        let connector = self.audit_connector(&root).ok();
+
         Ok(EnvironmentStatusReport {
             schema_version: 1,
             project_path: root.to_string_lossy().into_owned(),
@@ -380,6 +453,7 @@ impl ProjectOrchestrator {
             python_executable: py_exe,
             python_version: py_ver,
             specification_hash: spec_hash,
+            connector,
         })
     }
 
@@ -537,6 +611,7 @@ impl ProjectOrchestrator {
         force_reclaim: bool,
     ) -> Result<i32, String> {
         let root = self.resolve_project_root(path)?;
+        self.enforce_connector_contract(&root)?;
         let manifest = self.load_manifest(&root)?;
 
         let env_path = self.ensure_environment_ready(&root, &manifest)?;
@@ -616,6 +691,15 @@ impl ProjectOrchestrator {
 
         if (force_reclaim || auto_reclaim) && is_quiescent {
             let _ = self.reclaim_internal_with_project(&env_path, Some(&root));
+        }
+
+        // Verify project-local environment was not recreated during execution
+        let local_venv = root.join(".venv");
+        if local_venv.is_dir() {
+            eprintln!(
+                "Warning: Execution generated a project-local .venv directory at '{}'. ULVO projects should run without project-local environments.",
+                local_venv.display()
+            );
         }
 
         Ok(exit_code)
@@ -1233,6 +1317,136 @@ python = ">=3.8"
         // Verify lease file on disk was NOT mutated
         let bytes_after = std::fs::read(&lease_file).unwrap();
         assert_eq!(bytes_before, bytes_after, "status() must not mutate .ulvo_lease.json on disk");
+    }
+
+    #[test]
+    fn test_enforce_connector_contract_rejects_missing_manifest() {
+        let fixture = SafeFixture::new("connector_missing_test");
+        let project_dir = fixture.path.join("empty_proj");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+
+        let err = orch.enforce_connector_contract(&project_dir).unwrap_err();
+        assert!(err.contains("CONNECTOR_CONTRACT_VIOLATION: Missing .ulvo/manifest.toml"));
+    }
+
+    #[test]
+    fn test_enforce_connector_contract_rejects_prohibited_artifact() {
+        let fixture = SafeFixture::new("connector_prohibited_test");
+        let project_dir = fixture.path.join("bloated_proj");
+        let ulvo_dir = project_dir.join(".ulvo");
+        let venv_dir = ulvo_dir.join(".venv");
+        std::fs::create_dir_all(&venv_dir).unwrap();
+
+        std::fs::write(
+            ulvo_dir.join("manifest.toml"),
+            "schema_version = 1\nname = \"bloated_proj\"\n[runtimes]\npython = \">=3.8\"\n",
+        ).unwrap();
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+
+        let err = orch.enforce_connector_contract(&project_dir).unwrap_err();
+        assert!(err.contains("CONNECTOR_CONTRACT_VIOLATION: Prohibited environment artifacts detected"));
+    }
+
+    #[test]
+    fn test_enforce_connector_contract_rejects_budget_exceeded() {
+        let fixture = SafeFixture::new("connector_budget_test");
+        let project_dir = fixture.path.join("oversized_proj");
+        let ulvo_dir = project_dir.join(".ulvo");
+        std::fs::create_dir_all(&ulvo_dir).unwrap();
+
+        std::fs::write(
+            ulvo_dir.join("manifest.toml"),
+            "schema_version = 1\nname = \"oversized_proj\"\n[runtimes]\npython = \">=3.8\"\n",
+        ).unwrap();
+
+        // Write a file that exceeds the 10 MiB maximum budget (11 MiB)
+        let big_file = ulvo_dir.join("oversized_dump.dat");
+        let chunk = vec![0u8; 1024 * 1024]; // 1 MiB
+        let mut f = std::fs::File::create(&big_file).unwrap();
+        use std::io::Write;
+        for _ in 0..11 {
+            f.write_all(&chunk).unwrap();
+        }
+        f.flush().unwrap();
+        drop(f);
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+
+        let err = orch.enforce_connector_contract(&project_dir).unwrap_err();
+        assert!(err.contains("CONNECTOR_CONTRACT_VIOLATION"));
+    }
+
+    #[test]
+    fn test_doctor_includes_thin_connector_contract_check() {
+        let fixture = SafeFixture::new("doctor_connector_test");
+        let project_dir = fixture.path.join("clean_proj");
+        let ulvo_dir = project_dir.join(".ulvo");
+        std::fs::create_dir_all(&ulvo_dir).unwrap();
+
+        std::fs::write(
+            ulvo_dir.join("manifest.toml"),
+            "schema_version = 1\nname = \"clean_proj\"\n[runtimes]\npython = \">=3.8\"\n",
+        ).unwrap();
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+
+        let report = orch.doctor(&project_dir).unwrap();
+        assert!(report.checks.iter().any(|c| c.name == "Thin Connector Contract" && c.passed));
+        assert!(report.connector.is_some());
+        assert!(report.connector.unwrap().is_within_target_budget);
+    }
+
+    #[test]
+    fn test_multi_ecosystem_native_manifest_fingerprinting() {
+        let fixture = SafeFixture::new("multi_eco_fingerprint_test");
+        let project_dir = fixture.path.join("poly_proj");
+        let ulvo_dir = project_dir.join(".ulvo");
+        std::fs::create_dir_all(&ulvo_dir).unwrap();
+
+        std::fs::write(
+            ulvo_dir.join("manifest.toml"),
+            r#"schema_version = 1
+name = "poly_proj"
+[runtimes]
+python = ">=3.10"
+node = ">=20.0"
+
+[python]
+manager = "uv"
+requirements = ["requirements.txt"]
+
+[node]
+manager = "pnpm"
+package_json = "package.json"
+lockfile = "pnpm-lock.yaml"
+"#,
+        ).unwrap();
+
+        let pkg_json = project_dir.join("package.json");
+        std::fs::write(&pkg_json, r#"{"name": "poly_proj", "dependencies": {"express": "4.18.2"}}"#).unwrap();
+        let req_txt = project_dir.join("requirements.txt");
+        std::fs::write(&req_txt, "fastapi==0.100.0\n").unwrap();
+
+        let vault_root = fixture.path.join("vault");
+        let orch = ProjectOrchestrator::new(vault_root).unwrap();
+        let manifest = orch.load_manifest(&project_dir).unwrap();
+
+        let (spec1, hash1) = orch.compute_specification(&project_dir, &manifest, "python.exe").unwrap();
+        assert!(spec1.dependency_manifests.iter().any(|d| d.relative_path == "package.json"));
+        assert!(spec1.dependency_manifests.iter().any(|d| d.relative_path == "requirements.txt"));
+
+        // Mutate package.json (native manifest change)
+        std::fs::write(&pkg_json, r#"{"name": "poly_proj", "dependencies": {"express": "4.19.0"}}"#).unwrap();
+        let (_spec2, hash2) = orch.compute_specification(&project_dir, &manifest, "python.exe").unwrap();
+
+        assert_ne!(hash1, hash2, "specification hash MUST invalidate when native package.json changes!");
     }
 }
 

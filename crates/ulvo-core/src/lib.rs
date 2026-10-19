@@ -7,6 +7,7 @@ pub mod lifecycle;
 pub mod migration;
 pub mod gpu;
 pub mod adoption;
+pub mod manifest;
 
 pub use resource::*;
 pub use registry::*;
@@ -15,6 +16,7 @@ pub use lifecycle::*;
 pub use migration::*;
 pub use gpu::*;
 pub use adoption::*;
+pub use manifest::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -168,90 +170,4 @@ mod tests {
         let c = record("/c", Verification::Present, None);
         assert_eq!(deduplicate(vec![b, c, a]).len(), 1);
     }
-}
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ProjectMetadata {
-    pub name: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct PythonManifestConfig {
-    pub manager: Option<String>,
-    pub lockfile: Option<String>,
-    #[serde(default)]
-    pub requirements: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct PackageManagerConfig {
-    pub name: Option<String>,
-    #[serde(default)]
-    pub requirements: Vec<String>,
-    pub lockfile: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct EnvironmentManifestConfig {
-    pub mode: Option<String>,
-    pub cleanup: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct LifecycleConfig {
-    pub policy: Option<String>,
-    pub lease_timeout_seconds: Option<u64>,
-    pub allow_reclaim_on_quiescence: Option<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ExecutionConfig {
-    pub entry_point: Option<String>,
-    pub test_command: Option<String>,
-    #[serde(default)]
-    pub args: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProjectManifest {
-    pub schema_version: u32,
-    pub name: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub project: Option<ProjectMetadata>,
-    #[serde(default)]
-    pub runtimes: std::collections::BTreeMap<String, String>,
-    #[serde(default)]
-    pub python: Option<PythonManifestConfig>,
-    #[serde(default)]
-    pub package_manager: Option<PackageManagerConfig>,
-    #[serde(default)]
-    pub environment: Option<EnvironmentManifestConfig>,
-    #[serde(default)]
-    pub lifecycle: Option<LifecycleConfig>,
-    #[serde(default)]
-    pub execution: Option<ExecutionConfig>,
-    #[serde(default)]
-    pub gpu: Option<GpuManifestConfig>,
-}
-
-impl ProjectManifest {
-    pub fn project_name(&self) -> Option<&str> {
-        if let Some(ref n) = self.name {
-            Some(n.as_str())
-        } else if let Some(ref p) = self.project {
-            p.name.as_deref()
-        } else {
-            None
-        }
-    }
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectInspection {
-    pub schema_version: u32,
-    pub path: String,
-    pub native_manifests: Vec<String>,
-    pub ulvo_manifest: Option<ProjectManifest>,
-    pub diagnostics: Vec<String>,
 }

@@ -244,10 +244,29 @@ ulvo project resolve E:\Workspace\Active\NexusNode\server [--json]
 ```
 
 ### 5.3 `ulvo project doctor <path>`
-Executes preflight health and dependency checks, verifying manifest syntax, `uv` package manager availability, runtime resolution, and dependency manifest presence. Purely read-only; does not create directories.
+Executes preflight health and dependency checks, verifying manifest syntax, Thin Connector Contract compliance (target size < 100 KiB, max budget 10 MiB, no prohibited artifacts), `uv` package manager availability, runtime resolution, and dependency manifest presence. Purely read-only; does not create directories.
 
 ```sh
 ulvo project doctor E:\Workspace\Active\NexusNode\server [--json]
+```
+
+### 5.4 `ulvo project connector <path>`
+Audits and verifies the lightweight `.ulvo` connector contract for a project:
+- Verifies manifest presence and TOML schema validity.
+- Measures total allocated size across all files in `.ulvo`.
+- Enforces recommended target budget (under 100 KiB) and maximum budget limit (10 MiB).
+- Scans for prohibited environment artifacts (`.venv`, `node_modules`, `site-packages`, `bin`, `lib`, `target`, `cache`, binary executables).
+- Checks all referenced native manifests (`requirements.txt`, `package.json`, `Cargo.toml`, etc.).
+
+```sh
+ulvo project connector E:\Workspace\Active\NexusNode\server [--json]
+```
+
+### 5.5 `ulvo project status <path>`
+Reports comprehensive project integration status, including environment ID, lifecycle state, active process leases, python executable path, specification hash, and connector compliance verdict.
+
+```sh
+ulvo project status E:\Workspace\Active\NexusNode\server [--json]
 ```
 
 ---

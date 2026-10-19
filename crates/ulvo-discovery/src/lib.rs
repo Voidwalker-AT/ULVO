@@ -8,6 +8,8 @@ pub mod migration_orchestrator;
 pub use migration_orchestrator::*;
 pub mod toolchain_inventory;
 pub use toolchain_inventory::*;
+pub mod connector;
+pub use connector::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;
@@ -43,9 +45,17 @@ pub fn inspect(path: &Path) -> Result<ProjectInspection, String> {
     let manifest = root.join(".ulvo/manifest.toml");
     reject_links(&manifest)?;
     let ulvo_manifest = if manifest.exists() { Some(parse_manifest(&bounded_read(&manifest)?)?) } else { None };
-    Ok(ProjectInspection { schema_version: 1, path: root.to_string_lossy().into_owned(),
-        native_manifests: found, ulvo_manifest, diagnostics: vec![
-        "Native manifests are detected, not resolved or executed.".into()] })
+    let connector = crate::connector::audit_project_connector(&root).ok();
+    Ok(ProjectInspection {
+        schema_version: 1,
+        path: root.to_string_lossy().into_owned(),
+        native_manifests: found,
+        ulvo_manifest,
+        connector,
+        diagnostics: vec![
+            "Native manifests are detected, not resolved or executed.".into(),
+        ],
+    })
 }
 
 fn candidate(path: PathBuf, tool: &str, source: &str, verify: bool) -> Option<Toolchain> {

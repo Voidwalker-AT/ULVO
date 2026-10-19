@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content-Addressable Package Store**: Shared hardlinked package caching across isolated environments.
 - **Node.js / pnpm Adapter**: JavaScript/TypeScript manifest detection and package store orchestration.
 
+## [0.2.7] - 2026-10-19
+
+### Stage 2.9.3 — Lightweight Project Integration Contract & Universal Connector Governance
+
+#### Added
+- **Mandatory Architectural Invariant: Thin Project Connector Contract (`ulvo-core::manifest`, `ulvo-discovery::connector`)**:
+  - Enforced formal metadata budget for `<project>/.ulvo`: normal target size **under 100 KiB** (102,400 bytes), hard upper limit **10 MiB** (10,485,760 bytes).
+  - Established rule that `.ulvo` is strictly a connector, not an environment; prohibited directory contents include `.venv`, `venv`, `node_modules`, `site-packages`, `bin`, `Scripts`, `lib`, `target`, `build`, `dist`, `cache`, and binary executables (`.exe`, `.dll`, `.so`, etc.).
+  - Added `audit_project_connector` and `enforce_connector_contract` fail-closed validators returning typed `ConnectorComplianceVerdict`.
+- **Multi-Ecosystem Manifest Contract (`ProjectManifest`)**:
+  - Extended manifest schema to declare typed ecosystem configurations referencing native manifests without duplicating dependency payloads:
+    - `python`: `uv`, `requirements.txt`, `pyproject.toml`, `uv.lock`
+    - `node`: `pnpm`, `package.json`, `pnpm-lock.yaml`
+    - `rust`: `rustup`/`cargo`, `Cargo.toml`, `Cargo.lock`
+    - `cpp`: MSYS2, `CMakeLists.txt`, `Makefile`
+    - `java`: JDK, `pom.xml`, `build.gradle`
+    - `go`: Go toolchain, `go.mod`, `go.sum`
+    - `ruby`: Ruby, `Gemfile`, `Gemfile.lock`
+  - Integrated `referenced_native_manifests()` into environment specification fingerprinting: any mutation in referenced native files (`package.json`, `requirements.txt`, etc.) automatically invalidates the environment hash.
+- **No Project-Local Managed Environments**:
+  - All project execution environments materialize exclusively under `vault/environments/<ecosystem>/` and never inside `<project>/`.
+  - Added automated post-execution verification to `ulvo run` asserting that no project-local `.venv` was created during runtime.
+  - Verified across real projects (`NexusNode/server`, `termux-ai-workstation`, `AstraRun-Anti`, `AstraRun-MiMo`, `Academic\sem5\DL\exp1`) that execution succeeds with zero project-local `.venv` present.
+- **CLI Subcommands**:
+  - Added `ulvo project connector <path>` for full connector compliance auditing with human-readable and `--json` outputs.
+  - Added `ulvo project status <path>` reporting environment ID, lifecycle state, active leases, python executable, and connector compliance.
+  - Integrated Thin Connector Contract check as Check #0 in `ulvo project doctor`.
+- **Expanded Test Suite (121 Native Tests)**:
+  - Added 12 new unit and integration tests across `ulvo-core` and `ulvo-discovery`, achieving 100% pass rate on `x86_64-pc-windows-gnu`.
+
 ## [0.2.6] - 2026-10-19
 
 ### Stage 2.9.2a — Emergency Storage Recovery, Toolchain Consolidation & Gateway Hardening

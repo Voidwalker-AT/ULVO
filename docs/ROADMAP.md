@@ -179,6 +179,27 @@ flowchart LR
   - **Full Regression Verification**:
     - 109/109 passing automated native tests across all four workspace crates.
 
+### Stage 2.9.3: Lightweight Project Integration Contract & Thin Connector Governance
+- **Status**: `COMPLETED`
+- **Deliverables**:
+  - **Thin Project Connector Contract**:
+    - Mandated `<project>/.ulvo` metadata budget: target size under 100 KiB, max budget 10 MiB.
+    - Prohibited all runtime environments, packages, toolchains, build caches, and binaries in `.ulvo/`.
+    - Implemented `ulvo-discovery::connector` with recursive scanning, budget enforcement, and reparse-point rejection.
+  - **Multi-Ecosystem Manifest Contract**:
+    - Extended `ProjectManifest` with typed configurations referencing native manifests (`requirements.txt`, `package.json`, `Cargo.toml`, etc.) without duplicating dependency payloads.
+    - Automated environment fingerprint invalidation upon native manifest changes.
+  - **Zero Project-Local Managed Environments**:
+    - Materialized execution environments strictly inside `vault/environments/<ecosystem>/`.
+    - Added post-execution verification to `ulvo run` asserting no project-local `.venv` was created.
+    - Verified against real projects (`NexusNode/server`, `termux-ai-workstation`, `AstraRun-Anti`, `AstraRun-MiMo`, `Academic\sem5\DL\exp1`).
+  - **CLI Commands**:
+    - `ulvo project connector <path>` for full connector compliance auditing.
+    - `ulvo project status <path>` for comprehensive lifecycle and connector status.
+    - Thin Connector Contract check integrated as Check #0 in `ulvo project doctor`.
+  - **Regression Verification**:
+    - 121/121 passing automated native tests across all four workspace crates.
+
 ---
 
 ## Future Roadmap

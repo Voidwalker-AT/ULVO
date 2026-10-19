@@ -240,6 +240,8 @@ pub struct ProjectDoctorReport {
     pub environment_state: EnvironmentLifecycleState,
     pub active_processes: usize,
     pub checks: Vec<DoctorCheck>,
+    #[serde(default)]
+    pub connector: Option<crate::manifest::ConnectorContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -274,6 +276,8 @@ pub struct EnvironmentStatusReport {
     pub python_version: Option<String>,
     #[serde(default)]
     pub specification_hash: Option<String>,
+    #[serde(default)]
+    pub connector: Option<crate::manifest::ConnectorContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

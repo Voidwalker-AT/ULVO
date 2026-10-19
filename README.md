@@ -314,7 +314,8 @@ For complete security specifications, see [docs/SECURITY.md](docs/SECURITY.md).
 - **Stage 2.9.1**: GPU-aware orchestration, toolchain inventory & pilot verification [COMPLETED]
 - **Stage 2.9.2**: Managed MSYS2 provisioning, execution gateway & deep learning retirements [COMPLETED]
 - **Stage 2.9.2a**: Emergency storage recovery, toolchain consolidation & gateway hardening [COMPLETED]
-- **Stage 2.9.3+**: Multi-language orchestration (pnpm, Go, Java) and native GUI [PLANNED]
+- **Stage 2.9.3**: Lightweight project integration contract & universal connector governance [COMPLETED]
+- **Stage 3.0**: Desktop Control Center (Tauri 2.0 GUI) & multi-language execution [PLANNED]
 
 For roadmap details, see [docs/ROADMAP.md](docs/ROADMAP.md).
 
