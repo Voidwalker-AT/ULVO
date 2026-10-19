@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2026-10-19
 
+### Stage 3.1.1 — Build Storage Governance, Installer Security Hardening & Storage Recovery
+
+#### Added & Improved
+- **Physical Storage Recovery & Regression Diagnosis**:
+  - Investigated 7.1 GB post-desktop compilation disk space regression using Win32 `GetCompressedFileSizeW` cluster accounting:
+    - `CONFIRMED_CAUSE`: Cargo debug objects (`target\debug`: 6.67 GB across 124 debug executables, `.rlib`s, and incremental compiler states) + duplicate GNU target tree (`target\x86_64-pc-windows-gnu`: 0.22 GB) + intermediate release objects (`target\release\deps` and `build`: 1.48 GB).
+    - `LIKELY_CONTRIBUTOR`: Crates.io package downloads for Tauri 2 (`0.33 GB`) + desktop UI `node_modules` (`0.08 GB`) + release staging archives (`0.05 GB`).
+  - Executed safe, non-destructive reclamation: removed stale duplicate `target\x86_64-pc-windows-gnu` (+211.31 MB) and compiler debug intermediate objects (`target\debug`: +5.51 GB), recovering **+5.72 GB** of physical capacity and elevating Drive E: available space to **24,197,586,944 bytes (22.533 GB)**.
+- **Durable Build Storage Governance (`BuildGovernanceService`)**:
+  - Implemented `crates/ulvo-services/src/build_governance.rs`: classifies build artifacts into `Essential` (release binaries, sources, manifests), `Reusable` (package caches), and `Disposable` (compiler intermediates, debug objects, incremental caches).
+  - Enforced fail-closed compiler liveness protection: checks active `rustc`, `gcc`, `g++`, `link`, and `ld` processes and `target/.cargo-lock` file locks before any pruning operation.
+  - Added CLI commands `ulvo storage build-audit` and `ulvo storage build-prune [--all] [--dry-run]` to `ulvo-cli`.
+- **Installer & Uninstaller Security Hardening**:
+  - Hardened `scripts/install-ulvo.ps1`:
+    - Made uninstaller self-contained (`$InstallDir\uninstall.ps1`), eliminating dangling uninstaller paths when source or release ZIP is deleted.
+    - Switched vault path template from developer paths to `$env:LOCALAPPDATA\ULVO\vault`.
+    - Added `-NoPath` switch for headless / CI deployments.
+    - Added active process detection and graceful agent shutdown before replacing running binaries.
+    - Implemented transactional staging (`.staging_<timestamp>`) and atomic rollback.
+    - Generates `.ulvo-install-manifest.json` recording version, timestamp, and SHA-256 hashes for all installed files.
+  - Hardened `scripts/uninstall-ulvo.ps1`:
+    - Added boundary and root validation: prevents deleting drive roots, ProgramFiles, LocalAppData, or UserProfile directories.
+    - Added sentinel verification: requires `.ulvo-install-manifest.json` or `bin\ulvo.exe` before proceeding with deletion.
+    - Gracefully terminates running ULVO processes.
+    - Cleans shortcuts, HKCU registry entry, and user PATH safely.
+    - Strictly preserves vault data and user projects by default.
+- **Comprehensive Lifecycle Verification**:
+  - Verified installer and uninstaller lifecycle in isolated `$env:TEMP\ulvo_installer_validation` target (`scripts/test-installer-lifecycle.ps1`).
+  - Verified real desktop GUI execution: launched `ulvo-desktop.exe`, confirmed WebView2 runtime initialization (`msedgewebview2.exe`), verified window responsiveness (`Responding=True`), and executed clean termination (`scripts/test-desktop-gui.ps1`).
+  - Verified 173 workspace unit and integration tests passing (`cargo test --workspace`).
+
 ### Stage 3.1 — Windows Desktop Control Center, Online Catalog, Provisioning Engine, Background Agent & Production Installer
 
 #### Added & Improved

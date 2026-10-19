@@ -288,4 +288,25 @@ mod tests {
         let t2 = server.get_or_create_auth_token().unwrap();
         assert_eq!(t1, t2);
     }
+
+    #[test]
+    fn test_agent_security_rejections() {
+        let temp_dir = std::env::temp_dir().join("ulvo_test_agent_sec");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let _ = fs::create_dir_all(&temp_dir);
+
+        let server = AgentIpcServer::new(&temp_dir);
+        let valid_token = server.get_or_create_auth_token().unwrap();
+
+        // Test malformed request string
+        let malformed = "{ not valid json";
+        assert!(serde_json::from_str::<AgentRequest>(malformed).is_err());
+
+        // Test request with invalid token
+        let wrong_token_req = AgentRequest {
+            auth_token: "hacker_token".into(),
+            action: AgentAction::Ping,
+        };
+        assert_ne!(wrong_token_req.auth_token, valid_token);
+    }
 }

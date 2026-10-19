@@ -600,6 +600,18 @@ Prunes stale package-manager caches using underlying ecosystem tooling (`uv cach
 ulvo storage cache-prune [--dry-run] [--json]
 ```
 
+### 18.3 `ulvo storage build-audit`
+Audits workspace Cargo build artifacts and classifies them into `Essential` (verified release binaries, manifests, and sources), `Reusable` (package manager and local Cargo registry caches), and `Disposable` (intermediate compiler objects, debug objects, incremental caches, and build scripts).
+```sh
+ulvo storage build-audit [<PATH>] [--json]
+```
+
+### 18.4 `ulvo storage build-prune`
+Safely reclaims disposable compiler intermediates with strict safety gates (compiler liveness checking, reparse point rejection). By default preserves release dependency caches (`target/release/deps`) for fast incremental builds; pass `--all` to reclaim all disposable intermediates down to essential release binaries.
+```sh
+ulvo storage build-prune [<PATH>] [--dry-run] [--all] [--json]
+```
+
 ---
 
 ## 19. `ulvo run [--keep-env]`

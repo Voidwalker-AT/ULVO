@@ -171,6 +171,21 @@ enum StorageCommands {
     CacheAudit,
     /// Prune dangling and unreferenced cache artifacts from the package cache
     CachePrune,
+    /// Audit workspace Cargo build artifacts and classify into essential, reusable, and disposable
+    BuildAudit {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Prune disposable compiler intermediates and debug objects while strictly preserving release binaries
+    BuildPrune {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        dry_run: bool,
+        /// Also prune release dependency cache (target/release/deps), leaving only essential release binaries
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2303,6 +2318,54 @@ fn run_storage(
                 }
             }
             Ok(if out.status.success() { 0 } else { 1 })
+        }
+        Some(StorageCommands::BuildAudit { path }) => {
+            let gov = ulvo_services::BuildGovernanceService::new(&path);
+            let plan = gov.audit_build_storage()?;
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Build Storage Governance Audit ({})", plan.workspace_root);
+                println!("  Target Directory:         {}", plan.target_dir);
+                println!("  Total Target Storage:     {} bytes ({:.2} MB)", plan.total_target_bytes, plan.total_target_bytes as f64 / 1_048_576.0);
+                println!("  Essential Binaries:       {} bytes ({:.2} MB)", plan.essential_bytes, plan.essential_bytes as f64 / 1_048_576.0);
+                println!("  Disposable Intermediates: {} bytes ({:.2} MB)", plan.disposable_bytes, plan.disposable_bytes as f64 / 1_048_576.0);
+                println!("  Compiler Active:          {}", if plan.compiler_active { format!("YES (PIDs: {:?})", plan.active_compiler_pids) } else { "NO".into() });
+                println!();
+                println!("  Classification | Relative Path                   | Files | Physical MB");
+                println!("  ----------------------------------------------------------------------");
+                for item in &plan.items {
+                    println!("  {:<14} | {:<31} | {:>5} | {:>11.2}",
+                        format!("{:?}", item.classification),
+                        item.relative_path,
+                        item.file_count,
+                        item.physical_bytes as f64 / 1_048_576.0
+                    );
+                }
+            }
+            Ok(0)
+        }
+        Some(StorageCommands::BuildPrune { path, dry_run, all }) => {
+            let gov = ulvo_services::BuildGovernanceService::new(&path);
+            let report = gov.prune_disposable_artifacts(dry_run, all)?;
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Build Storage Prune ({})", report.workspace_root);
+                println!("  Mode:                     {}", if report.is_dry_run { "DRY RUN (read-only)" } else { "EXECUTION" });
+                println!("  Disposable Found:         {} bytes ({:.2} MB)", report.disposable_bytes_found, report.disposable_bytes_found as f64 / 1_048_576.0);
+                println!("  Physical Reclaimed:       {} bytes ({:.2} MB)", report.physical_bytes_reclaimed, report.physical_bytes_reclaimed as f64 / 1_048_576.0);
+                println!("  Remaining Target Size:    {} bytes ({:.2} MB)", report.remaining_target_bytes, report.remaining_target_bytes as f64 / 1_048_576.0);
+                if let Some(delta) = report.volume_free_bytes_delta {
+                    println!("  Volume Free Space Delta:   {} bytes ({:.2} MB)", delta, delta as f64 / 1_048_576.0);
+                }
+                println!();
+                println!("  Actions:");
+                for d in &report.details {
+                    println!("    - {}", d);
+                }
+            }
+            Ok(0)
         }
         _ => {
             let report = ulvo_discovery::audit_workspace(&path)?;

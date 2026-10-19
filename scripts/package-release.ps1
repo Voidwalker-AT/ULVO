@@ -57,9 +57,9 @@ Copy-Item (Join-Path $RepoRoot "README.md") -Destination (Join-Path $StageDir "R
 Copy-Item (Join-Path $RepoRoot "CHANGELOG.md") -Destination (Join-Path $StageDir "CHANGELOG.md") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $RepoRoot "LICENSE") -Destination (Join-Path $StageDir "LICENSE") -ErrorAction SilentlyContinue
 
-# Default config template
+# Default config template (dynamic fallback on user systems)
 $DefaultPrefs = @{
-    vault_path = "E:\Workspace\Active\ULVO\vault"
+    vault_path = ""
     safety_reserve_mb = 500
     cache_budget_gb = 20.0
     auto_update = $false
@@ -73,8 +73,10 @@ Copy-Item (Join-Path $RepoRoot "docs\CLI.md") -Destination (Join-Path $StageDir 
 Copy-Item (Join-Path $RepoRoot "docs\ARCHITECTURE.md") -Destination (Join-Path $StageDir "docs\ARCHITECTURE.md") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $RepoRoot "docs\GUI_AND_BRANDING_SPECIFICATION.md") -Destination (Join-Path $StageDir "docs\GUI_AND_BRANDING_SPECIFICATION.md") -ErrorAction SilentlyContinue
 
-# Copy installer scripts
+# Copy installer and uninstaller scripts to both root and scripts/
+Copy-Item (Join-Path $RepoRoot "scripts\install-ulvo.ps1") -Destination (Join-Path $StageDir "install.ps1") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $RepoRoot "scripts\install-ulvo.ps1") -Destination (Join-Path $StageDir "scripts\install-ulvo.ps1") -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $RepoRoot "scripts\uninstall-ulvo.ps1") -Destination (Join-Path $StageDir "uninstall.ps1") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $RepoRoot "scripts\uninstall-ulvo.ps1") -Destination (Join-Path $StageDir "scripts\uninstall-ulvo.ps1") -ErrorAction SilentlyContinue
 
 # Create root launcher script in portable root

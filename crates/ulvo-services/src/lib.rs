@@ -7,6 +7,7 @@ pub mod adoption;
 pub mod projects;
 pub mod storage;
 pub mod agent_ipc;
+pub mod build_governance;
 
 pub use catalog::*;
 pub use provisioning::*;
@@ -14,6 +15,7 @@ pub use adoption::*;
 pub use projects::*;
 pub use storage::*;
 pub use agent_ipc::*;
+pub use build_governance::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPreferences {
@@ -27,8 +29,18 @@ pub struct UserPreferences {
 
 impl Default for UserPreferences {
     fn default() -> Self {
+        let default_vault = if Path::new("E:\\Workspace\\Active\\ULVO\\vault").is_dir() {
+            PathBuf::from("E:\\Workspace\\Active\\ULVO\\vault")
+        } else if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            PathBuf::from(local_app_data).join("ULVO").join("vault")
+        } else if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            PathBuf::from(user_profile).join(".ulvo").join("vault")
+        } else {
+            PathBuf::from("vault")
+        };
+
         Self {
-            vault_path: PathBuf::from("E:\\Workspace\\Active\\ULVO\\vault"),
+            vault_path: default_vault,
             safety_reserve_mb: 500,
             cache_budget_gb: Some(20.0),
             auto_update: false,
@@ -97,6 +109,10 @@ impl UlvoServices {
 
     pub fn agent(&self) -> &AgentIpcServer {
         &self.agent
+    }
+
+    pub fn build_governance<P: AsRef<Path>>(&self, workspace_root: P) -> BuildGovernanceService {
+        BuildGovernanceService::new(workspace_root)
     }
 
     /// Evaluates if the current vault represents a fresh first-run empty state.
