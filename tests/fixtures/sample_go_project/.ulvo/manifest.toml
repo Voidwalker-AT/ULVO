@@ -1,0 +1,8 @@
+schema_version = 1
+name = "sample_go_project"
+
+[runtimes]
+go = "1.26.5"
+
+[go]
+gomod = "go.mod"

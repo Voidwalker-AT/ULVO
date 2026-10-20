@@ -1,0 +1,30 @@
+﻿{
+    "timestamp":  "2026-10-20T05:44:52.2435674+00:00",
+    "checks":  {
+                   "preferences_file":  true,
+                   "window_responding":  true,
+                   "environment_audit":  true,
+                   "clean_exit":  true,
+                   "agent_online":  true,
+                   "agent_stopped":  true,
+                   "screenshot_captured":  true,
+                   "project_connector":  true,
+                   "storage_report":  true,
+                   "window_created":  true,
+                   "catalog_search":  true
+               },
+    "telemetry":  {
+                      "pid":  2428,
+                      "hwnd":  47253506,
+                      "title":  "ULVO Control Center",
+                      "geometry":  "1214x858",
+                      "responding":  true,
+                      "main_ws_mb":  37.02,
+                      "private_mb":  7.02,
+                      "webview2_count":  1,
+                      "webview2_total_ws_mb":  91.4,
+                      "combined_ws_mb":  128.42,
+                      "screenshot_bytes":  47084
+                  },
+    "verdict":  "PASS"
+}

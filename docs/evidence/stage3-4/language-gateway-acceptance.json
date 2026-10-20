@@ -1,0 +1,45 @@
+﻿{
+    "timestamp":  "2026-10-20T05:46:19.6745229+00:00",
+    "languages":  {
+                      "java":  {
+                                   "passed":  true,
+                                   "compile_exit":  0,
+                                   "run_exit":  0,
+                                   "output":  "JAVA_GATEWAY_SUCCESS: Java 21.0.4"
+                               },
+                      "rust":  {
+                                   "passed":  true,
+                                   "rustc_exit":  0,
+                                   "rustc_version":  "rustc 1.96.0 (ac68faa20 2026-05-25)",
+                                   "cargo_exit":  0,
+                                   "cargo_version":  "cargo 1.96.0 (30a34c682 2026-05-25)"
+                               },
+                      "node":  {
+                                   "passed":  true,
+                                   "exit_code":  0,
+                                   "output":  "NODE_GATEWAY_SUCCESS: Node v24.15.0"
+                               },
+                      "python":  {
+                                     "passed":  true,
+                                     "exit_code":  0,
+                                     "output":  "PYTHON_EXE:C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe\r\nPYTHON_VER:3.13.0\r\nPATH_ENTRIES:12\r\nPYTHON_GATEWAY_SUCCESS"
+                                 },
+                      "go":  {
+                                 "passed":  true,
+                                 "exit_code":  0,
+                                 "output":  "GO_GATEWAY_SUCCESS: Go 1.26.5 active"
+                             },
+                      "ruby":  {
+                                   "passed":  true,
+                                   "exit_code":  0,
+                                   "output":  "RUBY_GATEWAY_SUCCESS: Ruby 4.0.1 (x64-mingw-ucrt)"
+                               },
+                      "gcc_cpp":  {
+                                      "passed":  true,
+                                      "compile_exit":  0,
+                                      "run_exit":  0,
+                                      "output":  "CPP_GATEWAY_SUCCESS: GCC 14.2.0 active"
+                                  }
+                  },
+    "all_passed":  true
+}

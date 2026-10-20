@@ -1,0 +1,9 @@
+schema_version = 1
+name = "sample_java_project"
+
+[runtimes]
+java = "21"
+
+[java]
+jdk = "21"
+build_tool = "maven"

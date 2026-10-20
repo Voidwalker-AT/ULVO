@@ -344,6 +344,29 @@ $testsPassed++
 # Clean up temporary test harness
 Remove-Item -Path $TestRoot -Recurse -Force -ErrorAction SilentlyContinue
 
+$evidenceDir = "E:\Workspace\Active\ULVO\docs\evidence\stage3-4"
+if (-not (Test-Path $evidenceDir)) {
+    New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
+}
+$evidenceJson = "$evidenceDir\installer-acceptance-verification.json"
+$report = [ordered]@{
+    timestamp = [DateTimeOffset]::UtcNow.ToString("o")
+    total_suites = $totalTests
+    passed_suites = $testsPassed
+    all_passed = ($testsPassed -eq $totalTests)
+    tests = @(
+        "Isolated Clean Installation",
+        "PATH & Registry Non-Interference",
+        "Transactional Upgrade & Atomic Swap",
+        "Interrupted Upgrade Crash Recovery (STAGED & BACKUP_CREATED)",
+        "Uninstaller Security Defenses (Manifest, Traversal, Sibling, ADS)",
+        "User File & Modified File Preservation (Hash Validation)",
+        "Safe Selective Removal & Vault Preservation"
+    )
+}
+$report | ConvertTo-Json -Depth 4 | Set-Content -Path $evidenceJson -Encoding utf8
+Write-Host "  Evidence saved to: $evidenceJson" -ForegroundColor DarkGray
+
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "   INSTALLER / UNINSTALLER SECURITY PASSED: $testsPassed / $totalTests SUITES   " -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan

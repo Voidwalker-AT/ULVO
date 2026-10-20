@@ -1,0 +1,9 @@
+schema_version = 1
+name = "sample_cpp_project"
+
+[runtimes]
+cpp = "gcc-14.2.0"
+
+[cpp]
+toolchain = "gcc-14.2.0"
+build_system = "cmake"

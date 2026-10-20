@@ -1,0 +1,117 @@
+﻿{
+    "schema_version":  1,
+    "timestamp_utc":  "2026-10-20T05:52:11.6115766+00:00",
+    "freeze_label":  "ULVO-v1.2.0-MACHINE-FREEZE",
+    "git":  {
+                "branch":  "master",
+                "clean_tree":  true,
+                "commit":  "fe6186eff4317c90da0603c036d25e7570afa75e",
+                "remote":  "https://github.com/Voidwalker-AT/ULVO"
+            },
+    "working_versions":  {
+                             "java":  "21.0.4",
+                             "uv":  "0.13.1",
+                             "rust":  "1.96.0",
+                             "node":  "24.15.0",
+                             "gcc":  "14.2.0",
+                             "ulvo":  "1.2.0",
+                             "cpython":  "3.11.16",
+                             "ruby":  "4.0.1",
+                             "go":  "1.26.5"
+                         },
+    "managed_runtime_paths":  {
+                                  "packages_uv_cache":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\uv-cache",
+                                  "vault_bin":  "E:\\Workspace\\Active\\ULVO\\vault\\bin",
+                                  "msys2_toolchain":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64",
+                                  "vault_root":  "E:\\Workspace\\Active\\ULVO\\vault",
+                                  "packages_shared":  "E:\\Workspace\\Active\\ULVO\\vault\\packages\\python\\shared",
+                                  "rust_runtime":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo",
+                                  "python_runtime":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\python\\cpython-3.11-windows-x86_64-none"
+                              },
+    "external_runtime_paths":  {
+                                   "java":  "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe",
+                                   "ruby":  "C:\\Ruby40-x64\\bin\\ruby.exe",
+                                   "python_host_313":  "C:\\Users\\hp\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+                                   "node":  "C:\\Program Files\\nodejs\\node.exe",
+                                   "python_host_311":  "C:\\Program Files\\Python311\\python.exe",
+                                   "go":  "C:\\Program Files\\Go\\bin\\go.exe"
+                               },
+    "hardware_and_driver":  {
+                                "gpu":  "NVIDIA GeForce RTX 2050 Laptop GPU",
+                                "driver_version":  "596.49",
+                                "compute_capability":  "sm_86",
+                                "vram_total_mib":  4096,
+                                "kernel_boundary_enforced":  true
+                            },
+    "storage_geometry":  {
+                             "drive_e":  {
+                                             "free_bytes":  30151286784,
+                                             "free_gb_decimal":  30.15,
+                                             "free_gib_binary":  28.08,
+                                             "total_bytes":  223279575040
+                                         },
+                             "drive_c":  {
+                                             "free_bytes":  20661219328,
+                                             "free_gb_decimal":  20.66,
+                                             "free_gib_binary":  19.24,
+                                             "total_bytes":  288539799552
+                                         }
+                         },
+    "artifact_checksums":  {
+                               "ulvo_agent_release":  {
+                                                          "path":  "E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-agent.exe",
+                                                          "sha256":  "b5c27a3c7a1b7b8da8ec59d162e137c58b1e3ba2b3bfe9992c44ac9a62152b27",
+                                                          "size_bytes":  6237080
+                                                      },
+                               "vault_gcc":  {
+                                                 "path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\gcc.exe",
+                                                 "sha256":  "f2eed0074540db91395c66c57046789ec454edf103fee4c40dc4e98601b205d5",
+                                                 "size_bytes":  2930878
+                                             },
+                               "vault_cargo":  {
+                                                   "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\cargo.exe",
+                                                   "sha256":  "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+                                                   "size_bytes":  14417054
+                                               },
+                               "portable_zip":  {
+                                                    "path":  "E:\\Workspace\\Active\\ULVO\\dist\\ulvo-v1.2.0-windows-x64-portable.zip",
+                                                    "sha256":  "63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618",
+                                                    "size_bytes":  12285548
+                                                },
+                               "vault_gpp":  {
+                                                 "path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\g++.exe",
+                                                 "sha256":  "a5d9f3bd83730ecad76d64975ae999c8e44261d653a7f878e5751d9b83c84365",
+                                                 "size_bytes":  2933438
+                                             },
+                               "ulvo_cli_bin":  {
+                                                    "path":  "E:\\Workspace\\Active\\ULVO\\bin\\ulvo.exe",
+                                                    "sha256":  "aaec8149121809b329fce0249e1a9bba4e479496c6ba4f3f22d9f802769c7d2d",
+                                                    "size_bytes":  7440442
+                                                },
+                               "vault_rustc":  {
+                                                   "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\rustc.exe",
+                                                   "sha256":  "03dbaae1d33a4d220bd0d202e5092955dae859c119074192ca513f8c4713fff7",
+                                                   "size_bytes":  14417054
+                                               },
+                               "vault_uv":  {
+                                                "path":  "E:\\Workspace\\Active\\ULVO\\vault\\bin\\uv.exe",
+                                                "sha256":  "4075a09490327d2bedfacc807fa48252fb93647c5bd7ef28f00e579160ea3fb5",
+                                                "size_bytes":  32095024
+                                            },
+                               "ulvo_desktop_release":  {
+                                                            "path":  "E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-desktop.exe",
+                                                            "sha256":  "94be058a6229f3bffa096bee01369451472003c9c9260758a081dd3dacd514fb",
+                                                            "size_bytes":  23984395
+                                                        },
+                               "vault_python_311":  {
+                                                        "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\python\\cpython-3.11-windows-x86_64-none\\python.exe",
+                                                        "sha256":  "4d33159de276fb921e2e987f63af88b75d88c4de0b1848373b7b85b570cd726a",
+                                                        "size_bytes":  91648
+                                                    }
+                           },
+    "known_limitations":  [
+                              "Direct cross-boundary WSL distribution execution without host bridge remains disabled by security policy.",
+                              "Editable Python installs (pip -e / flit / poetry develop) remain locked to project directories and are prohibited inside the immutable shared package store.",
+                              "External toolchain retirement on C: remains blocked awaiting explicit user authorization; all host development tools remain active and functional."
+                          ]
+}

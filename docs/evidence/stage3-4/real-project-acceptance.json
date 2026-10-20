@@ -1,0 +1,63 @@
+﻿{
+    "timestamp":  "2026-10-20T05:49:21.5057101+00:00",
+    "initial_storage":  {
+                            "drive_c_free_bytes":  20661809152,
+                            "drive_e_free_bytes":  30174113792
+                        },
+    "projects":  {
+                     "SampleJavaProject":  {
+                                               "manifest_verified":  true,
+                                               "compile_exit":  0,
+                                               "run_exit":  0,
+                                               "output":  "JAVA_PROJECT_SUCCESS: Java Project Compiled \u0026 Executed via ULVO",
+                                               "passed":  true
+                                           },
+                     "SampleGoProject":  {
+                                             "manifest_verified":  true,
+                                             "exit_code":  0,
+                                             "output":  "GO_PROJECT_SUCCESS: Go Project Executed via ULVO Gateway",
+                                             "passed":  true
+                                         },
+                     "CrossModalLab":  {
+                                           "manifest_verified":  true,
+                                           "exit_code":  0,
+                                           "device_name":  "NVIDIA GeForce RTX 2050 Laptop GPU",
+                                           "cuda_verified":  true,
+                                           "unmanaged_venv_absent":  true,
+                                           "passed":  true
+                                       },
+                     "AstraRun":  {
+                                      "manifest_verified":  true,
+                                      "exit_code":  0,
+                                      "output":  "ASTRARUN_PYTHON:3.13.0\r\nASTRARUN_SUCCESS",
+                                      "unmanaged_venv_absent":  true,
+                                      "passed":  true
+                                  },
+                     "SampleCppProject":  {
+                                              "manifest_verified":  true,
+                                              "compile_exit":  0,
+                                              "run_exit":  0,
+                                              "output":  "CPP_PROJECT_SUCCESS: C++ Project Compiled via ULVO Toolchain",
+                                              "passed":  true
+                                          },
+                     "NexusNode":  {
+                                       "manifest_verified":  true,
+                                       "exit_code":  0,
+                                       "output_summary":  "OK",
+                                       "unmanaged_venv_absent":  true,
+                                       "passed":  true
+                                   }
+                 },
+    "lifecycle_checks":  {
+                             "shared_package_files_count":  17714,
+                             "shared_package_store_intact":  true,
+                             "unmanaged_venvs_detected":  0
+                         },
+    "final_storage":  {
+                          "delta_e_bytes":  -21434368,
+                          "drive_e_free_bytes":  30152679424,
+                          "delta_c_bytes":  -5541888,
+                          "drive_c_free_bytes":  20656267264
+                      },
+    "all_passed":  true
+}
