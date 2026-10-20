@@ -90,17 +90,20 @@ ULVO eliminates the disk explosion of redundant `.venv` directories, coordinates
 ## 5. Artifact Checksums
 
 ```
-bin/ulvo.exe (7,440,442 bytes)
-SHA-256: aaec8149121809b329fce0249e1a9bba4e479496c6ba4f3f22d9f802769c7d2d
+bin/ulvo.exe (7,357,295 bytes)
+SHA-256: 1a70fc8098ffa74a0f5d81d5e567e260a260772c401e4dec59840891729917db
 
-target/release/ulvo-desktop.exe (23,984,395 bytes)
-SHA-256: 3b9c6fca675fa88cfdfa1a89c381cbb4c1a2dbd5a0cbb0b2cae8668351745749
+target/release/ulvo-desktop.exe (24,147,055 bytes)
+SHA-256: ef9e30709c904bf2295268d8cedc6f35291051d0f000afb0a9a034cfc94ee5ff
 
-target/release/ulvo-agent.exe (6,237,080 bytes)
-SHA-256: b5c27a3c7a1b7b8da8ec59d162e137c58b1e3ba2b3bfe9992c44ac9a62152b27
+target/release/ulvo-agent.exe (6,391,779 bytes)
+SHA-256: a43533470c01da8b0f7722ebd4e77ead8f3be248f3394081c66ee32349a002db
 
-dist/ulvo-v1.2.0-windows-x64-portable.zip (12,285,548 bytes)
-SHA-256: 63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618
+target/release/WebView2Loader.dll (160,880 bytes)
+SHA-256: 86545b66cdb0603bc26b626fb9ad610cb6e71f28d468f5ea66df23b03dda96d5
+
+dist/ulvo-v1.2.0-windows-x64-portable.zip (12,568,294 bytes)
+SHA-256: 39638313c3fbec99fd3a50cffc728692786b49f3f2fdb46071b64ac11949ffb3
 ```
 
 ---

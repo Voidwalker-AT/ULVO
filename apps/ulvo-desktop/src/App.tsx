@@ -66,26 +66,25 @@ function App() {
 
   const refreshAllData = async () => {
     setLoading(true);
+    setStatusMessage("Synchronizing with Universal Vault...");
     try {
-      const [onb, cat, stor, adop, gpu, envs, prefs, agent] = await Promise.all([
-        invoke<OnboardingStatus>("get_onboarding_status"),
-        invoke<CatalogEntry[]>("get_catalog"),
+      // 1. Fetch fast operational telemetry in parallel
+      invoke<OnboardingStatus>("get_onboarding_status").then(setOnboarding).catch((err) => addLog(`Onboarding load: ${err}`));
+      invoke<CatalogEntry[]>("get_catalog").then(setCatalog).catch((err) => addLog(`Catalog load: ${err}`));
+      invoke<GpuTelemetry | null>("get_gpu_telemetry").then(setGpuTelemetry).catch((err) => addLog(`GPU load: ${err}`));
+      invoke<VaultEnvironmentsAuditReport>("audit_environments").then(setEnvAudit).catch((err) => addLog(`Audit load: ${err}`));
+      invoke<UserPreferences>("get_user_preferences").then(setPreferences).catch((err) => addLog(`Preferences load: ${err}`));
+      invoke<AgentStatusSummary>("get_agent_status").then(setAgentStatus).catch((err) => addLog(`Agent status load: ${err}`));
+
+      // 2. Heavy storage intelligence and adoption telemetry
+      const [stor, adop] = await Promise.allSettled([
         invoke<ComprehensiveStorageReport>("get_storage_report"),
         invoke<AdoptionPlanReport>("get_adoption_report"),
-        invoke<GpuTelemetry | null>("get_gpu_telemetry"),
-        invoke<VaultEnvironmentsAuditReport>("audit_environments"),
-        invoke<UserPreferences>("get_user_preferences"),
-        invoke<AgentStatusSummary>("get_agent_status"),
       ]);
 
-      setOnboarding(onb);
-      setCatalog(cat);
-      setStorageReport(stor);
-      setAdoptionReport(adop);
-      setGpuTelemetry(gpu);
-      setEnvAudit(envs);
-      setPreferences(prefs);
-      setAgentStatus(agent);
+      if (stor.status === "fulfilled") setStorageReport(stor.value);
+      if (adop.status === "fulfilled") setAdoptionReport(adop.value);
+
       setStatusMessage("System synchronized with Universal Vault");
     } catch (err: any) {
       console.error(err);
@@ -231,9 +230,9 @@ function App() {
     }
   };
 
-  const freeGb = storageReport ? (storageReport.available_free_bytes / 1073741824).toFixed(2) : "0.00";
-  const vaultGb = storageReport ? (storageReport.vault_physical_bytes / 1073741824).toFixed(2) : "0.00";
-  const ratio = storageReport ? storageReport.hardlink_sharing_ratio.toFixed(2) : "1.00";
+  const freeGb = storageReport ? (storageReport.available_free_bytes / 1073741824).toFixed(2) : "...";
+  const vaultGb = storageReport ? (storageReport.vault_physical_bytes / 1073741824).toFixed(2) : "...";
+  const ratio = storageReport ? storageReport.hardlink_sharing_ratio.toFixed(2) : "...";
 
   return (
     <div className="app-container">

@@ -1,5 +1,5 @@
 ﻿{
-    "timestamp":  "2026-10-20T05:44:52.2435674+00:00",
+    "timestamp":  "2026-10-20T06:37:56.0254966+00:00",
     "checks":  {
                    "preferences_file":  true,
                    "window_responding":  true,
@@ -14,17 +14,17 @@
                    "catalog_search":  true
                },
     "telemetry":  {
-                      "pid":  2428,
-                      "hwnd":  47253506,
+                      "pid":  19800,
+                      "hwnd":  10684532,
                       "title":  "ULVO Control Center",
                       "geometry":  "1214x858",
                       "responding":  true,
-                      "main_ws_mb":  37.02,
-                      "private_mb":  7.02,
+                      "main_ws_mb":  38.57,
+                      "private_mb":  8.32,
                       "webview2_count":  1,
-                      "webview2_total_ws_mb":  91.4,
-                      "combined_ws_mb":  128.42,
-                      "screenshot_bytes":  47084
+                      "webview2_total_ws_mb":  97,
+                      "combined_ws_mb":  135.57,
+                      "screenshot_bytes":  62016
                   },
     "verdict":  "PASS"
 }

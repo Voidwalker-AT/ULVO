@@ -1,4 +1,6 @@
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use ulvo_core::lifecycle::{
     PackageCacheGcReport, PackageCachePruneReport, PackageCacheStatusReport, VaultEnvironmentsAuditReport,
@@ -21,14 +23,17 @@ pub struct ComprehensiveStorageReport {
     pub package_cache_status: PackageCacheStatusReport,
 }
 
+#[derive(Clone)]
 pub struct StorageService {
     vault_root: PathBuf,
+    cache: Arc<Mutex<Option<(Instant, ComprehensiveStorageReport)>>>,
 }
 
 impl StorageService {
     pub fn new<P: AsRef<Path>>(vault_root: P) -> Self {
         Self {
             vault_root: vault_root.as_ref().to_path_buf(),
+            cache: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -43,6 +48,17 @@ impl StorageService {
 
         let free_bytes = ulvo_adapters::get_disk_free_bytes(vr).unwrap_or(0);
         let safety_reserve_bytes = 500_000_000; // 500 MB hard floor
+
+        // If cached within the last 60 seconds, return cached report with freshly updated live free bytes
+        if let Ok(mut guard) = self.cache.lock() {
+            if let Some((cached_at, ref mut rep)) = *guard {
+                if cached_at.elapsed() < Duration::from_secs(60) {
+                    rep.available_free_bytes = free_bytes;
+                    rep.safety_floor_satisfied = free_bytes > safety_reserve_bytes;
+                    return Ok(rep.clone());
+                }
+            }
+        }
 
         let (vault_bytes, _) = ulvo_adapters::calculate_physical_dir_size(vr);
         let (pkg_bytes, _) = ulvo_adapters::calculate_physical_dir_size(&vr.join("packages").join("python").join("uv-cache"));
@@ -75,7 +91,7 @@ impl StorageService {
 
         let pkg_status = orchestrator.cache_status()?;
 
-        Ok(ComprehensiveStorageReport {
+        let report = ComprehensiveStorageReport {
             drive_letter: drive,
             total_capacity_bytes: 223_279_575_040,
             available_free_bytes: free_bytes,
@@ -88,19 +104,37 @@ impl StorageService {
             cas_physical_bytes: cas_bytes,
             hardlink_sharing_ratio: sharing_ratio,
             package_cache_status: pkg_status,
-        })
+        };
+
+        if let Ok(mut guard) = self.cache.lock() {
+            *guard = Some((Instant::now(), report.clone()));
+        }
+
+        Ok(report)
     }
 
     /// Prunes unreferenced extracted package archives.
     pub fn prune_cache(&self, dry_run: bool) -> Result<PackageCachePruneReport, String> {
         let orchestrator = ProjectOrchestrator::new(self.vault_root.clone())?;
-        orchestrator.cache_prune(dry_run)
+        let res = orchestrator.cache_prune(dry_run);
+        if !dry_run {
+            if let Ok(mut guard) = self.cache.lock() {
+                *guard = None;
+            }
+        }
+        res
     }
 
     /// Garbage-collects package cache down to a configurable storage quota in GB.
     pub fn gc_cache(&self, max_gb: Option<f64>, dry_run: bool) -> Result<PackageCacheGcReport, String> {
         let orchestrator = ProjectOrchestrator::new(self.vault_root.clone())?;
-        orchestrator.cache_gc(max_gb, dry_run)
+        let res = orchestrator.cache_gc(max_gb, dry_run);
+        if !dry_run {
+            if let Ok(mut guard) = self.cache.lock() {
+                *guard = None;
+            }
+        }
+        res
     }
 }
 

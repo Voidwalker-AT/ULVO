@@ -60,8 +60,8 @@
     "artifact_checksums":  {
                                "ulvo_agent_release":  {
                                                           "path":  "E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-agent.exe",
-                                                          "sha256":  "b5c27a3c7a1b7b8da8ec59d162e137c58b1e3ba2b3bfe9992c44ac9a62152b27",
-                                                          "size_bytes":  6237080
+                                                          "sha256":  "a43533470c01da8b0f7722ebd4e77ead8f3be248f3394081c66ee32349a002db",
+                                                          "size_bytes":  6391779
                                                       },
                                "vault_gcc":  {
                                                  "path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\gcc.exe",
@@ -75,8 +75,8 @@
                                                },
                                "portable_zip":  {
                                                     "path":  "E:\\Workspace\\Active\\ULVO\\dist\\ulvo-v1.2.0-windows-x64-portable.zip",
-                                                    "sha256":  "63062d0a42c24fde12fddb62728c9b66c67ee3573f878bf011637c398d35c618",
-                                                    "size_bytes":  12285548
+                                                    "sha256":  "39638313c3fbec99fd3a50cffc728692786b49f3f2fdb46071b64ac11949ffb3",
+                                                    "size_bytes":  12568294
                                                 },
                                "vault_gpp":  {
                                                  "path":  "E:\\Workspace\\Active\\ULVO\\vault\\toolchains\\msys2\\ucrt64\\bin\\g++.exe",
@@ -85,8 +85,8 @@
                                              },
                                "ulvo_cli_bin":  {
                                                     "path":  "E:\\Workspace\\Active\\ULVO\\bin\\ulvo.exe",
-                                                    "sha256":  "aaec8149121809b329fce0249e1a9bba4e479496c6ba4f3f22d9f802769c7d2d",
-                                                    "size_bytes":  7440442
+                                                    "sha256":  "1a70fc8098ffa74a0f5d81d5e567e260a260772c401e4dec59840891729917db",
+                                                    "size_bytes":  7357295
                                                 },
                                "vault_rustc":  {
                                                    "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\rust\\cargo\\bin\\rustc.exe",
@@ -100,14 +100,19 @@
                                             },
                                "ulvo_desktop_release":  {
                                                             "path":  "E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-desktop.exe",
-                                                            "sha256":  "94be058a6229f3bffa096bee01369451472003c9c9260758a081dd3dacd514fb",
-                                                            "size_bytes":  23984395
+                                                            "sha256":  "ef9e30709c904bf2295268d8cedc6f35291051d0f000afb0a9a034cfc94ee5ff",
+                                                            "size_bytes":  24147055
                                                         },
                                "vault_python_311":  {
                                                         "path":  "E:\\Workspace\\Active\\ULVO\\vault\\runtimes\\python\\cpython-3.11-windows-x86_64-none\\python.exe",
                                                         "sha256":  "4d33159de276fb921e2e987f63af88b75d88c4de0b1848373b7b85b570cd726a",
                                                         "size_bytes":  91648
-                                                    }
+                                                    },
+                               "webview2_loader":  {
+                                                       "path":  "E:\\Workspace\\Active\\ULVO\\target\\release\\WebView2Loader.dll",
+                                                       "sha256":  "86545b66cdb0603bc26b626fb9ad610cb6e71f28d468f5ea66df23b03dda96d5",
+                                                       "size_bytes":  160880
+                                                   }
                            },
     "known_limitations":  [
                               "Direct cross-boundary WSL distribution execution without host bridge remains disabled by security policy.",

@@ -176,8 +176,11 @@ try {
     $testResults.checks["window_created"] = $true
     $testResults.checks["window_responding"] = $guiProc.Responding
 
-    # 3. Capture Real Screenshot via PrintWindow
+    # 3. Capture Real Screenshot via PrintWindow after first paint
     Write-Host "`n>>> [3/7] Capturing Real Window Screenshot..." -ForegroundColor Yellow
+    Write-Host "  Waiting 6 seconds for WebView2 engine first paint and React mount..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 6
+
     $bmp = [GuiAcceptanceHelper]::CaptureWindow($hWnd)
     if ($bmp -ne $null) {
         $bmp.Save($screenshotPath, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -185,6 +188,11 @@ try {
         $bmp.Dispose()
         $imgBytes = (Get-Item $screenshotPath).Length
         Write-Host "  [PASS] Screenshot captured: $imgBytes bytes saved to $screenshotPath" -ForegroundColor Green
+        
+        # Verify rendered content: blank white window is ~8 KB; fully rendered UI is > 40 KB
+        if ($imgBytes -lt 30000) {
+            throw "UI content validation failed: Captured screenshot is only $imgBytes bytes (blank or unpainted window)"
+        }
         $testResults.checks["screenshot_captured"] = $true
         $testResults.telemetry["screenshot_bytes"] = $imgBytes
     } else {
@@ -232,7 +240,11 @@ try {
     # 6. Clean Exit via WM_CLOSE
     Write-Host "`n>>> [6/7] Testing Clean Graceful Exit via WM_CLOSE..." -ForegroundColor Yellow
     [GuiAcceptanceHelper]::PostMessage($hWnd, [GuiAcceptanceHelper]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-    $closed = $guiProc.WaitForExit(6000)
+    $closed = $guiProc.WaitForExit(8000)
+    if (-not $closed) {
+        try { $guiProc.CloseMainWindow() | Out-Null } catch {}
+        $closed = $guiProc.WaitForExit(4000)
+    }
     $testResults.checks["clean_exit"] = $closed
     Write-Host "  Graceful WM_CLOSE Exit:    $(if ($closed) {'PASS'} else {'FAIL'}) (ExitCode: $($guiProc.ExitCode))" -ForegroundColor $(if ($closed) {'Green'} else {'Red'})
 

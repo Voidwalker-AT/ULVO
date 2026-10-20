@@ -4,7 +4,8 @@
 [CmdletBinding()]
 param(
     [string]$Version = "1.2.0",
-    [string]$DistDir = "dist"
+    [string]$DistDir = "dist",
+    [switch]$ForceRebuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +15,7 @@ Set-Location $RepoRoot
 
 Write-Host "==> Packaging ULVO v$Version for Windows x86_64..." -ForegroundColor Cyan
 
-# Ensure release binaries exist
+# Ensure release binaries exist and are fresh
 $ReleaseCli = Join-Path $RepoRoot "target\release\ulvo.exe"
 $ReleaseAgent = Join-Path $RepoRoot "target\release\ulvo-agent.exe"
 $ReleaseDesktop = Join-Path $RepoRoot "target\release\ulvo-desktop.exe"
@@ -24,12 +25,32 @@ if (-not (Test-Path $ReleaseCli)) { $MissingBinaries += "ulvo.exe" }
 if (-not (Test-Path $ReleaseAgent)) { $MissingBinaries += "ulvo-agent.exe" }
 if (-not (Test-Path $ReleaseDesktop)) { $MissingBinaries += "ulvo-desktop.exe" }
 
-if ($MissingBinaries.Count -gt 0) {
-    Write-Host "Missing release binaries ($($MissingBinaries -join ', ')). Building..." -ForegroundColor Yellow
+if ($ForceRebuild -or ($MissingBinaries.Count -gt 0)) {
+    Write-Host "Building release binaries (ForceRebuild: $ForceRebuild, Missing: $($MissingBinaries -join ', '))..." -ForegroundColor Yellow
     $env:CARGO_HOME = Join-Path $RepoRoot "vault\runtimes\rust\cargo"
     $env:RUSTUP_HOME = Join-Path $RepoRoot "vault\runtimes\rust\rustup"
     $env:PATH = "$env:CARGO_HOME\bin;C:\msys64\ucrt64\bin;C:\msys64\usr\bin;$env:PATH"
-    cargo build --release -p ulvo-cli -p ulvo-agent -p ulvo-desktop
+
+    Write-Host "==> Compiling ulvo-cli and ulvo-agent..." -ForegroundColor Cyan
+    cargo build --release -p ulvo-cli -p ulvo-agent
+    if ($LASTEXITCODE -ne 0) { throw "Cargo build failed for CLI/Agent" }
+
+    Write-Host "==> Building ulvo-desktop frontend and standalone executable with embedded assets..." -ForegroundColor Cyan
+    Push-Location (Join-Path $RepoRoot "apps\ulvo-desktop")
+    try {
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed for ulvo-desktop" }
+        & npx tauri build --no-bundle
+        if ($LASTEXITCODE -ne 0) { throw "Tauri build failed for ulvo-desktop" }
+    } finally {
+        Pop-Location
+    }
+}
+
+# Sync release CLI to local bin directory for gateway availability
+$RepoBin = Join-Path $RepoRoot "bin\ulvo.exe"
+if (Test-Path $ReleaseCli) {
+    Copy-Item $ReleaseCli -Destination $RepoBin -Force
 }
 
 # Verify CLI version
@@ -52,6 +73,13 @@ Write-Host "==> Staging release files..." -ForegroundColor Cyan
 Copy-Item $ReleaseCli -Destination (Join-Path $StageDir "bin\ulvo.exe")
 Copy-Item $ReleaseAgent -Destination (Join-Path $StageDir "bin\ulvo-agent.exe")
 Copy-Item $ReleaseDesktop -Destination (Join-Path $StageDir "bin\ulvo-desktop.exe")
+
+$ReleaseWebLoader = Join-Path $RepoRoot "target\release\WebView2Loader.dll"
+if (Test-Path $ReleaseWebLoader) {
+    Copy-Item $ReleaseWebLoader -Destination (Join-Path $StageDir "bin\WebView2Loader.dll") -Force
+} else {
+    throw "CRITICAL: WebView2Loader.dll not found in target\release"
+}
 
 Copy-Item (Join-Path $RepoRoot "README.md") -Destination (Join-Path $StageDir "README.md") -ErrorAction SilentlyContinue
 Copy-Item (Join-Path $RepoRoot "CHANGELOG.md") -Destination (Join-Path $StageDir "CHANGELOG.md") -ErrorAction SilentlyContinue
