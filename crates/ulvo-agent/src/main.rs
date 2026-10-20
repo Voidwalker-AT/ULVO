@@ -5,7 +5,7 @@ use ulvo_services::{AgentAction, AgentIpcServer, UlvoServices, DEFAULT_AGENT_POR
 #[derive(Parser, Debug)]
 #[command(name = "ulvo-agent", version = "1.2.0", about = "ULVO Background Reconciliation & Governance Agent")]
 struct Cli {
-    #[arg(long, default_value = "E:\\Workspace\\Active\\ULVO\\vault", help = "Path to ULVO vault root")]
+    #[arg(long, global = true, default_value = "E:\\Workspace\\Active\\ULVO\\vault", help = "Path to ULVO vault root")]
     vault: PathBuf,
 
     #[command(subcommand)]

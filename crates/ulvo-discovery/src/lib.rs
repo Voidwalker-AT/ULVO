@@ -12,6 +12,8 @@ pub mod connector;
 pub use connector::*;
 pub mod onboarding;
 pub use onboarding::*;
+pub mod project_registry;
+pub use project_registry::*;
 
 use std::path::{Path, PathBuf};
 use ulvo_core::*;

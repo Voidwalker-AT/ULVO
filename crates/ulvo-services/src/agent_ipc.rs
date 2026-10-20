@@ -46,10 +46,27 @@ pub struct AgentStatusInfo {
     pub active_leases: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentDiagnosticsReport {
+    pub is_running: bool,
+    pub pid: Option<u32>,
+    pub port: u16,
+    pub vault_root: String,
+    pub token_path: String,
+    pub token_exists: bool,
+    pub port_path: String,
+    pub port_exists: bool,
+    pub pid_path: String,
+    pub pid_exists: bool,
+    pub active_leases: usize,
+    pub message: String,
+}
+
 pub struct AgentIpcServer {
     vault_root: PathBuf,
     token_path: PathBuf,
     port_path: PathBuf,
+    pid_path: PathBuf,
     is_terminating: Arc<AtomicBool>,
 }
 
@@ -58,10 +75,12 @@ impl AgentIpcServer {
         let vr = vault_root.as_ref().to_path_buf();
         let token_path = vr.join("agent.token");
         let port_path = vr.join("agent.port");
+        let pid_path = vr.join("agent.pid");
         Self {
             vault_root: vr,
             token_path,
             port_path,
+            pid_path,
             is_terminating: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -147,11 +166,31 @@ impl AgentIpcServer {
     /// Starts the background listener loop on localhost.
     pub fn serve(&self, port: u16) -> Result<(), String> {
         let token = self.get_or_create_auth_token()?;
+
+        // Single-instance enforcement: verify if another instance is already running
+        if self.pid_path.is_file() {
+            if let Ok(pid_str) = fs::read_to_string(&self.pid_path) {
+                if let Ok(existing_pid) = pid_str.trim().parse::<u32>() {
+                    if ulvo_adapters::check_process_liveness(existing_pid, None).is_alive() {
+                        // Confirm via IPC ping
+                        if let Ok(resp) = self.send_request(AgentAction::Ping) {
+                            if resp.success {
+                                return Err(format!(
+                                    "Another ULVO agent instance (PID {existing_pid}) is already running on port {port}."
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let listener = TcpListener::bind(format!("127.0.0.1:{port}"))
             .map_err(|e| format!("cannot bind agent IPC listener on 127.0.0.1:{port}: {e}"))?;
 
         let _ = fs::write(&self.port_path, port.to_string());
-        println!("ULVO Background Agent listening on 127.0.0.1:{port}");
+        let _ = fs::write(&self.pid_path, std::process::id().to_string());
+        println!("ULVO Background Agent listening on 127.0.0.1:{port} (PID: {})", std::process::id());
 
         let terminating = self.is_terminating.clone();
 
@@ -196,7 +235,150 @@ impl AgentIpcServer {
         }
 
         let _ = fs::remove_file(&self.port_path);
+        let _ = fs::remove_file(&self.pid_path);
         Ok(())
+    }
+
+    /// Ensures the background agent daemon is running. If offline, spawns detached process and waits for ping.
+    pub fn ensure_running(&self) -> Result<u32, String> {
+        if let Ok(resp) = self.send_request(AgentAction::Ping) {
+            if resp.success {
+                if let Some(pid) = resp.data.as_ref().and_then(|d| d.get("pid")).and_then(|p| p.as_u64()) {
+                    return Ok(pid as u32);
+                }
+            }
+        }
+
+        // Clean stale lock files if process died
+        if self.pid_path.is_file() {
+            if let Ok(pid_str) = fs::read_to_string(&self.pid_path) {
+                if let Ok(old_pid) = pid_str.trim().parse::<u32>() {
+                    if !ulvo_adapters::check_process_liveness(old_pid, None).is_alive() {
+                        let _ = fs::remove_file(&self.pid_path);
+                        let _ = fs::remove_file(&self.port_path);
+                    }
+                }
+            }
+        }
+
+        let mut candidates = Vec::new();
+        if let Ok(curr) = std::env::current_exe() {
+            if let Some(parent) = curr.parent() {
+                candidates.push(parent.join("ulvo-agent.exe"));
+            }
+        }
+        if let Some(parent) = self.vault_root.parent() {
+            candidates.push(parent.join("bin").join("ulvo-agent.exe"));
+            candidates.push(parent.join("target").join("release").join("ulvo-agent.exe"));
+            candidates.push(parent.join("target").join("debug").join("ulvo-agent.exe"));
+        }
+        candidates.push(PathBuf::from("E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-agent.exe"));
+        candidates.push(PathBuf::from("E:\\Workspace\\Active\\ULVO\\bin\\ulvo-agent.exe"));
+
+        let agent_exe = candidates
+            .into_iter()
+            .find(|p| p.is_file())
+            .ok_or_else(|| "ulvo-agent.exe not found in expected binary paths".to_string())?;
+
+        let mut cmd = std::process::Command::new(&agent_exe);
+        cmd.arg("run")
+            .arg("--vault")
+            .arg(&self.vault_root)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            const DETACHED_PROCESS: u32 = 0x00000008;
+            cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
+        }
+
+        let child = cmd.spawn().map_err(|e| format!("cannot spawn ulvo-agent.exe: {e}"))?;
+        let spawned_pid = child.id();
+
+        let start = std::time::Instant::now();
+        while start.elapsed() < std::time::Duration::from_millis(3500) {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            if let Ok(resp) = self.send_request(AgentAction::Ping) {
+                if resp.success {
+                    return Ok(spawned_pid);
+                }
+            }
+        }
+
+        Ok(spawned_pid)
+    }
+
+    /// Stops the background agent daemon gracefully and cleans up IPC state.
+    pub fn stop_daemon(&self) -> Result<String, String> {
+        let _ = self.send_request(AgentAction::Shutdown);
+
+        if self.pid_path.is_file() {
+            if let Ok(pid_str) = fs::read_to_string(&self.pid_path) {
+                if let Ok(pid) = pid_str.trim().parse::<u32>() {
+                    let start = std::time::Instant::now();
+                    while start.elapsed() < std::time::Duration::from_millis(3000) {
+                        if !ulvo_adapters::check_process_liveness(pid, None).is_alive() {
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    if ulvo_adapters::check_process_liveness(pid, None).is_alive() {
+                        #[cfg(windows)]
+                        {
+                            let _ = std::process::Command::new("taskkill")
+                                .args(["/F", "/PID", &pid.to_string()])
+                                .output();
+                        }
+                        #[cfg(not(windows))]
+                        {
+                            unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+                        }
+                    }
+                }
+            }
+        }
+
+        let _ = fs::remove_file(&self.pid_path);
+        let _ = fs::remove_file(&self.port_path);
+
+        Ok("ULVO background agent stopped cleanly".into())
+    }
+
+    /// Queries comprehensive diagnostics about the agent, socket, auth token, and leases.
+    pub fn get_diagnostics(&self) -> AgentDiagnosticsReport {
+        let (is_running, pid, leases, msg) = match self.send_request(AgentAction::Status) {
+            Ok(resp) => {
+                let p = resp.data.as_ref().and_then(|d| d.get("pid")).and_then(|p| p.as_u64()).map(|v| v as u32);
+                let l = resp.data.as_ref().and_then(|d| d.get("active_leases")).and_then(|l| l.as_u64()).unwrap_or(0) as usize;
+                (resp.success, p, l, resp.message)
+            }
+            Err(e) => (false, None, 0, e),
+        };
+
+        let port = if self.port_path.is_file() {
+            fs::read_to_string(&self.port_path).ok().and_then(|p| p.trim().parse::<u16>().ok()).unwrap_or(DEFAULT_AGENT_PORT)
+        } else {
+            DEFAULT_AGENT_PORT
+        };
+
+        AgentDiagnosticsReport {
+            is_running,
+            pid,
+            port,
+            vault_root: self.vault_root.to_string_lossy().to_string(),
+            token_path: self.token_path.to_string_lossy().to_string(),
+            token_exists: self.token_path.is_file(),
+            port_path: self.port_path.to_string_lossy().to_string(),
+            port_exists: self.port_path.is_file(),
+            pid_path: self.pid_path.to_string_lossy().to_string(),
+            pid_exists: self.pid_path.is_file(),
+            active_leases: leases,
+            message: msg,
+        }
     }
 
     fn handle_action(&self, action: AgentAction) -> AgentResponse {

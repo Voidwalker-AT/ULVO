@@ -187,6 +187,58 @@ fn trigger_agent_reconciliation(state: State<'_, DesktopState>) -> Result<serde_
     }
 }
 
+#[tauri::command]
+fn get_project_registry(state: State<'_, DesktopState>) -> Result<Vec<ulvo_core::onboarding::RegisteredProject>, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.projects().list_registered_projects()
+}
+
+#[tauri::command]
+fn scan_workspace_projects(
+    state: State<'_, DesktopState>,
+    workspace_root: Option<String>,
+    max_depth: Option<usize>,
+) -> Result<Vec<ulvo_core::onboarding::RegisteredProject>, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.projects().scan_and_sync_workspace(workspace_root.as_deref(), max_depth)
+}
+
+#[tauri::command]
+fn register_project(
+    state: State<'_, DesktopState>,
+    path: String,
+) -> Result<ulvo_core::onboarding::RegisteredProject, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.projects().register_project(&path)
+}
+
+#[tauri::command]
+fn onboard_project(
+    state: State<'_, DesktopState>,
+    path: String,
+) -> Result<ulvo_core::onboarding::RegisteredProject, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.projects().onboard_project(&path)
+}
+
+#[tauri::command]
+fn start_agent(state: State<'_, DesktopState>) -> Result<u32, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.agent().ensure_running()
+}
+
+#[tauri::command]
+fn stop_agent(state: State<'_, DesktopState>) -> Result<String, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    svc.agent().stop_daemon()
+}
+
+#[tauri::command]
+fn get_agent_diagnostics(state: State<'_, DesktopState>) -> Result<AgentDiagnosticsReport, String> {
+    let svc = state.services.lock().map_err(|e| e.to_string())?;
+    Ok(svc.agent().get_diagnostics())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let default_vault = std::env::var("ULVO_VAULT_ROOT")
@@ -194,6 +246,11 @@ pub fn run() {
         .unwrap_or_else(|_| PathBuf::from("E:\\Workspace\\Active\\ULVO\\vault"));
 
     let services = UlvoServices::new(&default_vault);
+
+    let preferences = services.load_preferences();
+    if preferences.enable_background_agent {
+        let _ = services.agent().ensure_running();
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -218,7 +275,14 @@ pub fn run() {
             get_user_preferences,
             save_user_preferences,
             get_agent_status,
-            trigger_agent_reconciliation
+            trigger_agent_reconciliation,
+            get_project_registry,
+            scan_workspace_projects,
+            register_project,
+            onboard_project,
+            start_agent,
+            stop_agent,
+            get_agent_diagnostics
         ])
         .run(tauri::generate_context!())
         .expect("error while running ULVO desktop application");

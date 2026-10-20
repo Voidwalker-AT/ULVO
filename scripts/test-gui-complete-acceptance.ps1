@@ -216,6 +216,11 @@ try {
     $testResults.checks["project_connector"] = $hasProjConn
     Write-Host "  Project Connector View:    $(if ($hasProjConn) {'PASS'} else {'FAIL'})" -ForegroundColor $(if ($hasProjConn) {'Green'} else {'Red'})
 
+    $projList = (& $ulvoCli project list 2>&1 | Out-String)
+    $hasProjects = ($projList -match "ULVO") -and ($projList -match "CrossModalLab")
+    $testResults.checks["project_registry"] = $hasProjects
+    Write-Host "  Project Registry View:     $(if ($hasProjects) {'PASS'} else {'FAIL'})" -ForegroundColor $(if ($hasProjects) {'Green'} else {'Red'})
+
     $envAudit = (& $ulvoCli env audit 2>&1 | Out-String)
     $hasEnvAudit = $envAudit -match "Vault Environments Audit"
     $testResults.checks["environment_audit"] = $hasEnvAudit

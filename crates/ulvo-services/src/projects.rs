@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use ulvo_core::lifecycle::{RunExecutionResult, VaultEnvironmentsAuditReport, VaultEnvironmentsGcReport};
+use ulvo_core::RegisteredProject;
 use ulvo_discovery::project_lifecycle::ProjectOrchestrator;
+use ulvo_discovery::{ProjectRegistry, WorkspaceScanner};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectSummary {
@@ -21,6 +23,72 @@ impl ProjectService {
     pub fn new<P: AsRef<Path>>(vault_root: P) -> Self {
         Self {
             vault_root: vault_root.as_ref().to_path_buf(),
+        }
+    }
+
+    /// Returns the persistent project registry inside the vault.
+    pub fn get_registry(&self) -> Result<ProjectRegistry, String> {
+        ProjectRegistry::load_or_create(&self.vault_root, None)
+    }
+
+    /// Lists all projects currently recorded in the persistent project registry.
+    pub fn list_registered_projects(&self) -> Result<Vec<RegisteredProject>, String> {
+        let mut reg = self.get_registry()?;
+        // If empty, perform initial scan of workspace root
+        if reg.projects().is_empty() {
+            let ws = PathBuf::from(reg.workspace_root());
+            if ws.is_dir() {
+                let scanner = WorkspaceScanner::new(&ws);
+                let (scanned, inacc) = scanner.scan();
+                let active_paths = self.get_active_project_paths();
+                reg.sync_with_scanned(scanned, inacc, &active_paths)?;
+            }
+        }
+        Ok(reg.projects().to_vec())
+    }
+
+    /// Scans the specified or default workspace root, updates the persistent registry, and returns projects.
+    pub fn scan_and_sync_workspace<P: AsRef<Path>>(&self, workspace_root: Option<P>, max_depth: Option<usize>) -> Result<Vec<RegisteredProject>, String> {
+        let mut reg = self.get_registry()?;
+        let ws = workspace_root
+            .map(|p| p.as_ref().to_path_buf())
+            .unwrap_or_else(|| PathBuf::from(reg.workspace_root()));
+
+        reg.set_workspace_root(&ws.to_string_lossy());
+
+        let mut scanner = WorkspaceScanner::new(&ws);
+        if let Some(d) = max_depth {
+            scanner = scanner.with_max_depth(d);
+        }
+        let (scanned, inaccessible) = scanner.scan();
+        let active_paths = self.get_active_project_paths();
+        reg.sync_with_scanned(scanned, inaccessible, &active_paths)?;
+
+        Ok(reg.projects().to_vec())
+    }
+
+    /// Explicitly registers a project path in the persistent registry.
+    pub fn register_project<P: AsRef<Path>>(&self, path: P) -> Result<RegisteredProject, String> {
+        let mut reg = self.get_registry()?;
+        reg.register_project(path.as_ref())
+    }
+
+    /// Explicitly onboards a project with a thin connector and updates the persistent registry.
+    pub fn onboard_project<P: AsRef<Path>>(&self, path: P) -> Result<RegisteredProject, String> {
+        let mut reg = self.get_registry()?;
+        reg.onboard_project(path.as_ref())
+    }
+
+    fn get_active_project_paths(&self) -> Vec<PathBuf> {
+        if let Ok(audit) = self.audit_vault_environments() {
+            audit
+                .items
+                .into_iter()
+                .filter(|item| !item.active_pids.is_empty() || matches!(item.state, ulvo_core::lifecycle::EnvironmentLifecycleState::Executing | ulvo_core::lifecycle::EnvironmentLifecycleState::Ready))
+                .filter_map(|item| item.project_path.map(PathBuf::from))
+                .collect()
+        } else {
+            Vec::new()
         }
     }
 

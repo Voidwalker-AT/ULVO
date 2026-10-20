@@ -15,6 +15,7 @@ import {
   VaultEnvironmentsGcReport,
   UserPreferences,
   AgentStatusSummary,
+  RegisteredProject,
 } from "./types";
 
 type ViewTab =
@@ -44,6 +45,12 @@ function App() {
   const [envAudit, setEnvAudit] = useState<VaultEnvironmentsAuditReport | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatusSummary | null>(null);
+
+  // Persistent Project Registry State
+  const [projectRegistry, setProjectRegistry] = useState<RegisteredProject[]>([]);
+  const [projectSearch, setProjectSearch] = useState("");
+  const [projectFilterState, setProjectFilterState] = useState<string>("all");
+  const [isScanningProjects, setIsScanningProjects] = useState(false);
 
   // Modals & Action States
   const [selectedPlan, setSelectedPlan] = useState<ProvisioningPlan | null>(null);
@@ -75,6 +82,7 @@ function App() {
       invoke<VaultEnvironmentsAuditReport>("audit_environments").then(setEnvAudit).catch((err) => addLog(`Audit load: ${err}`));
       invoke<UserPreferences>("get_user_preferences").then(setPreferences).catch((err) => addLog(`Preferences load: ${err}`));
       invoke<AgentStatusSummary>("get_agent_status").then(setAgentStatus).catch((err) => addLog(`Agent status load: ${err}`));
+      invoke<RegisteredProject[]>("get_project_registry").then(setProjectRegistry).catch((err) => addLog(`Project registry load: ${err}`));
 
       // 2. Heavy storage intelligence and adoption telemetry
       const [stor, adop] = await Promise.allSettled([
@@ -230,6 +238,87 @@ function App() {
     }
   };
 
+  // Scan Workspace for Projects
+  const handleScanProjects = async () => {
+    setIsScanningProjects(true);
+    setStatusMessage("Scanning workspace read-only for projects...");
+    try {
+      const results = await invoke<RegisteredProject[]>("scan_workspace_projects", {
+        workspaceRoot: null,
+        maxDepth: 5,
+      });
+      setProjectRegistry(results);
+      setStatusMessage(`Scan complete: ${results.length} projects discovered/synced`);
+      addLog(`Workspace scan found ${results.length} projects across E:\\Workspace.`);
+    } catch (err: any) {
+      setStatusMessage(`Scan failed: ${err}`);
+      addLog(`SCAN ERROR: ${err}`);
+    } finally {
+      setIsScanningProjects(false);
+    }
+  };
+
+  // Register Project
+  const handleRegisterProject = async (path: string) => {
+    try {
+      setStatusMessage(`Registering project ${path}...`);
+      const proj = await invoke<RegisteredProject>("register_project", { path });
+      addLog(`Project registered: ${proj.name} [${proj.registration_state}]`);
+      setStatusMessage(`Project registered: ${proj.name}`);
+      await refreshAllData();
+    } catch (err: any) {
+      setStatusMessage(`Registration failed: ${err}`);
+      addLog(`REGISTER ERROR: ${err}`);
+    }
+  };
+
+  // Onboard Project Connector
+  const handleOnboardProject = async (path: string) => {
+    try {
+      setStatusMessage(`Initializing thin connector for ${path}...`);
+      const proj = await invoke<RegisteredProject>("onboard_project", { path });
+      addLog(`Connector initialized: ${proj.name} [${proj.registration_state}]`);
+      setStatusMessage(`Project onboarded: ${proj.name}`);
+      await refreshAllData();
+    } catch (err: any) {
+      setStatusMessage(`Onboarding failed: ${err}`);
+      addLog(`ONBOARD ERROR: ${err}`);
+    }
+  };
+
+  // Toggle Background Agent
+  const handleToggleAgent = async () => {
+    try {
+      if (agentStatus?.is_running) {
+        setStatusMessage("Stopping background agent daemon...");
+        await invoke<string>("stop_agent");
+        addLog("Background agent daemon stopped.");
+      } else {
+        setStatusMessage("Starting background agent daemon...");
+        const pid = await invoke<number>("start_agent");
+        addLog(`Background agent daemon started with PID ${pid}.`);
+      }
+      await refreshAllData();
+    } catch (err: any) {
+      setStatusMessage(`Agent toggle failed: ${err}`);
+      addLog(`AGENT ERROR: ${err}`);
+    }
+  };
+
+  const filteredProjects = projectRegistry.filter((p) => {
+    const matchesSearch =
+      projectSearch.trim() === "" ||
+      p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+      p.canonical_path.toLowerCase().includes(projectSearch.toLowerCase()) ||
+      p.ecosystem.toLowerCase().includes(projectSearch.toLowerCase());
+
+    const matchesState =
+      projectFilterState === "all" ||
+      p.registration_state.toLowerCase() === projectFilterState.toLowerCase();
+
+    return matchesSearch && matchesState;
+  });
+
   const freeGb = storageReport ? (storageReport.available_free_bytes / 1073741824).toFixed(2) : "...";
   const vaultGb = storageReport ? (storageReport.vault_physical_bytes / 1073741824).toFixed(2) : "...";
   const ratio = storageReport ? storageReport.hardlink_sharing_ratio.toFixed(2) : "...";
@@ -257,9 +346,18 @@ function App() {
             Drive E: {freeGb} GB Free (Floor: 500 MB)
           </div>
 
-          <div className="telemetry-pill">
+          <div className="telemetry-pill" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span className={`telemetry-dot ${agentStatus?.is_running ? "" : "stopped"}`} />
-            Agent: {agentStatus?.is_running ? `PID ${agentStatus.pid}` : "Offline"}
+            <span>Agent: {agentStatus?.is_running ? `Online (PID ${agentStatus.pid})` : "Offline"}</span>
+            <button
+              className="btn"
+              style={{ padding: "2px 8px", fontSize: "11px", marginLeft: "4px" }}
+              onClick={handleToggleAgent}
+              disabled={loading}
+              title={agentStatus?.is_running ? "Stop Agent Daemon" : "Start Agent Daemon"}
+            >
+              {agentStatus?.is_running ? "Stop" : "Start"}
+            </button>
           </div>
 
           <button className="btn btn-primary" onClick={refreshAllData} disabled={loading}>
@@ -588,20 +686,52 @@ function App() {
           {activeTab === "projects" && (
             <div>
               <div className="card">
-                <div className="card-header">
-                  <div className="card-title">Thin Connector Management (.ulvo/manifest.toml)</div>
+                <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="card-title">Persistent Project Registry & Thin Connectors</div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button className="btn btn-primary" onClick={handleScanProjects} disabled={isScanningProjects}>
+                      {isScanningProjects ? "Scanning E:\\Workspace..." : "Rescan Workspace"}
+                    </button>
+                    <button className="btn" onClick={handleReclaimEnvs}>
+                      Safe GC
+                    </button>
+                    <button className="btn" onClick={handleTriggerReconcile}>
+                      Audit Process Leases
+                    </button>
+                  </div>
                 </div>
                 <p style={{ color: "var(--color-text-muted)", marginBottom: "14px", lineHeight: "1.6" }}>
-                  Projects integrate through lightweight connectors without persistent project-local <code style={{ color: "#00e5ff" }}>.venv</code> directories.
-                  Dependencies resolve to the immutable shared package store and materialize via zero-copy NTFS hardlinks on demand.
+                  Projects integrate through lightweight connectors (<code style={{ color: "#00e5ff" }}>.ulvo/manifest.toml</code> &lt; 100 KiB) without persistent project-local <code style={{ color: "#00e5ff" }}>.venv</code> directories.
+                  Discovered and registered projects persist durably across restarts inside <code style={{ color: "#00e5ff" }}>vault/registry/projects.json</code>.
                 </p>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button className="btn" onClick={handleReclaimEnvs}>
-                    Safe Environment Garbage Collection
-                  </button>
-                  <button className="btn" onClick={handleTriggerReconcile}>
-                    Audit Process Leases
-                  </button>
+
+                {/* Filter and Search Controls */}
+                <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "10px" }}>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Search projects by name, path, or ecosystem..."
+                    value={projectSearch}
+                    onChange={(e) => setProjectSearch(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <select
+                    className="input-field"
+                    value={projectFilterState}
+                    onChange={(e) => setProjectFilterState(e.target.value)}
+                    style={{ width: "160px" }}
+                  >
+                    <option value="all">All States</option>
+                    <option value="discovered">Discovered</option>
+                    <option value="registered">Registered</option>
+                    <option value="managed">Managed</option>
+                    <option value="active">Active</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="missing">Missing</option>
+                  </select>
+                  <span style={{ fontSize: "12px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                    Showing {filteredProjects.length} of {projectRegistry.length} projects
+                  </span>
                 </div>
               </div>
 
@@ -609,28 +739,93 @@ function App() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Project Directory</th>
+                      <th>Project Name & Directory</th>
                       <th>Ecosystem</th>
-                      <th>Lifecycle</th>
-                      <th>Connector Manifest</th>
-                      <th>Current Status</th>
+                      <th>Manifest Fingerprint</th>
+                      <th>Connector Status</th>
+                      <th>Registration State</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>E:\Workspace\Academic\sem5\DL\exp1</td>
-                      <td>Python 3.12 (CUDA sm_86)</td>
-                      <td>Ephemeral</td>
-                      <td>.ulvo/manifest.toml (184 B)</td>
-                      <td><span className="badge badge-managed">QUIESCENT (0 Bytes Persistent)</span></td>
-                    </tr>
-                    <tr>
-                      <td>E:\Workspace\Active\ULVO</td>
-                      <td>Rust 1.96 / MSYS2 GCC</td>
-                      <td>Direct Gateway</td>
-                      <td>Cargo.toml</td>
-                      <td><span className="badge badge-managed">MANAGED</span></td>
-                    </tr>
+                    {filteredProjects.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "var(--color-text-muted)" }}>
+                          No projects registered yet or matched search criteria. Click "Rescan Workspace" to discover projects across E:\Workspace.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProjects.map((p) => (
+                        <tr key={p.canonical_path}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: "#fff" }}>
+                              {p.name}
+                              {p.is_monorepo && (
+                                <span className="badge badge-system" style={{ marginLeft: "8px", fontSize: "10px" }}>
+                                  MONOREPO ({p.subprojects.length})
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontFamily: "monospace" }}>
+                              {p.canonical_path}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ textTransform: "capitalize" }}>{p.ecosystem}</span>
+                            <div style={{ fontSize: "10px", color: "var(--color-text-muted)" }}>
+                              {p.manifests.join(", ")}
+                            </div>
+                          </td>
+                          <td style={{ fontFamily: "monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>
+                            {p.manifest_fingerprint.slice(0, 12)}...
+                          </td>
+                          <td>
+                            {p.has_connector ? (
+                              <span className="badge badge-managed">.ulvo CONNECTED</span>
+                            ) : (
+                              <span className="badge badge-external">NATIVE MANIFEST</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge badge-${
+                              p.registration_state === "active"
+                                ? "managed"
+                                : p.registration_state === "managed"
+                                ? "managed"
+                                : p.registration_state === "registered"
+                                ? "system"
+                                : p.registration_state === "blocked"
+                                ? "blocked"
+                                : "external"
+                            }`}>
+                              {p.registration_state.toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              {!p.has_connector ? (
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => handleOnboardProject(p.canonical_path)}
+                                  title="Generate minimal .ulvo/manifest.toml connector"
+                                >
+                                  Onboard Connector
+                                </button>
+                              ) : null}
+                              {p.registration_state === "discovered" ? (
+                                <button
+                                  className="btn btn-sm"
+                                  onClick={() => handleRegisterProject(p.canonical_path)}
+                                  title="Mark project explicitly registered in vault"
+                                >
+                                  Register
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

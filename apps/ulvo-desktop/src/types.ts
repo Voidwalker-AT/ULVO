@@ -175,3 +175,42 @@ export interface AgentStatusSummary {
   port: number;
   message: string;
 }
+
+export type ProjectRegistrationState =
+  | "discovered"
+  | "registered"
+  | "managed"
+  | "active"
+  | "blocked"
+  | "missing";
+
+export interface RegisteredProject {
+  id: string;
+  name: string;
+  canonical_path: string;
+  ecosystem: string;
+  manifests: string[];
+  manifest_fingerprint: string;
+  discovery_source: string;
+  registration_state: ProjectRegistrationState;
+  has_connector: boolean;
+  is_monorepo: boolean;
+  subprojects: string[];
+  runtime_details?: string;
+  last_seen_utc: string;
+}
+
+export interface AgentDiagnosticsReport {
+  is_running: boolean;
+  pid?: number;
+  port: number;
+  vault_root: string;
+  token_path: string;
+  token_exists: boolean;
+  port_path: string;
+  port_exists: boolean;
+  pid_path: string;
+  pid_exists: boolean;
+  active_leases: number;
+  message: string;
+}

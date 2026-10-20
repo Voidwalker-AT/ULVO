@@ -105,3 +105,61 @@ pub struct OnboardResult {
     pub thin_connector_compliant: bool,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectRegistrationState {
+    Discovered,
+    Registered,
+    Managed,
+    Active,
+    Blocked,
+    Missing,
+}
+
+impl ProjectRegistrationState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProjectRegistrationState::Discovered => "discovered",
+            ProjectRegistrationState::Registered => "registered",
+            ProjectRegistrationState::Managed => "managed",
+            ProjectRegistrationState::Active => "active",
+            ProjectRegistrationState::Blocked => "blocked",
+            ProjectRegistrationState::Missing => "missing",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoverySource {
+    WorkspaceScan,
+    ExplicitRegistration,
+    CliOnboard,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegisteredProject {
+    pub id: String,
+    pub name: String,
+    pub canonical_path: String,
+    pub ecosystem: String,
+    pub manifests: Vec<String>,
+    pub manifest_fingerprint: String,
+    pub discovery_source: DiscoverySource,
+    pub registration_state: ProjectRegistrationState,
+    pub has_connector: bool,
+    pub is_monorepo: bool,
+    pub subprojects: Vec<String>,
+    pub runtime_details: Option<String>,
+    pub last_seen_utc: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProjectRegistryFile {
+    pub schema_version: u32,
+    pub last_updated_utc: String,
+    pub workspace_root: String,
+    pub projects: Vec<RegisteredProject>,
+    pub inaccessible_paths: Vec<String>,
+}

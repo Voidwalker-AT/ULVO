@@ -133,8 +133,12 @@ enum AgentCommands {
     Status,
     /// Trigger an immediate lease and cache reconciliation cycle
     Reconcile,
+    /// Start the background agent daemon
+    Start,
     /// Gracefully shutdown running background agent
     Stop,
+    /// Restart the background agent daemon
+    Restart,
     /// Run the background agent daemon directly
     Run {
         #[arg(long, default_value_t = ulvo_services::DEFAULT_AGENT_PORT)]
@@ -285,6 +289,20 @@ enum MigrateCommands {
 
 #[derive(Subcommand)]
 enum ProjectCommands {
+    /// Scan workspace read-only for projects across ecosystems and sync with persistent registry
+    Scan {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Maximum directory depth to traverse
+        #[arg(long, default_value_t = 5)]
+        depth: usize,
+    },
+    /// List all discovered, registered, managed, and active projects in the persistent registry
+    List,
+    /// Explicitly register a project in the persistent registry
+    Register {
+        path: PathBuf,
+    },
     /// Initialize a minimal, compliant .ulvo/manifest.toml for a project
     Init {
         #[arg(default_value = ".")]
@@ -868,8 +886,49 @@ fn run(cli: Cli) -> Result<i32, String> {
         }
         Commands::Project { subcommand } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
-            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path)?;
+            let orchestrator = ulvo_discovery::ProjectOrchestrator::new(vault_path.clone())?;
             match subcommand {
+                ProjectCommands::Scan { path, depth } => {
+                    let svc = ulvo_services::UlvoServices::new(&vault_path);
+                    let result = svc.projects().scan_and_sync_workspace(Some(&path), Some(depth))?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Workspace Project Scan: {} (depth: {})", path.display(), depth);
+                        println!("Discovered/Updated: {} projects", result.len());
+                        println!("{:<14} {:<24} {:<10} {}", "STATE", "NAME", "ECOSYSTEM", "PATH");
+                        println!("{}", "-".repeat(80));
+                        for p in &result {
+                            println!("{:<14} {:<24} {:<10} {}", format!("{:?}", p.registration_state), p.name, p.ecosystem, p.canonical_path);
+                        }
+                    }
+                    Ok(0)
+                }
+                ProjectCommands::List => {
+                    let svc = ulvo_services::UlvoServices::new(&vault_path);
+                    let result = svc.projects().list_registered_projects()?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("ULVO Registered Projects: {} total", result.len());
+                        println!("{:<14} {:<24} {:<10} {}", "STATE", "NAME", "ECOSYSTEM", "PATH");
+                        println!("{}", "-".repeat(80));
+                        for p in &result {
+                            println!("{:<14} {:<24} {:<10} {}", format!("{:?}", p.registration_state), p.name, p.ecosystem, p.canonical_path);
+                        }
+                    }
+                    Ok(0)
+                }
+                ProjectCommands::Register { path } => {
+                    let svc = ulvo_services::UlvoServices::new(&vault_path);
+                    let result = svc.projects().register_project(&path)?;
+                    if cli.json {
+                        println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
+                    } else {
+                        println!("[OK] Registered project '{}' [{:?}] at {}", result.name, result.registration_state, result.canonical_path);
+                    }
+                    Ok(0)
+                }
                 ProjectCommands::Init { project_path, ecosystem, runtime_version } => {
                     run_project_init(project_path, ecosystem, runtime_version, cli.json)
                 }
@@ -1954,26 +2013,61 @@ fn run_agent(subcommand: AgentCommands, cli_json: bool) -> Result<i32, String> {
 
     match subcommand {
         AgentCommands::Status => {
-            match svc.agent().send_request(ulvo_services::AgentAction::Status) {
-                Ok(resp) => {
+            let diag = svc.agent().get_diagnostics();
+            if cli_json {
+                println!("{}", serde_json::to_string_pretty(&diag).map_err(|e| e.to_string())?);
+            } else {
+                println!("ULVO Background Agent Diagnostics:");
+                println!("  Status:          {}", if diag.is_running { "ONLINE" } else { "OFFLINE" });
+                println!("  PID:             {}", diag.pid.map(|p| p.to_string()).unwrap_or_else(|| "None".to_string()));
+                println!("  Port:            {} (file: {})", diag.port, if diag.port_exists { "present" } else { "missing" });
+                println!("  PID File:        {} (present: {})", diag.pid_path, diag.pid_exists);
+                println!("  Port File:       {}", diag.port_path);
+                println!("  Token File:      {} (present: {})", diag.token_path, diag.token_exists);
+                println!("  Active Leases:   {}", diag.active_leases);
+                println!("  Diagnostic Info: {}", diag.message);
+            }
+            Ok(0)
+        }
+        AgentCommands::Start => {
+            match svc.agent().ensure_running() {
+                Ok(pid) => {
                     if cli_json {
-                        println!("{}", serde_json::to_string_pretty(&resp).map_err(|e| e.to_string())?);
+                        println!("{}", serde_json::json!({ "success": true, "pid": pid, "message": format!("Agent running with PID {}", pid) }));
                     } else {
-                        println!("ULVO Background Agent Status: ONLINE");
-                        println!("  Message: {}", resp.message);
-                        if let Some(d) = resp.data {
-                            println!("  Data:    {}", d);
-                        }
+                        println!("ULVO Agent is running (PID: {})", pid);
                     }
                     Ok(0)
                 }
                 Err(e) => {
                     if cli_json {
-                        println!("{}", serde_json::json!({ "online": false, "error": e }));
+                        println!("{}", serde_json::json!({ "success": false, "error": e }));
                     } else {
-                        println!("ULVO Background Agent Status: OFFLINE ({})", e);
+                        eprintln!("Failed to start ULVO Agent: {}", e);
+                    }
+                    Ok(1)
+                }
+            }
+        }
+        AgentCommands::Restart => {
+            let _ = svc.agent().stop_daemon();
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            match svc.agent().ensure_running() {
+                Ok(pid) => {
+                    if cli_json {
+                        println!("{}", serde_json::json!({ "success": true, "pid": pid, "message": format!("Agent restarted with PID {}", pid) }));
+                    } else {
+                        println!("ULVO Agent restarted (PID: {})", pid);
                     }
                     Ok(0)
+                }
+                Err(e) => {
+                    if cli_json {
+                        println!("{}", serde_json::json!({ "success": false, "error": e }));
+                    } else {
+                        eprintln!("Failed to restart ULVO Agent: {}", e);
+                    }
+                    Ok(1)
                 }
             }
         }
@@ -1998,13 +2092,21 @@ fn run_agent(subcommand: AgentCommands, cli_json: bool) -> Result<i32, String> {
             Ok(0)
         }
         AgentCommands::Stop => {
-            match svc.agent().send_request(ulvo_services::AgentAction::Shutdown) {
-                Ok(resp) => {
-                    println!("ULVO Agent: {}", resp.message);
+            match svc.agent().stop_daemon() {
+                Ok(msg) => {
+                    if cli_json {
+                        println!("{}", serde_json::json!({ "success": true, "message": msg }));
+                    } else {
+                        println!("ULVO Agent: {}", msg);
+                    }
                     Ok(0)
                 }
                 Err(e) => {
-                    println!("ULVO Agent is not running ({e})");
+                    if cli_json {
+                        println!("{}", serde_json::json!({ "success": false, "error": e }));
+                    } else {
+                        println!("ULVO Agent stop: {}", e);
+                    }
                     Ok(0)
                 }
             }
@@ -2278,6 +2380,10 @@ fn run_project_onboard(
         }
 
         let result = ulvo_discovery::apply_onboarding(&clean_path, &report, force)?;
+        if let Ok(vp) = ulvo_discovery::resolve_vault_root(None) {
+            let svc = ulvo_services::UlvoServices::new(&vp);
+            let _ = svc.projects().onboard_project(&clean_path);
+        }
         println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?);
         return Ok(0);
     }
@@ -2337,6 +2443,10 @@ fn run_project_onboard(
 
     if should_apply {
         let result = ulvo_discovery::apply_onboarding(&clean_path, &report, force)?;
+        if let Ok(vp) = ulvo_discovery::resolve_vault_root(None) {
+            let svc = ulvo_services::UlvoServices::new(&vp);
+            let _ = svc.projects().onboard_project(&clean_path);
+        }
         println!("  [OK] Successfully onboarded project!");
         println!("  Connector: {}", result.manifest_path);
         println!("  Ecosystems configured: {}", result.ecosystems.join(", "));

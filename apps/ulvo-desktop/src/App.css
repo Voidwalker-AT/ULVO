@@ -404,6 +404,17 @@ body {
   border: 1px solid var(--color-gpu-green);
 }
 
+.badge-blocked {
+  background-color: rgba(255, 68, 68, 0.15);
+  color: #ff5252;
+  border: 1px solid #ff5252;
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
 /* Onboarding Banner */
 .onboarding-banner {
   background: linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(17, 20, 26, 0.9) 100%);
