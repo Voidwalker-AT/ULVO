@@ -13,6 +13,7 @@ use crate::{bounded_read, write_atomic, EnvironmentFileLock};
 pub struct CasGcReport {
     pub unreferenced_artifacts_found: usize,
     pub artifacts_reclaimed: usize,
+    /// Data allocation unlinked at last reference, not an observed volume delta.
     pub physical_bytes_reclaimed: u64,
     pub volume_free_bytes_delta: Option<i64>,
     pub remaining_artifacts: usize,
@@ -523,6 +524,22 @@ impl CasStorageManager {
         let mut reclaimed_count = 0;
         let mut bytes_reclaimed = 0u64;
 
+        // Plans are caller-supplied and may be stale or tampered with. Validate
+        // every deletion against current ownership before deleting anything.
+        for candidate in &plan.candidates_for_reclamation {
+            let id = &candidate.artifact_id;
+            CasArtifactId::new(id)?;
+            let descriptor = manifest.artifacts.get(id).ok_or("GC candidate is no longer registered")?;
+            let expected = format!("packages/cas/objects/{}/{id}", &id[..2]);
+            if candidate.storage_relative_path != expected || descriptor.storage_relative_path != expected {
+                return Err("GC candidate path does not match its owned CAS object".into());
+            }
+            if !descriptor.consumers.is_empty() || manifest.reference_tracker.reference_count(id) > 0 {
+                return Err("GC candidate acquired a consumer; replan before deletion".into());
+            }
+            crate::reject_links(&self.vault_root.join(&expected))?;
+        }
+
         // Open journal for append
         let mut journal = OpenOptions::new()
             .create(true)
@@ -547,22 +564,20 @@ impl CasStorageManager {
                     "relative_path": candidate.storage_relative_path,
                     "size_bytes": candidate.size_bytes
                 });
-                let _ = writeln!(journal, "{}", journal_entry);
+                writeln!(journal, "{}", journal_entry)
+                    .and_then(|_| journal.sync_data())
+                    .map_err(|e| format!("cannot durably journal GC intent: {e}"))?;
 
                 // Check hardlink count: physical recovery is 0 if other hardlinks reference the same NTFS inode!
                 let mut freed_phys = 0u64;
                 if let Ok((_id, info)) = crate::query_file_identity_and_size(&object_path) {
                     if info.link_count == 1 {
-                        freed_phys = match info.allocated_bytes {
-                            Some(alloc) if alloc > 0 => alloc,
-                            _ => candidate.size_bytes,
-                        };
+                        freed_phys = info.allocated_bytes.unwrap_or(0);
                     }
-                } else {
-                    freed_phys = candidate.size_bytes;
                 }
 
                 // Unlink file; clear read-only first
+                crate::reject_links(&object_path)?;
                 let _ = set_file_readonly(&object_path, false);
                 if fs::remove_file(&object_path).is_ok() {
                     manifest.artifacts.remove(id);
@@ -999,16 +1014,34 @@ mod tests {
         let plan_clean = manager.plan_garbage_collection(&[], &[]).unwrap();
         assert!(plan_clean.clean_to_execute);
         assert_eq!(plan_clean.candidates_for_reclamation.len(), 1);
+        let expected_allocation = crate::query_file_identity_and_size(
+            &fixture.dir.join(&plan_clean.candidates_for_reclamation[0].storage_relative_path)
+        ).unwrap().1.allocated_bytes.unwrap();
 
         // Execute GC
         let rep_executed = manager.execute_garbage_collection(&plan_clean).unwrap();
         assert_eq!(rep_executed.artifacts_reclaimed, 1);
-        assert_eq!(rep_executed.physical_bytes_reclaimed, payload.len() as u64);
+        assert_eq!(rep_executed.physical_bytes_reclaimed, expected_allocation);
         assert!(rep_executed.journal_path.is_some());
 
         // Verify journal recorded the deletion
         let journal_content = fs::read_to_string(manager.journal_path()).unwrap();
         assert!(journal_content.contains("reclaim_artifact"));
         assert!(journal_content.contains(&hash));
+    }
+
+    #[test]
+    fn forged_gc_path_cannot_delete_unowned_file() {
+        let fixture = TestFixture::new("forged_gc");
+        let manager = CasStorageManager::new(fixture.dir.clone()).unwrap();
+        let payload = b"owned payload";
+        let hash = format!("{:x}", Sha256::digest(payload));
+        manager.store_payload(sample_descriptor(&hash), payload).unwrap();
+        let unowned = fixture.dir.join("user-owned.txt");
+        fs::write(&unowned, b"preserve me").unwrap();
+        let mut plan = manager.plan_garbage_collection(&[], &[]).unwrap();
+        plan.candidates_for_reclamation[0].storage_relative_path = "user-owned.txt".into();
+        assert!(manager.execute_garbage_collection(&plan).is_err());
+        assert_eq!(fs::read(unowned).unwrap(), b"preserve me");
     }
 }

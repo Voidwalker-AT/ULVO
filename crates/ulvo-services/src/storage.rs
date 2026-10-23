@@ -46,7 +46,7 @@ impl StorageService {
             .map(|c| c.as_os_str().to_string_lossy().into_owned())
             .unwrap_or_else(|| "E:".into());
 
-        let free_bytes = ulvo_adapters::get_disk_free_bytes(vr).unwrap_or(0);
+        let (free_bytes, total_capacity_bytes) = ulvo_adapters::get_disk_space_bytes(vr)?;
         let safety_reserve_bytes = 500_000_000; // 500 MB hard floor
 
         // If cached within the last 60 seconds, return cached report with freshly updated live free bytes
@@ -54,6 +54,7 @@ impl StorageService {
             if let Some((cached_at, ref mut rep)) = *guard {
                 if cached_at.elapsed() < Duration::from_secs(60) {
                     rep.available_free_bytes = free_bytes;
+                    rep.total_capacity_bytes = total_capacity_bytes;
                     rep.safety_floor_satisfied = free_bytes > safety_reserve_bytes;
                     return Ok(rep.clone());
                 }
@@ -93,7 +94,7 @@ impl StorageService {
 
         let report = ComprehensiveStorageReport {
             drive_letter: drive,
-            total_capacity_bytes: 223_279_575_040,
+            total_capacity_bytes,
             available_free_bytes: free_bytes,
             safety_reserve_bytes,
             safety_floor_satisfied: free_bytes > safety_reserve_bytes,

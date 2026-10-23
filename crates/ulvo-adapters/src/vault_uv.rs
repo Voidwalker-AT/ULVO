@@ -432,6 +432,7 @@ pub fn calculate_physical_dir_size(dir: &Path) -> (u64, usize) {
     let mut total_allocated_bytes = 0u64;
     let mut file_count = 0usize;
     let mut stack = vec![dir.to_path_buf()];
+    let mut identities = std::collections::HashSet::new();
 
     while let Some(current) = stack.pop() {
         if is_reparse_point(&current) {
@@ -446,22 +447,11 @@ pub fn calculate_physical_dir_size(dir: &Path) -> (u64, usize) {
                 if p.is_dir() {
                     stack.push(p);
                 } else if p.is_file() {
-                    #[cfg(windows)]
-                    {
-                        if let Ok((_id, size_info)) = crate::fs_identity::query_file_identity_and_size(&p) {
-                            total_allocated_bytes += size_info.allocated_bytes.unwrap_or(size_info.logical_bytes);
-                            file_count += 1;
-                        } else if let Ok(meta) = p.metadata() {
-                            total_allocated_bytes += meta.len();
-                            file_count += 1;
+                    if let Ok((id, size_info)) = crate::fs_identity::query_file_identity_and_size(&p) {
+                        if identities.insert(id) {
+                            total_allocated_bytes += size_info.allocated_bytes.unwrap_or(0);
                         }
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        if let Ok(meta) = p.metadata() {
-                            total_allocated_bytes += meta.len();
-                            file_count += 1;
-                        }
+                        file_count += 1;
                     }
                 }
             }
@@ -996,8 +986,14 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> Result<(), String> {
     );
     let tmp_path = parent.join(tmp_name);
 
-    std::fs::write(&tmp_path, content)
-        .map_err(|e| format!("failed writing tmp file {}: {e}", tmp_path.display()))?;
+    {
+        use std::io::Write;
+        let mut staged = std::fs::File::create(&tmp_path)
+            .map_err(|e| format!("failed creating tmp file {}: {e}", tmp_path.display()))?;
+        staged.write_all(content)
+            .and_then(|_| staged.sync_all())
+            .map_err(|e| format!("failed flushing tmp file {}: {e}", tmp_path.display()))?;
+    }
 
     #[cfg(windows)]
     {
@@ -1013,16 +1009,21 @@ pub fn write_atomic(path: &Path, content: &[u8]) -> Result<(), String> {
             fn MoveFileExW(lpExistingFileName: LPCWSTR, lpNewFileName: LPCWSTR, dwFlags: DWORD) -> BOOL;
         }
 
-        let wide_from: Vec<u16> = tmp_path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
-        let wide_to: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        // std::fs supports long paths, but raw Win32 calls need absolute
+        // extended-length paths, including when the destination is still absent.
+        let from = tmp_path.canonicalize().map_err(|e| format!("cannot resolve staged path: {e}"))?;
+        let to = parent.canonicalize().map_err(|e| format!("cannot resolve destination parent: {e}"))?
+            .join(path.file_name().ok_or_else(|| "missing destination filename".to_string())?);
+        let wide_from: Vec<u16> = from.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide_to: Vec<u16> = to.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
 
         let ok = unsafe {
             MoveFileExW(wide_from.as_ptr(), wide_to.as_ptr(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)
         };
 
         if ok == 0 {
-            let _ = std::fs::remove_file(&tmp_path);
             let err = std::io::Error::last_os_error();
+            let _ = std::fs::remove_file(&tmp_path);
             return Err(format!("atomic rename from '{}' to '{}' failed: {err}", tmp_path.display(), path.display()));
         }
     }
@@ -1217,7 +1218,7 @@ pub fn safe_reclaim_environment_hierarchy(
 }
 
 #[cfg(windows)]
-pub fn get_disk_free_bytes(path: &Path) -> Result<u64, String> {
+pub fn get_disk_space_bytes(path: &Path) -> Result<(u64, u64), String> {
     use std::os::windows::ffi::OsStrExt;
     type BOOL = i32;
     type LPCWSTR = *const u16;
@@ -1246,7 +1247,7 @@ pub fn get_disk_free_bytes(path: &Path) -> Result<u64, String> {
     };
 
     if ok != 0 {
-        Ok(free_caller)
+        Ok((free_caller, total))
     } else {
         let err = std::io::Error::last_os_error();
         Err(format!("GetDiskFreeSpaceExW failed for '{}': {err}", path.display()))
@@ -1254,12 +1255,39 @@ pub fn get_disk_free_bytes(path: &Path) -> Result<u64, String> {
 }
 
 #[cfg(not(windows))]
-pub fn get_disk_free_bytes(_path: &Path) -> Result<u64, String> {
-    Ok(0)
+pub fn get_disk_space_bytes(_path: &Path) -> Result<(u64, u64), String> {
+    Err("volume capacity query is not implemented on this platform".into())
+}
+
+pub fn get_disk_free_bytes(path: &Path) -> Result<u64, String> {
+    get_disk_space_bytes(path).map(|space| space.0)
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn physical_directory_size_counts_hardlink_allocation_once() {
+        let dir = std::env::temp_dir().join(format!("ulvo_size_links_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("original.bin");
+        std::fs::write(&source, vec![0x5a; 5001]).unwrap();
+        std::fs::hard_link(&source, dir.join("linked.bin")).unwrap();
+        let allocation = crate::query_file_identity_and_size(&source).unwrap().1.allocated_bytes.unwrap();
+        let (bytes, files) = super::calculate_physical_dir_size(&dir);
+        assert_eq!(files, 2);
+        assert_eq!(bytes, allocation);
+    }
+    #[cfg(windows)]
+    #[test]
+    fn atomic_write_supports_long_paths() {
+        let root = std::env::temp_dir().join(format!("ulvo_atomic_long_{}", std::process::id()));
+        let dir = root.join("nested".repeat(35));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("registry.json");
+        super::write_atomic(&path, b"first").unwrap();
+        super::write_atomic(&path, b"second").unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), b"second");
+    }
     use super::*;
 
     #[test]

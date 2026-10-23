@@ -1875,7 +1875,7 @@ fn run_doctor(cli_json: bool) -> Result<i32, String> {
         }
     }
 
-    let all_pass = reg_exists && lock_exists && journal_exists && gateway_ok && capacity_ok && py_ok && rust_ok && msys_ok;
+    let all_pass = reg_exists && lock_exists && journal_exists && gateway_ok && capacity_ok && py_ok && rust_ok && msys_ok && cas_all_ok;
 
     if cli_json {
         let payload = serde_json::json!({
@@ -2613,7 +2613,11 @@ fn run_storage(
             }
             Ok(0)
         }
-        _ => {
+        report_command => {
+            let path = match report_command {
+                Some(StorageCommands::Report { path }) => path,
+                _ => path,
+            };
             let report = ulvo_discovery::audit_workspace(&path)?;
             let cas_mgr = vault_path.as_ref().and_then(|vp| ulvo_adapters::CasStorageManager::new(vp.clone()).ok());
             let cas_manifest = cas_mgr.as_ref().and_then(|m| m.load_manifest().ok());

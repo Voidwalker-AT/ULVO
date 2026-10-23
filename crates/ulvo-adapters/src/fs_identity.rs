@@ -61,6 +61,16 @@ pub fn query_file_identity_and_size(path: &Path) -> Result<(FileSystemIdentity, 
         nFileIndexLow: DWORD,
     }
 
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct FILE_STANDARD_INFO {
+        AllocationSize: i64,
+        EndOfFile: i64,
+        NumberOfLinks: DWORD,
+        DeletePending: u8,
+        Directory: u8,
+    }
+
     extern "system" {
         fn CreateFileW(
             lpFileName: LPCWSTR,
@@ -77,6 +87,8 @@ pub fn query_file_identity_and_size(path: &Path) -> Result<(FileSystemIdentity, 
             lpFileInformation: *mut BY_HANDLE_FILE_INFORMATION,
         ) -> BOOL;
 
+        fn GetFileInformationByHandleEx(hFile: HANDLE, class: i32, buffer: LPVOID, size: DWORD) -> BOOL;
+
         fn GetCompressedFileSizeW(
             lpFileName: LPCWSTR,
             lpFileSizeHigh: *mut DWORD,
@@ -86,7 +98,19 @@ pub fn query_file_identity_and_size(path: &Path) -> Result<(FileSystemIdentity, 
         fn GetLastError() -> DWORD;
     }
 
-    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    // Extended paths keep metadata queries valid beyond Win32 MAX_PATH.
+    // Make the spelling absolute without following reparse points; the opened
+    // handle must still describe a link itself, never its target.
+    let absolute = std::path::absolute(path).map_err(|e| format!("cannot resolve metadata path: {e}"))?;
+    let original: Vec<u16> = absolute.as_os_str().encode_wide().collect();
+    let mut wide: Vec<u16> = if original.starts_with(&[92, 92, 63, 92]) {
+        original
+    } else if original.starts_with(&[92, 92]) {
+        "\\\\?\\UNC\\".encode_utf16().chain(original[2..].iter().copied()).collect()
+    } else {
+        "\\\\?\\".encode_utf16().chain(original).collect()
+    };
+    wide.push(0);
 
     // Open handle with FILE_READ_ATTRIBUTES without locking the file for other processes
     let handle = unsafe {
@@ -108,10 +132,10 @@ pub fn query_file_identity_and_size(path: &Path) -> Result<(FileSystemIdentity, 
 
     let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
     let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
-    unsafe { CloseHandle(handle); }
 
     if ok == 0 {
         let err = unsafe { GetLastError() };
+        unsafe { CloseHandle(handle); }
         return Err(format!("GetFileInformationByHandle failed for '{}' with error code {}", path.display(), err));
     }
 
@@ -127,14 +151,23 @@ pub fn query_file_identity_and_size(path: &Path) -> Result<(FileSystemIdentity, 
         file_index: ((info.nFileIndexHigh as u64) << 32) | (info.nFileIndexLow as u64),
     };
 
-    // Query physical allocation on disk (accounts for cluster rounding, compression, and sparse holes)
-    let mut high: DWORD = 0;
-    let low = unsafe { GetCompressedFileSizeW(wide.as_ptr(), &mut high) };
-    let allocated_bytes = if low == INVALID_FILE_SIZE && unsafe { GetLastError() } != 0 {
-        None
+    // GetCompressedFileSize returns logical length for ordinary files. Query
+    // FileStandardInfo for allocation units; compressed/sparse files require
+    // their actual compressed storage instead of the logical allocation range.
+    let allocated_bytes = if is_sparse || is_compressed {
+        let mut high: DWORD = 0;
+        let low = unsafe { GetCompressedFileSizeW(wide.as_ptr(), &mut high) };
+        if low == INVALID_FILE_SIZE && unsafe { GetLastError() } != 0 {
+            None
+        } else {
+            Some(((high as u64) << 32) | low as u64)
+        }
     } else {
-        Some(((high as u64) << 32) | (low as u64))
+        let mut standard: FILE_STANDARD_INFO = unsafe { std::mem::zeroed() };
+        let ok = unsafe { GetFileInformationByHandleEx(handle, 1, &mut standard as *mut _ as LPVOID, std::mem::size_of::<FILE_STANDARD_INFO>() as DWORD) };
+        if ok != 0 && standard.AllocationSize >= 0 { Some(standard.AllocationSize as u64) } else { None }
     };
+    unsafe { CloseHandle(handle); }
 
     Ok((identity, FileSizeInfo {
         logical_bytes,
@@ -422,6 +455,21 @@ mod tests {
 
         assert_eq!(id1, id2, "Querying the same file must yield identical filesystem identity");
         assert_eq!(info1, info2, "Querying the same file must yield identical FileSizeInfo");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn ordinary_file_allocation_is_not_its_logical_length() {
+        let fixture = SafeTestFixture::new("allocation_rounding");
+        let file = fixture.path.join("allocation.bin");
+        std::fs::write(&file, vec![0x5a; 5001]).unwrap();
+        let (_, info) = query_file_identity_and_size(&file).unwrap();
+        assert_eq!(info.logical_bytes, 5001);
+        if !info.is_sparse && !info.is_compressed {
+            let allocation = info.allocated_bytes.expect("physical allocation must be available");
+            assert_ne!(allocation, info.logical_bytes, "ordinary NTFS files occupy whole allocation units");
+            assert_eq!(allocation % 512, 0);
+        }
     }
 
     #[test]

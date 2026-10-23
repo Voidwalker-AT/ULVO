@@ -15,9 +15,18 @@
 #     - Custom unknown user files are preserved.
 #  7. Safe selective uninstallation and strict vault preservation.
 
+param(
+    [string]$EvidenceDirectory = (Join-Path $PSScriptRoot 'output\installer-lifecycle')
+)
+
 $ErrorActionPreference = "Stop"
 
 $TestRoot = Join-Path $env:TEMP "ulvo_installer_validation"
+$resolvedTestRoot = [IO.Path]::GetFullPath($TestRoot)
+$temporaryBoundary = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+if (-not $resolvedTestRoot.StartsWith($temporaryBoundary, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Installer test root escaped its temporary workspace.'
+}
 if (Test-Path $TestRoot) {
     Remove-Item -Recurse -Force $TestRoot -ErrorAction SilentlyContinue
 }
@@ -344,7 +353,7 @@ $testsPassed++
 # Clean up temporary test harness
 Remove-Item -Path $TestRoot -Recurse -Force -ErrorAction SilentlyContinue
 
-$evidenceDir = "E:\Workspace\Active\ULVO\docs\evidence\stage3-4"
+$evidenceDir = $EvidenceDirectory
 if (-not (Test-Path $evidenceDir)) {
     New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 }
