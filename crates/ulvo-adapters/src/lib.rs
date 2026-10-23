@@ -14,6 +14,8 @@ pub mod vault_msys2;
 pub use vault_msys2::*;
 pub mod cas_storage;
 pub use cas_storage::*;
+pub mod dir_watcher;
+pub use dir_watcher::*;
 
 use std::{io::Read, path::{Path, PathBuf}, process::{Command, Stdio},
     sync::mpsc, thread, time::{Duration, Instant}};

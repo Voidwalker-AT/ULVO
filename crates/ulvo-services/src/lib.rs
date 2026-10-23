@@ -8,6 +8,7 @@ pub mod projects;
 pub mod storage;
 pub mod agent_ipc;
 pub mod build_governance;
+pub mod watch_supervisor;
 
 pub use catalog::*;
 pub use provisioning::*;
@@ -16,6 +17,7 @@ pub use projects::*;
 pub use storage::*;
 pub use agent_ipc::*;
 pub use build_governance::*;
+pub use watch_supervisor::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPreferences {

@@ -34,6 +34,18 @@ fn main() {
     match cli.command.unwrap_or(AgentCommands::Run { port: DEFAULT_AGENT_PORT }) {
         AgentCommands::Run { port } => {
             println!("Starting ULVO Background Agent on port {port} (Vault: {})", cli.vault.display());
+            // Dynamic project discovery: watch configured workspace roots and
+            // reconcile the persistent registry as projects appear or change.
+            let _watch_supervisor = match ulvo_services::WatcherSupervisor::start(&cli.vault, None) {
+                Ok(sup) => {
+                    println!("[ULVO Agent] dynamic project watcher active");
+                    Some(sup)
+                }
+                Err(e) => {
+                    eprintln!("[ULVO Agent] dynamic project watcher disabled: {e}");
+                    None
+                }
+            };
             let server = AgentIpcServer::new(&cli.vault);
             if let Err(e) = server.serve(port) {
                 eprintln!("Agent server error: {e}");

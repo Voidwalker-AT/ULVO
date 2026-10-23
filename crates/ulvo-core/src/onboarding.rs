@@ -115,6 +115,7 @@ pub enum ProjectRegistrationState {
     Active,
     Blocked,
     Missing,
+    Unavailable,
 }
 
 impl ProjectRegistrationState {
@@ -126,6 +127,54 @@ impl ProjectRegistrationState {
             ProjectRegistrationState::Active => "active",
             ProjectRegistrationState::Blocked => "blocked",
             ProjectRegistrationState::Missing => "missing",
+            ProjectRegistrationState::Unavailable => "unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "status", content = "details")]
+pub enum ConnectorValidationStatus {
+    Valid,
+    Corrupted(String),
+    Invalid(String),
+    Missing,
+}
+
+impl Default for ConnectorValidationStatus {
+    fn default() -> Self {
+        ConnectorValidationStatus::Missing
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectClassification {
+    Standard,
+    Template,
+    TestFixture,
+    BackupCopy,
+    GitWorktree,
+    MonorepoRoot,
+    MonorepoPackage,
+}
+
+impl Default for ProjectClassification {
+    fn default() -> Self {
+        ProjectClassification::Standard
+    }
+}
+
+impl ProjectClassification {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProjectClassification::Standard => "standard",
+            ProjectClassification::Template => "template",
+            ProjectClassification::TestFixture => "test_fixture",
+            ProjectClassification::BackupCopy => "backup_copy",
+            ProjectClassification::GitWorktree => "git_worktree",
+            ProjectClassification::MonorepoRoot => "monorepo_root",
+            ProjectClassification::MonorepoPackage => "monorepo_package",
         }
     }
 }
@@ -136,6 +185,7 @@ pub enum DiscoverySource {
     WorkspaceScan,
     ExplicitRegistration,
     CliOnboard,
+    DynamicWatcher,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,6 +202,16 @@ pub struct RegisteredProject {
     pub is_monorepo: bool,
     pub subprojects: Vec<String>,
     pub runtime_details: Option<String>,
+    #[serde(default)]
+    pub fs_identity: Option<String>,
+    #[serde(default)]
+    pub connector_status: Option<ConnectorValidationStatus>,
+    #[serde(default)]
+    pub runtime_requirements: Option<String>,
+    #[serde(default)]
+    pub classification: ProjectClassification,
+    #[serde(default)]
+    pub validation_warnings: Vec<String>,
     pub last_seen_utc: String,
 }
 
@@ -159,7 +219,12 @@ pub struct RegisteredProject {
 pub struct ProjectRegistryFile {
     pub schema_version: u32,
     pub last_updated_utc: String,
+    #[serde(default)]
     pub workspace_root: String,
+    #[serde(default)]
+    pub workspace_roots: Vec<String>,
+    #[serde(default)]
+    pub excluded_patterns: Vec<String>,
     pub projects: Vec<RegisteredProject>,
     pub inaccessible_paths: Vec<String>,
 }

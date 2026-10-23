@@ -149,7 +149,17 @@ export interface VaultEnvironmentsAuditReport {
   active_environments: number;
   reclaimable_environments: number;
   aborted_environments: number;
-  environments: any[];
+  unknown_environments: number;
+  total_logical_bytes: number;
+  total_physical_bytes: number;
+  items: {
+    environment_id: string;
+    project_path: string | null;
+    state: string;
+    is_quiescent: boolean;
+    active_pids: number[];
+    physical_bytes: number;
+  }[];
 }
 
 export interface VaultEnvironmentsGcReport {
@@ -184,6 +194,15 @@ export type ProjectRegistrationState =
   | "blocked"
   | "missing";
 
+export type ProjectClassification =
+  | "standard"
+  | "template"
+  | "test_fixture"
+  | "backup_copy"
+  | "git_worktree"
+  | "monorepo_root"
+  | "monorepo_package";
+
 export interface RegisteredProject {
   id: string;
   name: string;
@@ -197,6 +216,11 @@ export interface RegisteredProject {
   is_monorepo: boolean;
   subprojects: string[];
   runtime_details?: string;
+  fs_identity?: string | null;
+  connector_status?: { status: "valid" | "corrupted" | "invalid" | "missing"; details?: string } | null;
+  runtime_requirements?: string | null;
+  classification?: ProjectClassification;
+  validation_warnings?: string[];
   last_seen_utc: string;
 }
 

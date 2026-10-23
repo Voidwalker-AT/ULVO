@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 import {
   OnboardingStatus,
@@ -69,6 +70,37 @@ function App() {
   // Initial load
   useEffect(() => {
     refreshAllData();
+  }, []);
+
+  // Live registry updates from the background filesystem watcher
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    let refreshTimer: number | undefined;
+
+    const debouncedRefresh = () => {
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        invoke<RegisteredProject[]>("get_project_registry")
+          .then(setProjectRegistry)
+          .catch((err) => addLog(`Live registry refresh: ${err}`));
+      }, 350);
+    };
+
+    listen<{ version: number }>("projects-changed", debouncedRefresh)
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {
+        /* running outside Tauri (e.g. vite dev in plain browser) */
+      });
+
+    return () => {
+      disposed = true;
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      if (unlisten) unlisten();
+    };
   }, []);
 
   const refreshAllData = async () => {
@@ -343,7 +375,7 @@ function App() {
         <div className="header-telemetry">
           <div className="telemetry-pill">
             <span className="telemetry-dot" />
-            Drive E: {freeGb} GB Free (Floor: 500 MB)
+            Drive E: {freeGb} GiB Free (Floor: 500 MB)
           </div>
 
           <div className="telemetry-pill" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -463,20 +495,20 @@ function App() {
               <div className="metric-grid">
                 <div className="metric-card">
                   <div className="metric-label">Drive E: Available Free</div>
-                  <div className="metric-value">{freeGb} GB</div>
-                  <div className="metric-sub">500 MB hard safety floor satisfied</div>
+                  <div className="metric-value">{freeGb} GiB</div>
+                  <div className="metric-sub">{storageReport ? (storageReport.safety_floor_satisfied ? "Safety reserve satisfied" : "Below safety reserve") : "Storage measurement is loading"}</div>
                 </div>
 
                 <div className="metric-card">
-                  <div className="metric-label">Single-Root Vault Physical</div>
-                  <div className="metric-value">{vaultGb} GB</div>
-                  <div className="metric-sub">Zero-copy deduplication active</div>
+                  <div className="metric-label">Vault Unique File Allocation</div>
+                  <div className="metric-value">{vaultGb} GiB</div>
+                  <div className="metric-sub">Excludes filesystem metadata</div>
                 </div>
 
                 <div className="metric-card">
-                  <div className="metric-label">Deduplication Ratio</div>
+                  <div className="metric-label">Environment Allocation Ratio</div>
                   <div className="metric-value">{ratio}x</div>
-                  <div className="metric-sub">Single-instance shared packages</div>
+                  <div className="metric-sub">Logical bytes / allocated bytes</div>
                 </div>
 
                 <div className="metric-card">
@@ -527,24 +559,24 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {envAudit?.environments && envAudit.environments.length > 0 ? (
-                        envAudit.environments.map((env: any, idx: number) => (
+                      {envAudit?.items && envAudit.items.length > 0 ? (
+                        envAudit.items.map((env, idx: number) => (
                           <tr key={idx}>
-                            <td style={{ fontFamily: "var(--font-mono)" }}>{env.id || `env_${idx}`}</td>
+                            <td style={{ fontFamily: "var(--font-mono)" }}>{env.environment_id}</td>
                             <td>{env.project_path || "Ephemeral Execution"}</td>
                             <td>
-                              <span className={`badge ${env.is_active ? "badge-managed" : "badge-external"}`}>
-                                {env.is_active ? "ACTIVE" : "QUIESCENT"}
+                              <span className={`badge ${!env.is_quiescent ? "badge-managed" : "badge-external"}`}>
+                                {env.state}
                               </span>
                             </td>
                             <td>{env.active_pids?.join(", ") || "None"}</td>
-                            <td>{((env.physical_bytes || 0) / 1048576).toFixed(1)} MB</td>
+                            <td>{((env.physical_bytes || 0) / 1048576).toFixed(1)} MiB</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td colSpan={5} style={{ textAlign: "center", color: "var(--color-text-muted)" }}>
-                            Zero persistent project environments. All runs materialize ephemerally on demand.
+                            {envAudit ? "No materialized environments reported." : "Environment audit is loading."}
                           </td>
                         </tr>
                       )}
@@ -765,6 +797,11 @@ function App() {
                                   MONOREPO ({p.subprojects.length})
                                 </span>
                               )}
+                              {p.classification && p.classification !== "standard" && (
+                                <span className="badge badge-blocked" style={{ marginLeft: "8px", fontSize: "10px" }}>
+                                  {p.classification.toUpperCase().replace(/_/g, " ")}
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontFamily: "monospace" }}>
                               {p.canonical_path}
@@ -838,19 +875,19 @@ function App() {
               <div className="metric-grid">
                 <div className="metric-card">
                   <div className="metric-label">Total Drive E: Capacity</div>
-                  <div className="metric-value">{(storageReport.total_capacity_bytes / 1073741824).toFixed(1)} GB</div>
+                  <div className="metric-value">{(storageReport.total_capacity_bytes / 1073741824).toFixed(1)} GiB</div>
                   <div className="metric-sub">NTFS Volume</div>
                 </div>
 
                 <div className="metric-card">
                   <div className="metric-label">Physical Free Space</div>
-                  <div className="metric-value">{freeGb} GB</div>
+                  <div className="metric-value">{freeGb} GiB</div>
                   <div className="metric-sub">Safety Floor: 500 MB</div>
                 </div>
 
                 <div className="metric-card">
                   <div className="metric-label">Package Cache (uv)</div>
-                  <div className="metric-value">{(storageReport.package_cache_physical_bytes / 1073741824).toFixed(2)} GB</div>
+                  <div className="metric-value">{(storageReport.package_cache_physical_bytes / 1073741824).toFixed(2)} GiB</div>
                   <div className="metric-sub">{storageReport.package_cache_status.archive_count} wheel archives</div>
                 </div>
 
