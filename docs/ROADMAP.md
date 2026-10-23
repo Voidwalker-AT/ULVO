@@ -2,6 +2,8 @@
 
 This document outlines the architectural progression, completed engineering milestones, active development, and future roadmap for the ULVO platform.
 
+Current release-candidate acceptance is governed by [workstation hardening](WORKSTATION_HARDENING.md). Older milestone labels below record historical scope; they do not certify the current workstation. Registry durability, installed gateway checks, real allocation accounting, agent IPC resilience, and rendered production desktop checks require fresh evidence before machine-ready status.
+
 ---
 
 ## Roadmap Overview

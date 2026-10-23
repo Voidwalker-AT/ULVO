@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+- Resolve legacy relative managed executables against the configured vault rather than the shell working directory.
+- Normalize extended Windows paths during toolchain ownership checks and inventory deduplication.
+- Support long Windows paths in atomic writes, flush staged contents before replacement, and preserve the original Win32 failure code.
+- Query ordinary-file allocation with `FileStandardInfo`; retain compressed/sparse accounting and NTFS file-identity deduplication.
+- Honor the explicit `storage report` directory and include CAS integrity failure in the doctor verdict.
+- Bound agent IPC request time, reassemble fragmented requests, serialize agent startup per vault, and use system randomness for newly generated authentication tokens.
+- Make agent status inspect lease metadata without a recursive storage audit. Run heavy desktop reads on background workers, render the actual environment audit schema, deduplicate vault file identities, and query live volume capacity.
+- Harden in-progress project registry and watcher work: reject corrupt/future registries, reject stale writes under an OS lock, avoid watching vault/cache output, and decode native notification buffers without unaligned pointer casts.
+
 ## [1.2.0] - 2026-10-20
 
 ### Stage 3.4 — Production Reliability Blockers, Runtime Independence & Performance Hardening

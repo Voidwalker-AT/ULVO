@@ -1,5 +1,7 @@
 # ULVO Machine Recovery & Operational Runbook
 
+For current project-registry corruption handling, stale-writer retry rules, token rotation limits, and storage accounting semantics, see [workstation hardening](WORKSTATION_HARDENING.md). The machine-specific versions and measurements below are historical snapshots, not current health evidence.
+
 **Document Version:** 1.0.0  
 **Target Host:** Windows 11 (x86_64)  
 **Host Hardware:** NVIDIA GeForce RTX 2050 Laptop GPU (Driver: 596.49)  

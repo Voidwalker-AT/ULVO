@@ -10,7 +10,7 @@ ULVO is an early-stage, actively developed universal development-resource contro
        RECLAIM SAFELY.
 ```
 
-> **Current Development Status**: **ULVO Stage 3.4 / v1.2.0 Release Candidate**. ULVO delivers the native Windows Desktop Control Center (`ulvo-desktop.exe`), online verified runtime & tool catalog, universal search query resolution, 10-step transactional provisioning engine, background reconciliation agent (`ulvo-agent.exe`) on local loopback IPC, dual-accounting storage governance with global Win32 inode deduplication across 15 categories, read-only immutable package store with atomic NTFS inode severing, vendored standalone `uv.exe` and vault CPython 3.11.16 distribution for physical runtime independence, 10.28x warm launch speedup (157 ms execution), universal multi-ecosystem project onboarding (`ulvo project onboard`), single-entry global gateway on User PATH (`bin\ulvo.exe`) without language pollution, IDE integration validation (zero `.venv` sprawl), real-world verified execution on NVIDIA RTX 2050 CUDA GPU, exact storage reconciliation (Drive E: 30.19 GB / 28.11 GiB free; Drive C: 20.86 GB / 19.43 GiB free), and 100% passing regression and workspace test suites.
+> **Current Development Status**: **v1.2.0 Release Candidate**. ULVO includes a Windows desktop, execution gateway, project connectors, runtime inventory, and a background agent. Readiness depends on fresh workstation acceptance checks; historical test results, free-space snapshots, and performance measurements are not guarantees for another build or machine. See [hardening and verification limits](docs/WORKSTATION_HARDENING.md).
 
 ---
 
@@ -33,7 +33,7 @@ ULVO operates under five core architectural principles:
 - **ISOLATE PER PROJECT**: Ensure every project retains clean dependency isolation without sharing mutable runtime state.
 - **MATERIALIZE ON DEMAND**: Project environments are ephemeral projections (via NTFS hardlinks or directory junctions) instantiated when work begins.
 - **EXECUTE THROUGH ULVO**: Tools and runtimes execute through the ULVO control plane with process-local environment variables, never polluting global host state.
-- **RECLAIM SAFELY**: Inactive ephemeral projections can be unlinked at any time without data loss—project source code remains untouched, and shared assets remain preserved in the persistent vault.
+- **RECLAIM SAFELY**: Reclaim ephemeral projections only after ownership, reference, lease, and process checks permit it. Persistent research environments and shared assets remain protected.
 
 ---
 

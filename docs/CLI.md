@@ -2,6 +2,8 @@
 
 The `ulvo` binary is a Windows-native command-line tool (`x86_64-pc-windows-gnu`) providing read-only toolchain discovery, project manifest inspection, vault registry management, and workspace storage intelligence.
 
+`ulvo storage report <path>` audits the explicit directory. Logical bytes, unique file allocation, and observed volume free-space delta are distinct measurements; an unlinked-file allocation estimate is not a guarantee of reclaimed volume space. Project registry concurrency conflicts require reloading and retrying the operation. See [hardening and recovery limits](WORKSTATION_HARDENING.md).
+
 ---
 
 ## Global Options

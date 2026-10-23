@@ -18,6 +18,8 @@ ULVO operates as a unified governance and orchestration layer above established 
 
 ULVO is organized into a modular Cargo workspace comprising six Rust crates and a native Windows desktop application, strictly separating domain invariants, platform adapters, traversal/discovery, shared application services, the background reconciliation daemon, the CLI, and the desktop control center.
 
+Operational caveats and current persistence/allocation semantics are specified in [workstation hardening](WORKSTATION_HARDENING.md). In particular, project-registry writes use a separate Windows OS lock plus stale-snapshot detection; ordinary NTFS file allocation uses `FileStandardInfo` rather than logical length from a compressed-size query.
+
 ```mermaid
 graph TD
     DESKTOP["apps/ulvo-desktop<br/>(Tauri 2 / React 19 / TypeScript / WebView2)"]
