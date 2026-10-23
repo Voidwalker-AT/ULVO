@@ -68,13 +68,15 @@ impl UniversalToolchainScanner {
     }
 
     pub fn verify_vault_ownership(&self, path: &Path) -> Ownership {
-        if !path.starts_with(&self.vault_root) {
+        let path = ulvo_core::strip_unc_prefix(&path.canonicalize().unwrap_or_else(|_| path.to_path_buf()));
+        let vault_root = ulvo_core::strip_unc_prefix(&self.vault_root.canonicalize().unwrap_or_else(|_| self.vault_root.clone()));
+        if !path.starts_with(&vault_root) {
             return Ownership::External;
         }
         // Verify provenance: must have a valid ownership record, manifest, or sentinel
         // 1. Rust runtime in vault/runtimes/rust
-        if path.starts_with(self.vault_root.join("runtimes").join("rust")) {
-            let manifest_path = self.vault_root.parent()
+        if path.starts_with(vault_root.join("runtimes").join("rust")) {
+            let manifest_path = vault_root.parent()
                 .map(|p| p.join("config").join("toolchain-artifacts.toml"))
                 .unwrap_or_default();
             if manifest_path.is_file() {
@@ -82,8 +84,8 @@ impl UniversalToolchainScanner {
             }
         }
         // 2. Managed MSYS2 in vault/toolchains/msys2
-        if path.starts_with(self.vault_root.join("toolchains").join("msys2")) {
-            let sentinel = self.vault_root.join("toolchains").join("msys2").join(".ulvo_managed.json");
+        if path.starts_with(vault_root.join("toolchains").join("msys2")) {
+            let sentinel = vault_root.join("toolchains").join("msys2").join(".ulvo_managed.json");
             if sentinel.is_file() {
                 return Ownership::Managed;
             }
@@ -114,7 +116,8 @@ impl UniversalToolchainScanner {
         // Deduplicate results based on canonical executable path
         let mut deduped: BTreeMap<String, DiscoveredToolchain> = BTreeMap::new();
         for item in results {
-            let key = item.executable_path.to_string_lossy().to_lowercase();
+            let canonical = item.executable_path.canonicalize().unwrap_or_else(|_| item.executable_path.clone());
+            let key = ulvo_core::strip_unc_prefix(&canonical).to_string_lossy().to_lowercase();
             deduped.entry(key).or_insert(item);
         }
 
@@ -457,6 +460,22 @@ impl UniversalToolchainScanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn ownership_matches_extended_and_normal_paths() {
+        let base = std::env::temp_dir().join(format!("ulvo_ownership_paths_{}", std::process::id()));
+        let vault = base.join("vault");
+        let bin = vault.join("toolchains/msys2/ucrt64/bin/gcc.exe");
+        std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
+        std::fs::write(&bin, b"fixture").unwrap();
+        std::fs::write(vault.join("toolchains/msys2/.ulvo_managed.json"), b"{}").unwrap();
+        let scanner = UniversalToolchainScanner::new(vault.canonicalize().unwrap());
+        assert_eq!(scanner.verify_vault_ownership(&bin), Ownership::Managed);
+        assert_eq!(scanner.verify_vault_ownership(&bin.canonicalize().unwrap()), Ownership::Managed);
+        assert_eq!(scanner.verify_vault_ownership(&base.join("external.exe")), Ownership::External);
+        assert_eq!(scanner.verify_vault_ownership(&vault.join("unowned.exe")), Ownership::Unknown);
+    }
 
     #[test]
     fn test_scanner_discovers_without_crashing() {

@@ -72,7 +72,23 @@ impl<'a> GatewayResolver<'a> {
             format!("resource '{}' does not have an associated executable or installation path", resource.resource_id)
         })?;
 
-        let raw_exe = PathBuf::from(exe_path_str);
+        let mut raw_exe = PathBuf::from(exe_path_str);
+        if raw_exe.is_relative() {
+            if resource.ownership != Ownership::Managed {
+                return Err("relative external executable paths are not safe to resolve".into());
+            }
+            let vault = self.vault_root.as_ref().ok_or("relative managed path requires a vault root")?;
+            let vault = vault.canonicalize().map_err(|e| format!("cannot resolve vault root: {e}"))?;
+            // Older registries recorded paths as `vault/runtimes/...`; resolve
+            // those against the configured vault, never the caller's CWD.
+            let relative = raw_exe.strip_prefix(vault.file_name().unwrap_or_default()).unwrap_or(&raw_exe);
+            let resolved = vault.join(relative).canonicalize()
+                .map_err(|e| format!("cannot resolve managed executable: {e}"))?;
+            if !resolved.starts_with(&vault) {
+                return Err("relative managed executable escapes the configured vault".into());
+            }
+            raw_exe = resolved;
+        }
         let exe_path = ulvo_core::strip_unc_prefix(&raw_exe);
         if !exe_path.is_file() {
             return Err(format!(
@@ -399,6 +415,32 @@ mod tests {
         Abi, Architecture, Ecosystem, Platform, Resource, ResourceKind,
         VaultRegistry, VerificationStatus,
     };
+
+    #[test]
+    fn legacy_managed_paths_are_anchored_to_vault_instead_of_cwd() {
+        let base = std::env::temp_dir().join(format!("ulvo_gateway_relative_{}", std::process::id()));
+        let vault = base.join("vault");
+        let exe = vault.join("runtimes/rust/cargo/bin/cargo.exe");
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::write(&exe, b"fixture").unwrap();
+        let mut reg = MemoryVaultRegistry::new();
+        let resource = Resource::new(
+            ResourceKind::PackageManager, Ecosystem::Rust, "cargo", Some("1.96.0".into()),
+            Platform::Windows, Architecture::X86_64, Backend::Windows, Abi::Gnu,
+            Some("vault/runtimes/rust/cargo/bin/cargo.exe".into()), None,
+            Ownership::Managed, VerificationStatus::Verified,
+            Some(ulvo_core::Provenance {
+                source_type: "vault_managed_toolchain".into(), canonical_url: None,
+                expected_sha256: None, actual_sha256: None, manifest_path: None, notes: None,
+            }), vec![],
+        );
+        reg.register(resource).unwrap();
+        let resolution = GatewayResolver::with_system_path(&reg, String::new())
+            .with_vault_root(vault.clone()).resolve_tool("cargo").unwrap();
+        assert_eq!(resolution.executable_path, ulvo_core::strip_unc_prefix(&exe.canonicalize().unwrap()));
+        assert_eq!(resolution.ownership, Ownership::Managed);
+        assert_eq!(resolution.process_env["CARGO_HOME"], ulvo_core::strip_unc_prefix(&vault.join("runtimes/rust/cargo").canonicalize().unwrap()).to_string_lossy());
+    }
 
     #[test]
     fn test_resolve_tool_constructs_process_local_path() {
