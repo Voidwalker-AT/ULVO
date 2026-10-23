@@ -179,7 +179,9 @@ impl ProjectOrchestrator {
             project_canonical_path: project_root.canonicalize().unwrap_or_else(|_| project_root.to_path_buf()).to_string_lossy().into_owned(),
             runtime_ecosystem: "python".to_string(),
             runtime_constraint: py_req,
-            runtime_resolved_path: resolved_py.to_string(),
+            // Normalize verbatim prefixes so `run` (vault_paths-joined runtime)
+            // and `resolve` (uv python find) compute the same specification hash.
+            runtime_resolved_path: strip_unc_prefix(Path::new(resolved_py)).to_string_lossy().into_owned(),
             package_manager: "uv".to_string(),
             manifest_hash,
             dependency_manifests: dep_fingerprints,
@@ -559,7 +561,6 @@ impl ProjectOrchestrator {
         let materialize_res = (|| -> Result<(), String> {
             self.uv.materialize_environment(&env_path, Some(&resolved_py))?;
 
-            let mut gpu_linked = false;
             if let Some(ref gpu_cfg) = manifest.gpu {
                 if gpu_cfg.required.unwrap_or(false) {
                     // Enforce capacity check
@@ -572,11 +573,13 @@ impl ProjectOrchestrator {
                     }
 
                     self.link_shared_packages(&env_path, project_root)?;
-                    gpu_linked = true;
                 }
             }
 
-            if !req_files.is_empty() && !gpu_linked {
+            // GPU packages are linked from the shared store as a supplement,
+            // never a replacement: the full lockfile must still be installed
+            // (uv skips already-satisfied distributions such as the linked torch).
+            if !req_files.is_empty() {
                 self.uv.install_requirements(&env_path, &req_files)?;
             }
 
@@ -1630,6 +1633,30 @@ impl ProjectOrchestrator {
         }
 
         Ok(())
+    }
+
+    /// Counts live or conservatively unknown recorded leases without walking
+    /// package payloads. Status telemetry must not perform a storage audit.
+    pub fn active_leased_environment_count(&self) -> Result<usize, String> {
+        let root = self.vault_root.join("environments/python");
+        if !root.exists() { return Ok(0); }
+        ulvo_adapters::reject_links(&root)?;
+        let entries = std::fs::read_dir(&root).map_err(|e| e.to_string())?;
+        let mut count = 0;
+        for entry in entries {
+            let path = entry.map_err(|e| e.to_string())?.path();
+            if ulvo_adapters::is_reparse_point(&path) || !path.is_dir() { continue; }
+            let lease = path.join(".ulvo_lease.json");
+            ulvo_adapters::reject_links(&lease)?;
+            if lease.is_file() {
+                let content = ulvo_adapters::bounded_read(&lease)?;
+                let mut lease: EnvironmentLease = serde_json::from_str(&content)
+                    .map_err(|e| format!("cannot inspect lease metadata: {e}"))?;
+                self.clean_dead_processes(&mut lease);
+                if !lease.active_pids.is_empty() || !lease.leased_processes.is_empty() { count += 1; }
+            }
+        }
+        Ok(count)
     }
 
     pub fn audit_vault_environments(&self) -> Result<VaultEnvironmentsAuditReport, String> {

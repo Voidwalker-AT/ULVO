@@ -4,7 +4,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use ulvo_discovery::project_lifecycle::ProjectOrchestrator;
 use crate::catalog::CatalogService;
@@ -87,6 +87,7 @@ impl AgentIpcServer {
 
     /// Generates or retrieves the local IPC authentication secret token.
     pub fn get_or_create_auth_token(&self) -> Result<String, String> {
+        let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&self.vault_root.join("agent-token.lock"), 5000)?;
         if self.token_path.is_file() {
             if let Ok(content) = fs::read_to_string(&self.token_path) {
                 let trimmed = content.trim();
@@ -96,11 +97,20 @@ impl AgentIpcServer {
             }
         }
 
-        let token = format!(
-            "ulvo_sec_{}_{}",
-            std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
-        );
+        let mut random = [0u8; 32];
+        #[cfg(windows)]
+        {
+            #[link(name = "bcrypt")]
+            extern "system" {
+                fn BCryptGenRandom(algorithm: *mut std::ffi::c_void, buffer: *mut u8, size: u32, flags: u32) -> i32;
+            }
+            let status = unsafe { BCryptGenRandom(std::ptr::null_mut(), random.as_mut_ptr(), random.len() as u32, 2) };
+            if status < 0 { return Err("Windows system random generator failed".into()); }
+        }
+        #[cfg(not(windows))]
+        fs::File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut random))
+            .map_err(|e| format!("cannot read system randomness: {e}"))?;
+        let token = format!("ulvo_sec_{}", random.iter().map(|b| format!("{b:02x}")).collect::<String>());
 
         if let Some(parent) = self.token_path.parent() {
             let _ = fs::create_dir_all(parent);
@@ -134,6 +144,8 @@ impl AgentIpcServer {
 
         let mut stream = TcpStream::connect(format!("127.0.0.1:{port}"))
             .map_err(|e| format!("ULVO background agent is not running on 127.0.0.1:{port} ({e})"))?;
+        stream.set_read_timeout(Some(Duration::from_secs(30))).map_err(|e| e.to_string())?;
+        stream.set_write_timeout(Some(Duration::from_secs(2))).map_err(|e| e.to_string())?;
 
         // Write length-prefixed or newline-terminated message
         let payload = format!("{req_json}\n");
@@ -165,6 +177,8 @@ impl AgentIpcServer {
 
     /// Starts the background listener loop on localhost.
     pub fn serve(&self, port: u16) -> Result<(), String> {
+        // One daemon per vault, including attempts to use different TCP ports.
+        let _instance = ulvo_adapters::EnvironmentFileLock::acquire(&self.vault_root.join("agent.lock"), 100)?;
         let token = self.get_or_create_auth_token()?;
 
         // Single-instance enforcement: verify if another instance is already running
@@ -200,11 +214,9 @@ impl AgentIpcServer {
             }
 
             if let Ok(mut stream) = stream_res {
-                let mut buf = [0u8; 8192];
-                if let Ok(n) = stream.read(&mut buf) {
-                    if n > 0 {
-                        let req_str = String::from_utf8_lossy(&buf[..n]);
-                        let resp = if let Ok(req) = serde_json::from_str::<AgentRequest>(req_str.trim()) {
+                let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
+                if let Ok(req) = Self::receive_request(&mut stream) {
+                        let resp = {
                             if req.auth_token != token {
                                 AgentResponse {
                                     success: false,
@@ -213,12 +225,6 @@ impl AgentIpcServer {
                                 }
                             } else {
                                 self.handle_action(req.action)
-                            }
-                        } else {
-                            AgentResponse {
-                                success: false,
-                                message: "Malformed IPC request payload".into(),
-                                data: None,
                             }
                         };
 
@@ -229,7 +235,6 @@ impl AgentIpcServer {
                         if terminating.load(Ordering::SeqCst) {
                             break;
                         }
-                    }
                 }
             }
         }
@@ -237,6 +242,27 @@ impl AgentIpcServer {
         let _ = fs::remove_file(&self.port_path);
         let _ = fs::remove_file(&self.pid_path);
         Ok(())
+    }
+
+    fn receive_request(stream: &mut TcpStream) -> Result<AgentRequest, String> {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        let mut payload = Vec::new();
+        while payload.len() < 8192 {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() { return Err("IPC request deadline exceeded".into()); }
+            stream.set_read_timeout(Some(remaining)).map_err(|e| e.to_string())?;
+            let mut chunk = [0u8; 1024];
+            let n = stream.read(&mut chunk).map_err(|e| e.to_string())?;
+            if n == 0 { return Err("incomplete IPC request".into()); }
+            payload.extend_from_slice(&chunk[..n]);
+            if payload.len() > 8192 { return Err("IPC request exceeds 8192 bytes".into()); }
+            match serde_json::from_slice(&payload) {
+                Ok(req) => return Ok(req),
+                Err(e) if e.is_eof() && !payload.contains(&b'\n') => {},
+                Err(e) => return Err(format!("malformed IPC request: {e}")),
+            }
+        }
+        Err("IPC request exceeds 8192 bytes".into())
     }
 
     /// Ensures the background agent daemon is running. If offline, spawns detached process and waits for ping.
@@ -389,10 +415,10 @@ impl AgentIpcServer {
                 data: Some(serde_json::json!({ "pid": std::process::id() })),
             },
             AgentAction::Status => {
-                let active_count = if let Ok(orchestrator) = ProjectOrchestrator::new(self.vault_root.clone()) {
-                    orchestrator.audit_vault_environments().map(|a| a.active_environments).unwrap_or(0)
-                } else {
-                    0
+                let active_count = match ProjectOrchestrator::new(self.vault_root.clone())
+                    .and_then(|orchestrator| orchestrator.active_leased_environment_count()) {
+                    Ok(count) => count,
+                    Err(e) => return AgentResponse { success: false, message: format!("Lease telemetry unavailable: {e}"), data: None },
                 };
                 AgentResponse {
                     success: true,
