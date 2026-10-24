@@ -13,6 +13,9 @@ Status vocabulary: VERIFIED means evidence exists for the stated scope; FAILED m
 | Eleven-stage GUI setup and control-center transition | VERIFIED | Host-only production executable, isolated config/vault, tool-free PATH; discovery and agent opt-out retained |
 | Installer recovery and selective uninstall | VERIFIED | Seven isolated host groups, including poisoned journal, traversal/ADS refusal and retained user/vault files |
 | Warm metadata CLI startup | VERIFIED | Ten isolated host samples: 39–69 ms, including bounded event recording; single hardware class |
+| Final PowerShell packaging invocation and packaged root installer | BLOCKED | Host PowerShell startup stalled even for a trivial fresh command; earlier seven-group installer receipts remain valid for their stated source scope. Root installer pairing fix needs acceptance |
+| Portable ZIP fallback assembly | VERIFIED | ZIP CRC and per-file SHA-256 checked against staged source bytes. This does not qualify the PowerShell packaging script or installer |
+| Optional agent and redirected CLI lifetime | VERIFIED | Host-only isolated Unicode vault: CLI pipe closes while daemon lives, ephemeral-port IPC responds, clean stop; 1.8 s startup, 1.3 MiB private memory / 12.3 MiB working set, 0 measured CPU seconds over ten idle seconds |
 | All native package managers on a clean Windows installation | NOT TESTED | Capture whitelist and gateway integration are not ecosystem certification |
 | Physical storage accuracy across different filesystems | NOT TESTED | No new cross-filesystem qualification evidence |
 | Multiple hardware performance classes | BLOCKED | Independently controlled hardware unavailable |

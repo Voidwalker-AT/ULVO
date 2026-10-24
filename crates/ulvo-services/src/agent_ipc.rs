@@ -12,6 +12,58 @@ use crate::storage::StorageService;
 
 pub const DEFAULT_AGENT_PORT: u16 = 48590;
 
+// A daemon must not retain the invoking CLI's redirected pipes or other
+// inheritable handles. Explicit Win32 creation enforces bInheritHandles=FALSE.
+#[cfg(windows)]
+fn spawn_windows_daemon(executable: &Path, vault: &Path) -> Result<u32, String> {
+    use std::{ffi::{c_void, OsStr}, os::windows::ffi::OsStrExt};
+    #[repr(C)]
+    struct StartupInfo {
+        cb: u32, reserved: *mut u16, desktop: *mut u16, title: *mut u16,
+        x: u32, y: u32, x_size: u32, y_size: u32, x_chars: u32, y_chars: u32,
+        fill: u32, flags: u32, show: u16, reserved_size: u16, reserved_bytes: *mut u8,
+        stdin: *mut c_void, stdout: *mut c_void, stderr: *mut c_void,
+    }
+    #[repr(C)]
+    struct ProcessInfo { process: *mut c_void, thread: *mut c_void, pid: u32, tid: u32 }
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn CreateProcessW(application: *const u16, command: *mut u16, process_attributes: *const c_void,
+            thread_attributes: *const c_void, inherit: i32, flags: u32, environment: *const c_void,
+            directory: *const u16, startup: *const StartupInfo, process: *mut ProcessInfo) -> i32;
+        fn CloseHandle(handle: *mut c_void) -> i32;
+    }
+    fn quote(arg: &OsStr, command: &mut Vec<u16>) -> Result<(), String> {
+        command.push(b'"' as u16);
+        let mut slashes = 0;
+        for ch in arg.encode_wide() {
+            if ch == 0 { return Err("NUL in daemon argument".into()); }
+            if ch == b'\\' as u16 { slashes += 1; continue; }
+            command.extend(std::iter::repeat_n(b'\\' as u16, if ch == b'"' as u16 { slashes * 2 + 1 } else { slashes }));
+            slashes = 0; command.push(ch);
+        }
+        command.extend(std::iter::repeat_n(b'\\' as u16, slashes * 2));
+        command.push(b'"' as u16); Ok(())
+    }
+    ulvo_adapters::reject_links(executable)?;
+    let application: Vec<u16> = executable.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut command = Vec::new();
+    for arg in [executable.as_os_str(), OsStr::new("run"), OsStr::new("--port"), OsStr::new("0"), OsStr::new("--vault"), vault.as_os_str()] {
+        if !command.is_empty() { command.push(b' ' as u16); }
+        quote(arg, &mut command)?;
+    }
+    if command.len() >= 32767 { return Err("daemon command exceeds Windows limit".into()); }
+    command.push(0);
+    let mut startup: StartupInfo = unsafe { std::mem::zeroed() };
+    startup.cb = std::mem::size_of::<StartupInfo>() as u32;
+    let mut process: ProcessInfo = unsafe { std::mem::zeroed() };
+    let success = unsafe { CreateProcessW(application.as_ptr(), command.as_mut_ptr(), std::ptr::null(), std::ptr::null(), 0,
+        0x08000000 | 0x00000008, std::ptr::null(), std::ptr::null(), &startup, &mut process) };
+    if success == 0 { return Err(format!("cannot start detached agent: {}", std::io::Error::last_os_error())); }
+    unsafe { CloseHandle(process.thread); CloseHandle(process.process); }
+    Ok(process.pid)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action", content = "payload", rename_all = "snake_case")]
 pub enum AgentAction {
@@ -305,6 +357,8 @@ impl AgentIpcServer {
             .find(|p| p.is_file())
             .ok_or_else(|| "ulvo-agent.exe not found in expected binary paths".to_string())?;
 
+        #[cfg(not(windows))]
+        let spawned_pid = {
         let mut cmd = std::process::Command::new(&agent_exe);
         cmd.arg("run")
             .arg("--port").arg("0")
@@ -314,16 +368,11 @@ impl AgentIpcServer {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
 
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            const DETACHED_PROCESS: u32 = 0x00000008;
-            cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
-        }
-
         let child = cmd.spawn().map_err(|e| format!("cannot spawn ulvo-agent.exe: {e}"))?;
-        let spawned_pid = child.id();
+        child.id()
+        };
+        #[cfg(windows)]
+        let spawned_pid = spawn_windows_daemon(&agent_exe, &self.vault_root)?;
 
         let start = std::time::Instant::now();
         while start.elapsed() < std::time::Duration::from_millis(3500) {
