@@ -6,7 +6,7 @@ A setup journal in `applying` or `verify` can be resumed with its reviewed ID. I
 
 Registry repair is deliberately narrow. `ulvo repair --plan --backup <absolute-valid-project-registry>` reviews a replacement for the owned project registry. `ulvo repair --apply <reviewed-id>` rechecks target and backup hashes, saves the original bytes, and atomically replaces that registry. Stale plans fail. Missing backups, arbitrary files, runtime reinstall and project data repair are not automatic.
 
-Installer recovery uses its transaction journal. Keep the journal, manifest and previous package together for diagnosis. Uninstall retains modified and unknown files and vault data. Do not recursively delete directories to resolve ownership failures. Rollback must use the exact installation boundary and preserve external runtimes and native locks.
+The packaged root installer/uninstaller is experimental and not accepted for this beta. Installer recovery uses its transaction journal. Keep the journal, manifest and previous package together for diagnosis. Uninstall retains modified and unknown files and vault data. Do not recursively delete directories to resolve ownership failures. Rollback must use the exact installation boundary and preserve external runtimes and native locks.
 
 For an offline GUI failure, check that WebView2 Evergreen is installed. The portable archive contains production assets and its loader, not a WebView2 runtime installer. CLI logs and setup remain available. If discovery is partial or permissions are denied, supply explicit project/workspace paths; do not grant broader access to make an inventory appear complete.
 

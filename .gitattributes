@@ -1,0 +1,7 @@
+# Preserve upstream license bytes and the hashes recorded in the audit.
+/legal/** -text
+/README.md text eol=lf
+/docs/BETA_*.md text eol=lf
+/docs/INSTALLATION.md text eol=lf
+/docs/TROUBLESHOOTING.md text eol=lf
+/scripts/*distribution*.py text eol=lf
