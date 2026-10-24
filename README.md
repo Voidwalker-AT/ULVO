@@ -12,6 +12,8 @@ ULVO is an early-stage, actively developed universal development-resource contro
 
 > **Current Development Status**: **v1.2.0 Release Candidate**. ULVO includes a Windows desktop, execution gateway, project connectors, runtime inventory, and a background agent. Readiness depends on fresh workstation acceptance checks; historical test results, free-space snapshots, and performance measurements are not guarantees for another build or machine. See [hardening and verification limits](docs/WORKSTATION_HARDENING.md).
 
+Stage 4 adds portable path resolution, a metadata-only first-run wizard, connector batch review, bounded local diagnostics and reviewed registry repair. It is a development qualification candidate. See [installation](docs/INSTALLATION.md), [privacy](docs/PRIVACY.md), [recovery](docs/TROUBLESHOOTING.md) and the [release matrix](docs/STAGE4_RELEASE_MATRIX.md). Independent clean Windows qualification is blocked; no universal readiness claim is made.
+
 ---
 
 ## 1. The Problem ULVO Solves

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add shared native Windows configuration resolution and a resumable, reviewed metadata-only setup flow in CLI and desktop.
+- Bound optional tool discovery and retain external ownership when consumers or relocatability are unknown.
+- Add connector-only migration batch review and selection; resolution alone can no longer authorize retirement.
+- Add bounded local operation logs, explicit supervised native-tool capture, redacted export, crash events and exact-plan registry repair with backups.
+- Make agent startup opt-in, request an available port on managed startup, and package qualification artifacts without deploying or overwriting earlier output.
+- Document WebView2 requirements, privacy, recovery, performance targets and blocked independent Windows acceptance.
+
 - Resolve legacy relative managed executables against the configured vault rather than the shell working directory.
 - Normalize extended Windows paths during toolchain ownership checks and inventory deduplication.
 - Support long Windows paths in atomic writes, flush staged contents before replacement, and preserve the original Win32 failure code.

@@ -2,6 +2,10 @@
 
 ULVO (**Universal Language & Virtual Environment Orchestrator**) is an early-stage, actively developed universal development-resource control plane.
 
+Stage 4 routes CLI, agent and desktop through `ulvo-adapters::platform_config`. `SetupService` journals plan/review/apply/verify/complete under the selected user configuration root; first-run discovery is opt-in and metadata-only. Preferences publish atomically with a concurrent-change check. No runtime download or legacy environment removal occurs during bootstrap. Native manifests remain authoritative.
+
+`DiagnosticStore` owns a bounded set of local redacted JSON events. Explicit native capture uses the gateway and supervised process lifetime. `RegistryRepairService` accepts only an exact reviewed project-registry backup replacement with stale-hash checks and preserved before-bytes. Connector batch review records eligibility separately from functional migration verification; retirement requires evidence unavailable from runtime resolution. See the Stage 4 release matrix for unqualified scopes.
+
 ```
        STORE ONCE.
        ISOLATE PER PROJECT.
