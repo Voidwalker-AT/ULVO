@@ -8,7 +8,8 @@ param(
     [switch]$NoShortcuts,
     [switch]$NoRegistry,
     [switch]$NoPath,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$EnableAgent
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,11 +53,7 @@ foreach ($prot in $ProtectedRoots) {
 
 # Resolve VaultPath cleanly
 if ([string]::IsNullOrWhiteSpace($VaultPath)) {
-    if (Test-Path "E:\Workspace\Active\ULVO\vault") {
-        $VaultPath = "E:\Workspace\Active\ULVO\vault"
-    } else {
-        $VaultPath = Join-Path $env:LOCALAPPDATA "ULVO\vault"
-    }
+    $VaultPath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ULVO\vault'
 }
 
 Write-Host "============================================================" -ForegroundColor Cyan
@@ -72,6 +69,32 @@ if (-not (Test-Path $InstallParent)) {
 }
 
 # 1. Recover any interrupted transactions from previous runs
+function Assert-SafeInstallTree {
+    param([string]$Path)
+    $absolute = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $parent = [IO.Path]::GetDirectoryName($absolute)
+    if (-not $absolute.Equals($ResolvedInstall, [StringComparison]::OrdinalIgnoreCase) -and
+        (-not $parent.Equals($InstallParent, [StringComparison]::OrdinalIgnoreCase) -or
+         [IO.Path]::GetFileName($absolute) -notmatch '^\.ulvo_(stage|backup)_[A-Za-z0-9_]{1,80}$')) {
+        throw "Unsafe installation transaction boundary: $absolute"
+    }
+    $ancestor = $absolute
+    while ($ancestor) {
+        if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Reparse point in installation boundary' }
+        $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+    }
+    if (Test-Path -LiteralPath $absolute) {
+        # Reject links before any recursive removal or copy.
+        $pending = [Collections.Generic.Stack[string]]::new(); $pending.Push($absolute)
+        while ($pending.Count) {
+            foreach ($entry in Get-ChildItem -LiteralPath $pending.Pop() -Force) {
+                if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse point inside installation tree' }
+                if ($entry.PSIsContainer) { $pending.Push($entry.FullName) }
+            }
+        }
+    }
+}
+Assert-SafeInstallTree $ResolvedInstall
 function Recover-InterruptedTransactions {
     param([string]$ParentDir, [string]$TargetDir)
     
@@ -83,6 +106,16 @@ function Recover-InterruptedTransactions {
             $stageDir = $jData.staging_dir
             $backupDir = $jData.backup_dir
             $state = $jData.state
+            if ([string]$jData.transaction_id -notmatch '^[A-Za-z0-9_]{1,80}$') { throw 'Invalid transaction identity' }
+            if (-not ([IO.Path]::GetFullPath([string]$jData.install_dir).TrimEnd('\')).Equals($TargetDir, [StringComparison]::OrdinalIgnoreCase)) { continue }
+            $expectedStage = Join-Path $ParentDir ('.ulvo_stage_' + $jData.transaction_id)
+            $expectedBackup = Join-Path $ParentDir ('.ulvo_backup_' + $jData.transaction_id)
+            if (-not ([string]$stageDir).Equals($expectedStage, [StringComparison]::OrdinalIgnoreCase) -or
+                -not ([string]$backupDir).Equals($expectedBackup, [StringComparison]::OrdinalIgnoreCase) -or
+                $jFile.Name -ne ('.ulvo_txn_' + $jData.transaction_id + '.journal.json')) { throw 'Journal paths do not match the exact transaction' }
+            Assert-SafeInstallTree $stageDir
+            Assert-SafeInstallTree $backupDir
+            Assert-SafeInstallTree $TargetDir
 
             Write-Host "  Transaction State: $state" -ForegroundColor DarkGray
             if ($state -eq "BACKUP_CREATED" -or $state -eq "SWAPPING") {
@@ -93,26 +126,19 @@ function Recover-InterruptedTransactions {
             }
 
             if (Test-Path $stageDir) {
-                Remove-Item -Path $stageDir -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -LiteralPath $stageDir -Recurse -Force
             }
             if (Test-Path $backupDir) {
-                Remove-Item -Path $backupDir -Recurse -Force -ErrorAction SilentlyContinue
+                throw 'A recovery backup remains alongside the target; retain both for manual review'
             }
             Remove-Item -Path $jFile.FullName -Force -ErrorAction SilentlyContinue
             Write-Host "  Interrupted transaction recovered cleanly." -ForegroundColor Green
         } catch {
-            Write-Host "  Warning during journal recovery: $_" -ForegroundColor Yellow
+            throw "Recovery stopped; journal and data retained: $_"
         }
     }
 
-    # Clean orphaned staging or backup directories without journals older than 10 minutes
-    $orphans = Get-ChildItem -Path $ParentDir -Directory -Filter ".ulvo_*" -ErrorAction SilentlyContinue
-    foreach ($orph in $orphans) {
-        if ($orph.Name -match "^\.ulvo_(stage|backup)_") {
-            Write-Host "  Purging orphaned temporary directory: $($orph.Name)" -ForegroundColor DarkGray
-            Remove-Item -Path $orph.FullName -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
+    # Unjournaled siblings are retained: a matching name does not prove ownership.
 }
 
 Recover-InterruptedTransactions -ParentDir $InstallParent -TargetDir $ResolvedInstall
@@ -123,7 +149,7 @@ if ($HasExistingInstall) {
     $existingManifest = Join-Path $ResolvedInstall ".ulvo-install-manifest.json"
     if (-not (Test-Path $existingManifest)) {
         $existingItems = Get-ChildItem -Path $ResolvedInstall -Force
-        if ($existingItems.Count -gt 0 -and (-not $Force)) {
+        if ($existingItems.Count -gt 0) {
             throw "SAFETY REFUSAL: Target directory $ResolvedInstall exists, is non-empty, but lacks an official ULVO installation manifest (.ulvo-install-manifest.json). Refusing to overwrite foreign directory without -Force."
         }
     } else {
@@ -225,6 +251,7 @@ try {
 
     # Copy uninstaller script to staging
     $SourceUninstall = Join-Path $PSScriptRoot "uninstall-ulvo.ps1"
+    if (-not (Test-Path -LiteralPath $SourceUninstall)) { $SourceUninstall = Join-Path $PSScriptRoot 'uninstall.ps1' }
     if (Test-Path $SourceUninstall) {
         Copy-Item $SourceUninstall -Destination (Join-Path $StagingDir "uninstall.ps1") -Force
         Copy-Item $SourceUninstall -Destination (Join-Path $StagingDir "scripts\uninstall-ulvo.ps1") -Force
@@ -243,7 +270,7 @@ start "" "%~dp0bin\ulvo-desktop.exe"
         cache_budget_gb = 20.0
         auto_update = $false
         enable_gateway_path = (-not $NoPath)
-        enable_background_agent = $true
+        enable_background_agent = [bool]$EnableAgent
     } | ConvertTo-Json -Depth 4
     $Prefs | Set-Content -Path (Join-Path $StagingDir "config\preferences.json") -Encoding utf8
 
@@ -333,8 +360,9 @@ start "" "%~dp0bin\ulvo-desktop.exe"
             }
         }
 
-        # Remove backup directory on successful commit
-        Remove-Item -Path $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+        # Keep the previous application tree for exact-version rollback and
+        # preserve modified files even when they used an installer-owned name.
+        Write-Host "  Previous installation retained for reviewed rollback: $BackupDir" -ForegroundColor DarkGray
 
     } else {
         # First-time installation: simple directory move
@@ -361,7 +389,8 @@ start "" "%~dp0bin\ulvo-desktop.exe"
 
     # If staging directory still exists, clean it
     if (Test-Path $StagingDir) {
-        Remove-Item -Path $StagingDir -Recurse -Force -ErrorAction SilentlyContinue
+        Assert-SafeInstallTree $StagingDir
+        Remove-Item -LiteralPath $StagingDir -Recurse -Force
     }
 
     # If old install was moved to backup, restore it
@@ -371,7 +400,8 @@ start "" "%~dp0bin\ulvo-desktop.exe"
         Write-Host "  Restoration completed: original installation restored." -ForegroundColor Green
     } elseif ((Test-Path $BackupDir) -and (Test-Path $ResolvedInstall)) {
         # Swap failed midway: remove broken target, restore backup
-        Remove-Item -Path $ResolvedInstall -Recurse -Force -ErrorAction SilentlyContinue
+        Assert-SafeInstallTree $ResolvedInstall
+        Remove-Item -LiteralPath $ResolvedInstall -Recurse -Force
         [System.IO.Directory]::Move($BackupDir, $ResolvedInstall)
         Write-Host "  Restoration completed: reverted to original installation." -ForegroundColor Green
     }

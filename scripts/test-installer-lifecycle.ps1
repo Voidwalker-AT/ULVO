@@ -185,6 +185,20 @@ if (Test-Path $fakeBackupDir2) {
     throw "TEST 4 FAILED: Temporary backup directory was not cleaned after recovery!"
 }
 Write-Host "  [OK] BACKUP_CREATED interrupted state cleanly restored original installation." -ForegroundColor Green
+
+# 4c. A poisoned journal must never turn recovery into arbitrary tree deletion.
+$sentinelDir = Join-Path $TestRoot 'external_recovery_sentinel'
+New-Item -ItemType Directory -Path $sentinelDir -Force | Out-Null
+$sentinelFile = Join-Path $sentinelDir 'retain.txt'
+Set-Content -LiteralPath $sentinelFile -Value 'retain'
+$poisonId = 'poison_boundary_1003'
+$poisonJournal = Join-Path $TestInstallParent ('.ulvo_txn_' + $poisonId + '.journal.json')
+@{ transaction_id=$poisonId; state='STAGED'; install_dir=$TestInstallDir; staging_dir=$sentinelDir; backup_dir=(Join-Path $TestInstallParent ('.ulvo_backup_' + $poisonId)) } | ConvertTo-Json | Set-Content -LiteralPath $poisonJournal
+$refused = $false
+try { & "$PSScriptRoot\install-ulvo.ps1" -InstallDir $TestInstallDir -VaultPath $TestVaultPath -NoShortcuts -NoPath -NoRegistry } catch { $refused = $true }
+if (-not $refused -or -not (Test-Path -LiteralPath $sentinelFile)) { throw 'TEST 4 FAILED: poisoned recovery journal crossed ownership boundary' }
+Remove-Item -LiteralPath $poisonJournal
+Write-Host '  [OK] Poisoned recovery journal refused; external sentinel retained.' -ForegroundColor Green
 $testsPassed++
 
 # --------------------------------------------------------------------------
