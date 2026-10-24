@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add bounded local operation logs, explicit supervised native-tool capture, redacted export, crash events and exact-plan registry repair with backups.
 - Make agent startup opt-in, request an available port on managed startup, and package qualification artifacts without deploying or overwriting earlier output.
 - Document WebView2 requirements, privacy, recovery, performance targets and blocked independent Windows acceptance.
+- Render configured vault/volume labels and request GPU telemetry explicitly; tool discovery does not infer framework compatibility or execute a GPU probe.
 
 - Resolve legacy relative managed executables against the configured vault rather than the shell working directory.
 - Normalize extended Windows paths during toolchain ownership checks and inventory deduplication.

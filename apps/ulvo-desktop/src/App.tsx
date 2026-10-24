@@ -67,7 +67,7 @@ function App() {
   const [provisionProgress, setProvisionProgress] = useState<string>("");
   const [activityLog, setActivityLog] = useState<string[]>([
     "[SYSTEM] ULVO Control Center v1.2.0 initialized.",
-    "[GATEWAY] Single-root vault bound to E:\\Workspace\\Active\\ULVO\\vault.",
+    "[GATEWAY] Vault configuration is resolved locally. Persistent operation details are available below.",
   ]);
 
   const addLog = (msg: string) => {
@@ -125,7 +125,6 @@ function App() {
       // 1. Fetch fast operational telemetry in parallel
       if (discoveryAllowed) invoke<OnboardingStatus>("get_onboarding_status").then(setOnboarding).catch((err) => addLog(`Onboarding load: ${err}`));
       invoke<CatalogEntry[]>("get_catalog").then(setCatalog).catch((err) => addLog(`Catalog load: ${err}`));
-      invoke<GpuTelemetry | null>("get_gpu_telemetry").then(setGpuTelemetry).catch((err) => addLog(`GPU load: ${err}`));
       invoke<VaultEnvironmentsAuditReport>("audit_environments").then(setEnvAudit).catch((err) => addLog(`Audit load: ${err}`));
       invoke<UserPreferences>("get_user_preferences").then(setPreferences).catch((err) => addLog(`Preferences load: ${err}`));
       invoke<AgentStatusSummary>("get_agent_status").then(setAgentStatus).catch((err) => addLog(`Agent status load: ${err}`));
@@ -296,7 +295,7 @@ function App() {
       });
       setProjectRegistry(results);
       setStatusMessage(`Scan complete: ${results.length} projects discovered/synced`);
-      addLog(`Workspace scan found ${results.length} projects across E:\\Workspace.`);
+      addLog(`Workspace scan found ${results.length} projects in the configured roots.`);
     } catch (err: any) {
       setStatusMessage(`Scan failed: ${err}`);
       addLog(`SCAN ERROR: ${err}`);
@@ -369,9 +368,10 @@ function App() {
   const freeGb = storageReport ? (storageReport.available_free_bytes / 1073741824).toFixed(2) : "...";
   const vaultGb = storageReport ? (storageReport.vault_physical_bytes / 1073741824).toFixed(2) : "...";
   const ratio = storageReport ? storageReport.hardlink_sharing_ratio.toFixed(2) : "...";
+  const configuredVault = setup?.plan?.request.vault_path ?? preferences?.vault_path ?? setup?.paths.vault_root ?? "Loading configured vault…";
 
   if (setupError) return <main style={{ padding: 32 }}><h1>ULVO configuration needs attention</h1><p role="alert">{setupError}</p><p>No discovery or setup changes were applied. Use an explicit configuration directory for headless repair.</p></main>;
-  if (!ready) return setup ? <SetupWizard initial={setup} onComplete={allowed => { setDiscoveryAllowed(allowed); setReady(true); }} /> : <main style={{ padding: 32 }}>Opening offline setup…</main>;
+  if (!ready) return setup ? <SetupWizard initial={setup} onComplete={allowed => { setDiscoveryAllowed(allowed); invoke<SetupStatus>("get_setup_status").then(setSetup).catch(e => setSetupError(String(e))); setReady(true); }} /> : <main style={{ padding: 32 }}>Opening offline setup…</main>;
 
   return (
     <div className="app-container">
@@ -393,7 +393,7 @@ function App() {
         <div className="header-telemetry">
           <div className="telemetry-pill">
             <span className="telemetry-dot" />
-            Drive E: {freeGb} GiB Free (Floor: 500 MB)
+            Vault volume: {freeGb} GiB Free (Floor: 500 MB)
           </div>
 
           <div className="telemetry-pill" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -515,7 +515,7 @@ function App() {
             <div>
               <div className="metric-grid">
                 <div className="metric-card">
-                  <div className="metric-label">Drive E: Available Free</div>
+                  <div className="metric-label">Vault volume available free</div>
                   <div className="metric-value">{freeGb} GiB</div>
                   <div className="metric-sub">{storageReport ? (storageReport.safety_floor_satisfied ? "Safety reserve satisfied" : "Below safety reserve") : "Storage measurement is loading"}</div>
                 </div>
@@ -696,7 +696,7 @@ function App() {
               <div className="card-header">
                 <div className="card-title">Managed Vault Runtimes & Toolchains</div>
                 <div style={{ color: "var(--color-text-muted)", fontSize: "12px" }}>
-                  Vault Root: E:\Workspace\Active\ULVO\vault
+                  Vault Root: {configuredVault}
                 </div>
               </div>
               <div className="data-table-wrapper">
@@ -743,7 +743,7 @@ function App() {
                   <div className="card-title">Persistent Project Registry & Thin Connectors</div>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button className="btn btn-primary" onClick={handleScanProjects} disabled={isScanningProjects}>
-                      {isScanningProjects ? "Scanning E:\\Workspace..." : "Rescan Workspace"}
+                      {isScanningProjects ? "Scanning configured roots…" : "Rescan Workspace"}
                     </button>
                     <button className="btn" onClick={handleReclaimEnvs}>
                       Safe GC
@@ -804,7 +804,7 @@ function App() {
                     {filteredProjects.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "var(--color-text-muted)" }}>
-                          No projects registered yet or matched search criteria. Click "Rescan Workspace" to discover projects across E:\Workspace.
+                          No projects registered yet or matched search criteria. Click "Rescan Workspace" to discover projects in configured roots.
                         </td>
                       </tr>
                     ) : (
@@ -895,7 +895,7 @@ function App() {
             <div>
               <div className="metric-grid">
                 <div className="metric-card">
-                  <div className="metric-label">Total Drive E: Capacity</div>
+                  <div className="metric-label">Vault volume capacity</div>
                   <div className="metric-value">{(storageReport.total_capacity_bytes / 1073741824).toFixed(1)} GiB</div>
                   <div className="metric-sub">NTFS Volume</div>
                 </div>
@@ -945,7 +945,7 @@ function App() {
               <div className="card">
                 <div className="card-header">
                   <div className="card-title">NVIDIA Hardware & CUDA Architecture Inspector</div>
-                  <span className="badge badge-gpu">HARDWARE VERIFIED</span>
+                  <span className="badge badge-gpu">{gpuTelemetry ? "HARDWARE TELEMETRY" : "NOT QUERIED"}</span>
                 </div>
                 {gpuTelemetry ? (
                   <div className="metric-grid">
@@ -969,14 +969,15 @@ function App() {
                     <div className="metric-card">
                       <div className="metric-label">Compute Capability</div>
                       <div className="metric-value" style={{ fontSize: "16px" }}>{gpuTelemetry.compute_capability}</div>
-                      <div className="metric-sub">PyTorch +cu124 Native</div>
+                      <div className="metric-sub">Framework compatibility requires project verification</div>
                     </div>
                   </div>
                 ) : (
-                  <p style={{ color: "var(--color-text-muted)" }}>Scanning GPU telemetry...</p>
+                  <p style={{ color: "var(--color-text-muted)" }}>GPU telemetry has not been loaded or is unavailable. ULVO itself does not require a GPU.</p>
                 )}
+                <button className="btn btn-secondary" onClick={() => invoke<GpuTelemetry | null>("get_gpu_telemetry").then(setGpuTelemetry).catch(e => addLog(`GPU query: ${e}`))}>Read trusted system GPU telemetry</button>
                 <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "12px" }}>
-                  * The host NVIDIA display driver and kernel mode components remain system-managed. ULVO enforces compatibility without mutating system display drivers.
+                  * The host display driver remains system-managed. Framework compatibility is evaluated separately for each project.
                 </p>
               </div>
             </div>
@@ -1172,7 +1173,7 @@ function App() {
       {/* Footer Status Bar */}
       <footer className="app-footer">
         <div>STATUS: {statusMessage}</div>
-        <div>GATEWAY: Process-Local | Drive E: Healthy | Agent: {agentStatus?.is_running ? "Active" : "Idle"}</div>
+        <div>GATEWAY: Process-Local | Vault: {configuredVault} | Agent: {agentStatus?.is_running ? "Active" : "Idle"}</div>
       </footer>
     </div>
   );

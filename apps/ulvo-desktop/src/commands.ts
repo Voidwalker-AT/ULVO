@@ -6,7 +6,7 @@ const audited = new Set([
   "plan_provision", "execute_provision", "recover_staging_transactions", "prune_cache", "gc_cache",
   "get_adoption_report", "adopt_tool", "reclaim_environments", "save_user_preferences",
   "trigger_agent_reconciliation", "scan_workspace_projects", "register_project", "onboard_project",
-  "start_agent", "stop_agent",
+  "start_agent", "stop_agent", "get_gpu_telemetry",
 ]);
 export async function invoke<T>(command: string, args?: InvokeArgs): Promise<T> {
   const record = async (classification: string, message: string) => {

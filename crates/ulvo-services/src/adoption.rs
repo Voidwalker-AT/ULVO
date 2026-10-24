@@ -120,20 +120,18 @@ impl AdoptionService {
         // 7. Check Java / JDK
         self.probe_executable("javac", Ecosystem::Java, &mut installations);
 
-        // 8. System Managed Check: NVIDIA GPU driver
-        if let Some(Ok(output)) = ulvo_adapters::trusted_nvidia_smi().map(|path| ulvo_adapters::run_bounded(&path,
-            &["--query-gpu=driver_version", "--format=csv,noheader"], std::time::Duration::from_secs(2)))
-        {
-            {
-                let ver = output.trim().to_string();
+        // Discovery records presence only. Driver telemetry requires a separate
+        // explicit query and cannot be inferred from this component's filename.
+        if let Some(path) = ulvo_adapters::windows_root().ok().map(|p| p.join("System32/nvml.dll")) {
+            if path.is_file() && ulvo_adapters::reject_links(&path).is_ok() {
                 installations.push(DiscoveredInstallation {
-                    name: "NVIDIA Display Driver & CUDA Kernel".into(),
+                    name: "System NVIDIA NVML component".into(),
                     ecosystem: Ecosystem::Python,
-                    path: ulvo_adapters::windows_root().unwrap_or_default().join("System32/nvml.dll"),
-                    version: Some(ver),
+                    path,
+                    version: None,
                     classification: InstallationClassification::SystemManaged,
                     recommended_action: AdoptionAction::RetainExternal,
-                    explanation: "Host GPU display driver and kernel mode components are system-managed and must never be relocated.".into(),
+                    explanation: "System component present; driver version and GPU compatibility have not been queried. Retain in place.".into(),
                     relocatable: false,
                 });
             }
