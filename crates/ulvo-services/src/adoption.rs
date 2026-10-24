@@ -54,7 +54,7 @@ pub struct GpuTelemetry {
     pub vram_total: String,
     pub vram_used: String,
     pub compute_capability: String,
-    pub pytorch_compatible: bool,
+    pub pytorch_compatible: Option<bool>,
     pub kernel_mode: String,
 }
 
@@ -71,23 +71,21 @@ impl AdoptionService {
 
     /// Queries GPU hardware and driver telemetry via nvidia-smi.
     pub fn get_gpu_telemetry(&self) -> Option<GpuTelemetry> {
-        if let Ok(cmd) = std::process::Command::new("nvidia-smi")
-            .arg("--query-gpu=name,driver_version,memory.total,memory.used")
-            .arg("--format=csv,noheader")
-            .output()
-        {
-            if cmd.status.success() {
-                let out = String::from_utf8_lossy(&cmd.stdout);
+        let executable = ulvo_adapters::trusted_nvidia_smi()?;
+        if let Ok(out) = ulvo_adapters::run_bounded(&executable,
+            &["--query-gpu=name,driver_version,memory.total,memory.used,compute_cap", "--format=csv,noheader"],
+            std::time::Duration::from_secs(2)) {
+            {
                 let parts: Vec<&str> = out.trim().split(',').map(|s| s.trim()).collect();
-                if parts.len() >= 4 {
+                if parts.len() >= 5 {
                     return Some(GpuTelemetry {
                         name: parts[0].to_string(),
                         driver_version: parts[1].to_string(),
                         vram_total: parts[2].to_string(),
                         vram_used: parts[3].to_string(),
-                        compute_capability: "sm_86 (Native Ampere)".to_string(),
-                        pytorch_compatible: true,
-                        kernel_mode: "System-Managed (WDDM)".to_string(),
+                        compute_capability: format!("sm_{}", parts[4].replace('.', "")),
+                        pytorch_compatible: None,
+                        kernel_mode: "System-managed; mode not queried".to_string(),
                     });
                 }
             }
@@ -123,17 +121,15 @@ impl AdoptionService {
         self.probe_executable("javac", Ecosystem::Java, &mut installations);
 
         // 8. System Managed Check: NVIDIA GPU driver
-        if let Ok(cmd) = std::process::Command::new("nvidia-smi")
-            .arg("--query-gpu=driver_version")
-            .arg("--format=csv,noheader")
-            .output()
+        if let Some(Ok(output)) = ulvo_adapters::trusted_nvidia_smi().map(|path| ulvo_adapters::run_bounded(&path,
+            &["--query-gpu=driver_version", "--format=csv,noheader"], std::time::Duration::from_secs(2)))
         {
-            if cmd.status.success() {
-                let ver = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+            {
+                let ver = output.trim().to_string();
                 installations.push(DiscoveredInstallation {
                     name: "NVIDIA Display Driver & CUDA Kernel".into(),
                     ecosystem: Ecosystem::Python,
-                    path: PathBuf::from("C:\\Windows\\System32\\nvml.dll"),
+                    path: ulvo_adapters::windows_root().unwrap_or_default().join("System32/nvml.dll"),
                     version: Some(ver),
                     classification: InstallationClassification::SystemManaged,
                     recommended_action: AdoptionAction::RetainExternal,
@@ -169,35 +165,37 @@ impl AdoptionService {
     }
 
     fn probe_executable(&self, tool: &str, ecosystem: Ecosystem, out: &mut Vec<DiscoveredInstallation>) {
-        if let Ok(cmd) = std::process::Command::new("where.exe").arg(tool).output() {
-            if cmd.status.success() {
-                let stdout = String::from_utf8_lossy(&cmd.stdout);
+        let Some(where_exe) = ulvo_adapters::windows_root().ok().map(|p| p.join("System32/where.exe")) else { return };
+        if let Ok(stdout) = ulvo_adapters::run_bounded(&where_exe, &[tool], std::time::Duration::from_secs(2)) {
+            {
                 for line in stdout.lines() {
                     let trimmed = line.trim();
                     if trimmed.is_empty() {
                         continue;
                     }
                     let p = PathBuf::from(trimmed);
-                    let (classification, action, explanation, relocatable) = if p.starts_with(&self.vault_root) {
+                    let ownership = ulvo_discovery::UniversalToolchainScanner::new(self.vault_root.clone()).verify_vault_ownership(&p);
+                    let system = ulvo_adapters::windows_root().ok();
+                    let (classification, action, explanation, relocatable) = if ownership == ulvo_core::Ownership::Managed {
                         (
                             InstallationClassification::Managed,
                             AdoptionAction::UseExisting,
                             "Fully managed within the ULVO vault root.".into(),
                             false,
                         )
-                    } else if trimmed.to_lowercase().contains("c:\\windows\\system32") || trimmed.to_lowercase().contains("c:\\windows\\syswow64") {
+                    } else if system.as_ref().map(|root| p.starts_with(root)).unwrap_or(false) {
                         (
                             InstallationClassification::SystemManaged,
                             AdoptionAction::RetainExternal,
                             "Windows operating system system32 binary; modification prohibited.".into(),
                             false,
                         )
-                    } else if trimmed.to_lowercase().contains("appdata") || trimmed.to_lowercase().contains("program files") {
+                    } else if ownership == ulvo_core::Ownership::External {
                         (
-                            InstallationClassification::Adoptable,
+                            InstallationClassification::External,
                             AdoptionAction::UseExisting,
-                            "External user/system installation eligible for ULVO gateway routing or managed replication.".into(),
-                            true,
+                            "External reference only; consumers, relocatability and ownership have not been verified.".into(),
+                            false,
                         )
                     } else {
                         (
@@ -266,6 +264,7 @@ mod tests {
         let temp_dir = std::env::temp_dir().join("ulvo_test_adoption");
         let svc = AdoptionService::new(&temp_dir);
         let rep = svc.discover_system_installations();
-        assert!(rep.total_discovered > 0);
+        assert_eq!(rep.total_discovered, rep.installations.len());
+        assert!(rep.installations.iter().all(|i| !i.relocatable));
     }
 }

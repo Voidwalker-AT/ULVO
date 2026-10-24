@@ -64,56 +64,8 @@ pub struct VaultStatsResponse {
 }
 
 pub fn resolve_vault_root(custom: Option<&Path>) -> Result<PathBuf, String> {
-    if let Some(p) = custom {
-        reject_links(p)?;
-        if p.exists() {
-            return Ok(p.canonicalize().unwrap_or_else(|_| p.to_path_buf()));
-        } else {
-            return Err(format!("specified vault root does not exist: {}", p.display()));
-        }
-    }
-
-    if let Ok(env_val) = std::env::var("ULVO_VAULT_ROOT") {
-        let env_p = PathBuf::from(env_val);
-        if env_p.is_dir() && reject_links(&env_p).is_ok() {
-            return Ok(env_p.canonicalize().unwrap_or(env_p));
-        }
-    }
-
-    let direct = PathBuf::from("vault");
-    if direct.is_dir() {
-        reject_links(&direct)?;
-        return Ok(direct.canonicalize().unwrap_or(direct));
-    }
-
-    if let Ok(cwd) = std::env::current_dir() {
-        let candidate = cwd.join("vault");
-        if candidate.is_dir() {
-            reject_links(&candidate)?;
-            return Ok(candidate.canonicalize().unwrap_or(candidate));
-        }
-        if let Some(parent) = cwd.parent() {
-            let candidate2 = parent.join("vault");
-            if candidate2.is_dir() {
-                reject_links(&candidate2)?;
-                return Ok(candidate2.canonicalize().unwrap_or(candidate2));
-            }
-            if let Some(grandparent) = parent.parent() {
-                let candidate3 = grandparent.join("vault");
-                if candidate3.is_dir() {
-                    reject_links(&candidate3)?;
-                    return Ok(candidate3.canonicalize().unwrap_or(candidate3));
-                }
-            }
-        }
-    }
-
-    let well_known = PathBuf::from(r"E:\Workspace\Active\ULVO\vault");
-    if well_known.is_dir() && reject_links(&well_known).is_ok() {
-        return Ok(well_known.canonicalize().unwrap_or(well_known));
-    }
-
-    Ok(PathBuf::from("vault").canonicalize().unwrap_or_else(|_| PathBuf::from("vault")))
+    let path = ulvo_adapters::resolve_paths(custom, None)?.vault_root;
+    Ok(path.canonicalize().unwrap_or(path))
 }
 
 pub fn resolve_artifact_manifest(vault_root: &Path) -> Option<Provenance> {
@@ -193,7 +145,7 @@ pub fn load_vault_registry_readonly(vault_root: &Path) -> Result<MemoryVaultRegi
     };
 
     let scanner = crate::UniversalToolchainScanner::new(vault_root.to_path_buf());
-    for tool in scanner.scan_all() {
+    for tool in scanner.scan_gateway_references() {
         let res = tool.to_resource(vault_root);
         if reg.get(&res.resource_id).is_none() {
             let _ = reg.register(res);

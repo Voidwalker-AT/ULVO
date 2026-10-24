@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
 use ulvo_core::lifecycle::{
@@ -10,6 +9,66 @@ use ulvo_services::*;
 pub struct DesktopState {
     pub services: Mutex<UlvoServices>,
     pub watcher: Mutex<Option<WatcherSupervisor>>,
+    pub configuration_error: Option<String>,
+}
+
+#[tauri::command]
+fn record_gui_operation(command: String, classification: String, message: String) -> Result<String, String> {
+    if command.len() > 64 || !command.bytes().all(|c| c.is_ascii_lowercase() || c == b'_') || !["SUCCESS", "FAILURE"].contains(&classification.as_str()) {
+        return Err("invalid diagnostic classification".into());
+    }
+    DiagnosticStore::new(ulvo_adapters::resolve_paths(None, None)?.config_root)
+        .record("gui", &classification, &format!("{command}: {message}"))
+}
+
+#[tauri::command]
+fn get_setup_status(state: State<'_, DesktopState>) -> Result<SetupState, String> {
+    if let Some(error) = &state.configuration_error { return Err(error.clone()); }
+    SetupService::new(ulvo_adapters::resolve_paths(None, None)?).status()
+}
+
+#[tauri::command]
+fn plan_setup(request: SetupRequest) -> Result<SetupState, String> {
+    SetupService::new(ulvo_adapters::resolve_paths(None, None)?).stage_plan(request)
+}
+
+#[tauri::command]
+fn apply_setup(state: State<'_, DesktopState>, approved_plan_id: String) -> Result<SetupState, String> {
+    let result = SetupService::new(ulvo_adapters::resolve_paths(None, None)?).apply(&approved_plan_id)?;
+    let selected = &result.plan.as_ref().ok_or("setup plan missing")?.request.vault_path;
+    *state.services.lock().map_err(|e| e.to_string())? = UlvoServices::new(selected);
+    Ok(result)
+}
+
+#[tauri::command]
+fn cancel_setup() -> Result<SetupState, String> {
+    SetupService::new(ulvo_adapters::resolve_paths(None, None)?).cancel()
+}
+
+#[tauri::command]
+async fn review_migration_batch(projects: Vec<std::path::PathBuf>, workspace: Option<std::path::PathBuf>) -> Result<MigrationBatchPlan, String> {
+    let paths = ulvo_adapters::resolve_paths(None, None)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut selected = projects;
+        if let Some(root) = workspace {
+            let (projects, inaccessible) = ulvo_discovery::WorkspaceScanner::new(root).scan();
+            if !inaccessible.is_empty() { return Err("scan was partial; review explicit candidates instead".into()); }
+            selected.extend(projects.into_iter().filter(|p| p.classification == ulvo_core::ProjectClassification::Standard && p.ecosystem.contains("Python")).map(|p| std::path::PathBuf::from(p.canonical_path)));
+        }
+        MigrationBatchService::new(paths.config_root, paths.vault_root).review(selected)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn apply_migration_batch(approved_plan_id: String, selected: Vec<std::path::PathBuf>) -> Result<MigrationBatchPlan, String> {
+    if selected.is_empty() { return Err("select at least one reviewed candidate".into()); }
+    let paths = ulvo_adapters::resolve_paths(None, None)?;
+    tauri::async_runtime::spawn_blocking(move || MigrationBatchService::new(paths.config_root, paths.vault_root).apply_selected(&approved_plan_id, &selected)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn get_operation_logs() -> Result<Vec<DiagnosticEvent>, String> {
+    DiagnosticStore::new(ulvo_adapters::resolve_paths(None, None)?.config_root).list()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -249,27 +308,33 @@ fn get_agent_diagnostics(state: State<'_, DesktopState>) -> Result<AgentDiagnost
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let default_vault = std::env::var("ULVO_VAULT_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("E:\\Workspace\\Active\\ULVO\\vault"));
+    let resolved = ulvo_adapters::resolve_paths(None, None);
+    let configuration_error = resolved.as_ref().err().cloned();
+    let paths = resolved.unwrap_or_else(|_| {
+        let config = ulvo_adapters::user_data_root().expect("Windows user data folder unavailable");
+        ulvo_adapters::ResolvedPaths { vault_root: config.join("vault"), config_root: config, source: "configuration_error".into(), workspace_roots: vec![] }
+    });
+    let default_vault = paths.vault_root.clone();
+    install_crash_handler(paths.config_root.clone(), "gui");
+    let configured = configuration_error.is_none() && SetupService::new(paths).status().map(|s| s.configured).unwrap_or(false);
 
     let services = UlvoServices::new(&default_vault);
 
     let preferences = services.load_preferences();
-    if preferences.enable_background_agent {
+    if configured && preferences.enable_background_agent {
         let _ = services.agent().ensure_running();
     }
 
     // Dynamic project discovery: watch workspace roots and emit
     // "projects-changed" so the Projects page updates without a manual rescan.
     let (watch_tx, watch_rx) = std::sync::mpsc::channel::<u64>();
-    let watcher = match WatcherSupervisor::start(&default_vault, Some(watch_tx)) {
+    let watcher = if configured { match WatcherSupervisor::start(&default_vault, Some(watch_tx)) {
         Ok(sup) => Some(sup),
         Err(e) => {
             eprintln!("[ULVO Desktop] dynamic project watcher disabled: {e}");
             None
         }
-    };
+    } } else { None };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -289,8 +354,17 @@ pub fn run() {
         .manage(DesktopState {
             services: Mutex::new(services),
             watcher: Mutex::new(watcher),
+            configuration_error,
         })
         .invoke_handler(tauri::generate_handler![
+            record_gui_operation,
+            get_setup_status,
+            plan_setup,
+            apply_setup,
+            cancel_setup,
+            review_migration_batch,
+            apply_migration_batch,
+            get_operation_logs,
             get_onboarding_status,
             get_catalog,
             search_catalog,

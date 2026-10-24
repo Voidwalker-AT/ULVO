@@ -20,6 +20,14 @@ pub struct DiscoveredToolchain {
     pub capabilities: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolchainDiscoveryReport {
+    pub tools: Vec<DiscoveredToolchain>,
+    pub partial: bool,
+    pub inaccessible_paths: Vec<String>,
+    pub scanned_directories: usize,
+}
+
 impl DiscoveredToolchain {
     pub fn to_resource(&self, _vault_root: &Path) -> Resource {
         let provenance = if self.ownership == Ownership::Managed {
@@ -124,6 +132,14 @@ impl UniversalToolchainScanner {
         deduped.into_values().collect()
     }
 
+    /// Cheap reference refresh; broad installation discovery is explicit.
+    pub fn scan_gateway_references(&self) -> Vec<DiscoveredToolchain> {
+        let mut results = Vec::new();
+        self.scan_path_executables(&mut results);
+        self.scan_vault_toolchains(&mut results);
+        results
+    }
+
     fn scan_path_executables(&self, results: &mut Vec<DiscoveredToolchain>) {
         let path_var = std::env::var("PATH").unwrap_or_default();
         let targets = [
@@ -159,7 +175,7 @@ impl UniversalToolchainScanner {
             ("nvcc.exe", "nvcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler", "cuda"]),
         ];
 
-        for dir in std::env::split_paths(&path_var) {
+        for dir in std::env::split_paths(&path_var).take(128) {
             for (filename, name, eco, kind, caps) in &targets {
                 let candidate = dir.join(filename);
                 if candidate.is_file() {
@@ -187,86 +203,64 @@ impl UniversalToolchainScanner {
     }
 
     fn scan_known_install_roots(&self, results: &mut Vec<DiscoveredToolchain>) {
-        // Known roots for Python, .NET, Scoop, MSYS2, Ruby, Go, Java, and CUDA locations
-        let known = [
-            ("C:\\Program Files\\dotnet\\dotnet.exe", "dotnet", Ecosystem::DotNet, ResourceKind::Sdk, vec!["sdk"]),
-            ("C:\\Program Files\\Git\\bin\\git.exe", "git", Ecosystem::Generic("git".into()), ResourceKind::Executable, vec!["vcs"]),
-            ("C:\\msys64\\ucrt64\\bin\\gcc.exe", "gcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
-            ("C:\\msys64\\ucrt64\\bin\\g++.exe", "g++", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler"]),
-            ("C:\\msys64\\usr\\bin\\make.exe", "make", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
-            ("C:\\msys64\\usr\\bin\\pacman.exe", "pacman", Ecosystem::Cpp, ResourceKind::PackageManager, vec!["package_manager"]),
-            ("C:\\Program Files\\Go\\bin\\go.exe", "go", Ecosystem::Go, ResourceKind::Compiler, vec!["compiler", "build_tool"]),
-            ("C:\\Ruby40-x64\\bin\\ruby.exe", "ruby", Ecosystem::Ruby, ResourceKind::LanguageRuntime, vec!["interpreter"]),
-            ("C:\\Ruby40-x64\\bin\\gem.cmd", "gem", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
-            ("C:\\Ruby40-x64\\bin\\bundle.bat", "bundler", Ecosystem::Ruby, ResourceKind::PackageManager, vec!["package_manager"]),
-            ("C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\java.exe", "java", Ecosystem::Java, ResourceKind::LanguageRuntime, vec!["runtime"]),
-            ("C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\\javac.exe", "javac", Ecosystem::Java, ResourceKind::Compiler, vec!["compiler"]),
-            ("C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\bin\\nvcc.exe", "nvcc", Ecosystem::Cpp, ResourceKind::Compiler, vec!["compiler", "cuda"]),
-            ("C:\\Users\\hp\\scoop\\shims\\cmake.exe", "cmake", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
-            ("C:\\Users\\hp\\scoop\\shims\\ninja.exe", "ninja", Ecosystem::Cpp, ResourceKind::Toolchain, vec!["build_tool"]),
-        ];
+        results.extend(self.scan_known_locations_report().tools);
+    }
 
-        for (path_str, name, eco, kind, caps) in &known {
-            let p = PathBuf::from(path_str);
-            if p.is_file() {
-                let backend = if path_str.to_lowercase().contains("msys64") {
-                    Backend::Msys2
-                } else {
-                    Backend::Windows
-                };
-                results.push(DiscoveredToolchain {
-                    name: name.to_string(),
-                    executable_path: p,
-                    version: None,
-                    backend,
-                    ecosystem: eco.clone(),
-                    kind: kind.clone(),
-                    ownership: Ownership::External,
-                    discovery_source: "known_root".into(),
-                    capabilities: caps.iter().map(|s| s.to_string()).collect(),
-                });
-            }
+    /// Metadata-only, bounded discovery in installation directories, never home documents.
+    pub fn scan_known_locations_report(&self) -> ToolchainDiscoveryReport {
+        let mut roots = Vec::new();
+        for key in ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"] {
+            if let Some(value) = std::env::var_os(key) { roots.push(PathBuf::from(value)); }
         }
-
-        // Scoop toolchains
-        if let Ok(userprofile) = std::env::var("USERPROFILE") {
-            let scoop_apps = PathBuf::from(&userprofile).join("scoop").join("apps");
-            if scoop_apps.is_dir() {
-                if let Ok(entries) = std::fs::read_dir(&scoop_apps) {
-                    for entry in entries.flatten() {
-                        let app_name = entry.file_name().to_string_lossy().to_string();
-                        let current = entry.path().join("current");
-                        if current.is_dir() {
-                            let exe = current.join(format!("{app_name}.exe"));
-                            if exe.is_file() {
-                                let (eco, kind) = match app_name.as_str() {
-                                    "python" => (Ecosystem::Python, ResourceKind::LanguageRuntime),
-                                    "uv" => (Ecosystem::Python, ResourceKind::PackageManager),
-                                    "nodejs" => (Ecosystem::NodeJs, ResourceKind::LanguageRuntime),
-                                    "go" => (Ecosystem::Go, ResourceKind::Compiler),
-                                    _ => (Ecosystem::Generic(app_name.clone()), ResourceKind::Executable),
-                                };
-                                results.push(DiscoveredToolchain {
-                                    name: app_name,
-                                    executable_path: exe,
-                                    version: None,
-                                    backend: Backend::Windows,
-                                    ecosystem: eco,
-                                    kind,
-                                    ownership: Ownership::External,
-                                    discovery_source: "scoop".into(),
-                                    capabilities: vec!["package".into()],
-                                });
-                            }
-                        }
-                    }
+        if let Ok(local) = ulvo_adapters::user_data_root() {
+            if let Some(parent) = local.parent() { roots.push(parent.join("Programs")); }
+        }
+        if let Some(profile) = std::env::var_os("USERPROFILE") { roots.push(PathBuf::from(profile).join("scoop/apps")); }
+        roots.sort(); roots.dedup();
+        let mut queue = roots.into_iter().map(|p| (p, 0usize)).collect::<Vec<_>>();
+        let start = std::time::Instant::now();
+        let mut report = ToolchainDiscoveryReport { tools: vec![], partial: false, inaccessible_paths: vec![], scanned_directories: 0 };
+        let names = ["python", "python3", "uv", "pip", "conda", "cargo", "rustc", "rustup", "node", "npm", "npx", "pnpm", "go", "ruby", "gem", "java", "javac", "dotnet", "gcc", "g++", "clang", "clang++", "cmake", "ninja", "mvn", "gradle", "pacman", "nvcc", "git"];
+        while let Some((directory, depth)) = queue.pop() {
+            if report.scanned_directories >= 512 || start.elapsed() > std::time::Duration::from_secs(2) { report.partial = true; break; }
+            if ulvo_adapters::reject_links(&directory).is_err() { continue; }
+            let entries = match std::fs::read_dir(&directory) {
+                Ok(entries) => entries,
+                Err(_) => { if directory.exists() && report.inaccessible_paths.len() < 128 { report.inaccessible_paths.push(directory.to_string_lossy().into_owned()); report.partial = true; } continue; }
+            };
+            report.scanned_directories += 1;
+            for (index, entry) in entries.take(2049).enumerate() {
+                if index == 2048 { report.partial = true; break; }
+                let entry = match entry { Ok(e) => e, Err(_) => { report.partial = true; continue; } };
+                let path = entry.path();
+                if ulvo_adapters::reject_links(&path).is_err() { continue; }
+                let kind = match entry.file_type() { Ok(k) => k, Err(_) => { report.partial = true; continue; } };
+                if kind.is_dir() {
+                    if depth < 3 { queue.push((path, depth + 1)); } else { report.partial = true; }
+                } else if kind.is_file() {
+                    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
+                    let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
+                    if !names.contains(&stem.as_str()) || !["exe", "cmd", "bat"].contains(&extension.as_str()) { continue; }
+                    let ecosystem = match stem.as_str() {
+                        "python" | "python3" | "uv" | "pip" | "conda" => Ecosystem::Python,
+                        "cargo" | "rustc" | "rustup" => Ecosystem::Rust,
+                        "node" | "npm" | "npx" | "pnpm" => Ecosystem::NodeJs,
+                        "go" => Ecosystem::Go, "ruby" | "gem" => Ecosystem::Ruby,
+                        "java" | "javac" | "mvn" | "gradle" => Ecosystem::Java,
+                        "dotnet" => Ecosystem::DotNet,
+                        "gcc" | "g++" | "clang" | "clang++" | "nvcc" => Ecosystem::Cpp,
+                        _ => Ecosystem::Generic(stem.clone()),
+                    };
+                    report.tools.push(DiscoveredToolchain { name: stem, executable_path: path, version: None, backend: Backend::Windows, ecosystem, kind: ResourceKind::Executable, ownership: Ownership::External, discovery_source: "bounded_known_location_metadata".into(), capabilities: vec!["present_unverified".into()] });
                 }
             }
         }
+        if !queue.is_empty() { report.partial = true; }
+        report
     }
-
     fn scan_msys2(&self, results: &mut Vec<DiscoveredToolchain>) {
-        let msys_root = PathBuf::from("C:\\msys64");
+        let msys_root = std::env::var_os("SystemDrive").map(|drive| PathBuf::from(format!("{}\\msys64", drive.to_string_lossy()))).unwrap_or_default();
+        if ulvo_adapters::reject_links(&msys_root).is_err() { return; }
         if !msys_root.is_dir() {
             return;
         }
@@ -406,7 +400,7 @@ impl UniversalToolchainScanner {
     fn scan_wsl_metadata(&self, results: &mut Vec<DiscoveredToolchain>) {
         // Read WSL distribution registrations from registry without launching any distributions
         // On Windows, WSL installs register subkeys under HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss
-        let wsl_exe = PathBuf::from("C:\\Windows\\System32\\wsl.exe");
+        let wsl_exe = ulvo_adapters::windows_root().unwrap_or_default().join("System32/wsl.exe");
         if wsl_exe.is_file() {
             results.push(DiscoveredToolchain {
                 name: "wsl_host".into(),

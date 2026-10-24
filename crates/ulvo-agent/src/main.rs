@@ -5,8 +5,8 @@ use ulvo_services::{AgentAction, AgentIpcServer, UlvoServices, DEFAULT_AGENT_POR
 #[derive(Parser, Debug)]
 #[command(name = "ulvo-agent", version = "1.2.0", about = "ULVO Background Reconciliation & Governance Agent")]
 struct Cli {
-    #[arg(long, global = true, default_value = "E:\\Workspace\\Active\\ULVO\\vault", help = "Path to ULVO vault root")]
-    vault: PathBuf,
+    #[arg(long, global = true, help = "Explicit absolute vault path")]
+    vault: Option<PathBuf>,
 
     #[command(subcommand)]
     command: Option<AgentCommands>,
@@ -29,14 +29,18 @@ enum AgentCommands {
 
 fn main() {
     let cli = Cli::parse();
-    let _services = UlvoServices::new(&cli.vault);
+    let vault = match ulvo_adapters::resolve_paths(cli.vault.as_deref(), None) {
+        Ok(paths) => { ulvo_services::install_crash_handler(paths.config_root.clone(), "agent"); paths.vault_root },
+        Err(e) => { eprintln!("Configuration error: {e}"); std::process::exit(2); }
+    };
+    let _services = UlvoServices::new(&vault);
 
     match cli.command.unwrap_or(AgentCommands::Run { port: DEFAULT_AGENT_PORT }) {
         AgentCommands::Run { port } => {
-            println!("Starting ULVO Background Agent on port {port} (Vault: {})", cli.vault.display());
+            println!("Starting ULVO Background Agent on port {port} (Vault: {})", vault.display());
             // Dynamic project discovery: watch configured workspace roots and
             // reconcile the persistent registry as projects appear or change.
-            let _watch_supervisor = match ulvo_services::WatcherSupervisor::start(&cli.vault, None) {
+            let _watch_supervisor = match ulvo_services::WatcherSupervisor::start(&vault, None) {
                 Ok(sup) => {
                     println!("[ULVO Agent] dynamic project watcher active");
                     Some(sup)
@@ -46,14 +50,14 @@ fn main() {
                     None
                 }
             };
-            let server = AgentIpcServer::new(&cli.vault);
+            let server = AgentIpcServer::new(&vault);
             if let Err(e) = server.serve(port) {
                 eprintln!("Agent server error: {e}");
                 std::process::exit(1);
             }
         }
         AgentCommands::Status => {
-            let server = AgentIpcServer::new(&cli.vault);
+            let server = AgentIpcServer::new(&vault);
             match server.send_request(AgentAction::Status) {
                 Ok(resp) => {
                     println!("ULVO Agent Status: {}", if resp.success { "OPERATIONAL" } else { "DEGRADED" });
@@ -69,7 +73,7 @@ fn main() {
             }
         }
         AgentCommands::Reconcile => {
-            let server = AgentIpcServer::new(&cli.vault);
+            let server = AgentIpcServer::new(&vault);
             match server.send_request(AgentAction::ReconcileLeases) {
                 Ok(resp) => {
                     println!("Reconciliation triggered: {}", resp.message);
@@ -84,7 +88,7 @@ fn main() {
             }
         }
         AgentCommands::Stop => {
-            let server = AgentIpcServer::new(&cli.vault);
+            let server = AgentIpcServer::new(&vault);
             match server.send_request(AgentAction::Shutdown) {
                 Ok(resp) => {
                     println!("Shutdown response: {}", resp.message);

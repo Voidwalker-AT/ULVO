@@ -202,9 +202,10 @@ impl AgentIpcServer {
         let listener = TcpListener::bind(format!("127.0.0.1:{port}"))
             .map_err(|e| format!("cannot bind agent IPC listener on 127.0.0.1:{port}: {e}"))?;
 
-        let _ = fs::write(&self.port_path, port.to_string());
+        let actual_port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        let _ = fs::write(&self.port_path, actual_port.to_string());
         let _ = fs::write(&self.pid_path, std::process::id().to_string());
-        println!("ULVO Background Agent listening on 127.0.0.1:{port} (PID: {})", std::process::id());
+        println!("ULVO Background Agent listening on 127.0.0.1:{actual_port} (PID: {})", std::process::id());
 
         let terminating = self.is_terminating.clone();
 
@@ -298,8 +299,6 @@ impl AgentIpcServer {
             candidates.push(parent.join("target").join("release").join("ulvo-agent.exe"));
             candidates.push(parent.join("target").join("debug").join("ulvo-agent.exe"));
         }
-        candidates.push(PathBuf::from("E:\\Workspace\\Active\\ULVO\\target\\release\\ulvo-agent.exe"));
-        candidates.push(PathBuf::from("E:\\Workspace\\Active\\ULVO\\bin\\ulvo-agent.exe"));
 
         let agent_exe = candidates
             .into_iter()
@@ -308,6 +307,7 @@ impl AgentIpcServer {
 
         let mut cmd = std::process::Command::new(&agent_exe);
         cmd.arg("run")
+            .arg("--port").arg("0")
             .arg("--vault")
             .arg(&self.vault_root)
             .stdin(std::process::Stdio::null())

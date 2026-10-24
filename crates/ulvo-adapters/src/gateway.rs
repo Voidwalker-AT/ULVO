@@ -195,11 +195,6 @@ impl<'a> GatewayResolver<'a> {
                         if !path_entries.contains(&s) { path_entries.push(s); }
                     }
                 }
-                let fallback_msys = PathBuf::from(r"C:\msys64\ucrt64\bin");
-                if fallback_msys.is_dir() {
-                    let s = fallback_msys.to_string_lossy().to_string();
-                    if !path_entries.contains(&s) { path_entries.push(s); }
-                }
             }
             ulvo_core::Ecosystem::Go => {
                 if let Some(parent) = exe_path.parent() {
@@ -252,15 +247,12 @@ impl<'a> GatewayResolver<'a> {
         }
 
         // Step 2c: Retain approved essential Windows system directories ONLY (for DLL resolution and OS services)
-        let sys_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+        let sys_root = crate::windows_root().unwrap_or_default();
         let approved_system_dirs = [
             PathBuf::from(&sys_root).join("System32"),
             PathBuf::from(&sys_root),
             PathBuf::from(&sys_root).join("System32").join("Wbem"),
             PathBuf::from(&sys_root).join("System32").join("WindowsPowerShell").join("v1.0"),
-            PathBuf::from("C:\\Windows\\System32"),
-            PathBuf::from("C:\\Windows"),
-            PathBuf::from("C:\\System32"),
         ];
 
         for sys_dir in &approved_system_dirs {
@@ -481,7 +473,7 @@ mod tests {
         // Verify that PATH in process_env begins with the tool's directory
         let local_path = res.process_env.get("PATH").unwrap();
         assert!(local_path.starts_with(&temp_dir.to_string_lossy().to_string()));
-        assert!(local_path.contains("C:\\System32"));
+        assert!(local_path.contains("System32"));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

@@ -1,4 +1,6 @@
 pub mod vault_rust;
+pub mod platform_config;
+pub use platform_config::*;
 pub use vault_rust::*;
 pub mod vault_python;
 pub use vault_python::*;

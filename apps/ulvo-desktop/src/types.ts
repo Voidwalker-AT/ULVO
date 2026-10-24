@@ -138,7 +138,7 @@ export interface GpuTelemetry {
   vram_total: string;
   vram_used: string;
   compute_capability: string;
-  pytorch_compatible: boolean;
+  pytorch_compatible: boolean | null;
   kernel_mode: string;
 }
 

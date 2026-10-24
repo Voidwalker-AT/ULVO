@@ -2,6 +2,14 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 pub mod catalog;
+pub mod setup;
+pub mod diagnostics;
+pub mod repair;
+pub mod migration_batch;
+pub use migration_batch::*;
+pub use repair::*;
+pub use diagnostics::*;
+pub use setup::*;
 pub mod provisioning;
 pub mod adoption;
 pub mod projects;
@@ -31,15 +39,9 @@ pub struct UserPreferences {
 
 impl Default for UserPreferences {
     fn default() -> Self {
-        let default_vault = if Path::new("E:\\Workspace\\Active\\ULVO\\vault").is_dir() {
-            PathBuf::from("E:\\Workspace\\Active\\ULVO\\vault")
-        } else if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-            PathBuf::from(local_app_data).join("ULVO").join("vault")
-        } else if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            PathBuf::from(user_profile).join(".ulvo").join("vault")
-        } else {
-            PathBuf::from("vault")
-        };
+        // Runtime initialization uses the fallible shared resolver. Default is
+        // only a serialization template, never a reason to create a CWD vault.
+        let default_vault = ulvo_adapters::user_data_root().map(|p| p.join("vault")).unwrap_or_default();
 
         Self {
             vault_path: default_vault,
@@ -156,6 +158,14 @@ impl UlvoServices {
         }
         let mut def = UserPreferences::default();
         def.vault_path = self.vault_root.clone();
+        if let Ok(paths) = ulvo_adapters::resolve_paths(None, None) {
+            let pref = paths.config_root.join("preferences.json");
+            if let Ok(content) = ulvo_adapters::bounded_read(&pref) {
+                if let Ok(bootstrap) = serde_json::from_str::<ulvo_adapters::BootstrapPreferences>(&content) {
+                    def.enable_background_agent = bootstrap.enable_background_agent;
+                }
+            }
+        }
         def
     }
 
@@ -167,8 +177,7 @@ impl UlvoServices {
         }
         let data = serde_json::to_string_pretty(prefs)
             .map_err(|e| format!("cannot serialize preferences: {e}"))?;
-        std::fs::write(&pref_file, data)
-            .map_err(|e| format!("cannot write preferences file: {e}"))?;
+        ulvo_adapters::write_atomic(&pref_file, data.as_bytes())?;
         Ok(())
     }
 }

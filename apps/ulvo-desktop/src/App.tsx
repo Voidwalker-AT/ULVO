@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./commands";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import SetupWizard, { SetupStatus } from "./SetupWizard";
+import MigrationReview from "./MigrationReview";
 import {
   OnboardingStatus,
   CatalogEntry,
@@ -20,6 +22,7 @@ import {
 } from "./types";
 
 type ViewTab =
+  | "migration"
   | "dashboard"
   | "discover"
   | "installed"
@@ -31,6 +34,11 @@ type ViewTab =
   | "settings";
 
 function App() {
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
+  const [setupError, setSetupError] = useState("");
+  const [ready, setReady] = useState(false);
+  const [discoveryAllowed, setDiscoveryAllowed] = useState(false);
+  const [operationLogs, setOperationLogs] = useState<{ operation_id: string; component: string; classification: string; message: string }[]>([]);
   const [activeTab, setActiveTab] = useState<ViewTab>("dashboard");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready");
@@ -69,8 +77,15 @@ function App() {
 
   // Initial load
   useEffect(() => {
-    refreshAllData();
+    invoke<SetupStatus>("get_setup_status").then(s => {
+      setSetup(s);
+      const allowed = s.plan?.request.discovery_consent ?? s.configured;
+      setDiscoveryAllowed(allowed);
+      if (s.configured && s.stage === "complete") { setReady(true); }
+    }).catch(e => setSetupError(String(e)));
   }, []);
+
+  useEffect(() => { if (ready) refreshAllData(); }, [ready]);
 
   // Live registry updates from the background filesystem watcher
   useEffect(() => {
@@ -108,7 +123,7 @@ function App() {
     setStatusMessage("Synchronizing with Universal Vault...");
     try {
       // 1. Fetch fast operational telemetry in parallel
-      invoke<OnboardingStatus>("get_onboarding_status").then(setOnboarding).catch((err) => addLog(`Onboarding load: ${err}`));
+      if (discoveryAllowed) invoke<OnboardingStatus>("get_onboarding_status").then(setOnboarding).catch((err) => addLog(`Onboarding load: ${err}`));
       invoke<CatalogEntry[]>("get_catalog").then(setCatalog).catch((err) => addLog(`Catalog load: ${err}`));
       invoke<GpuTelemetry | null>("get_gpu_telemetry").then(setGpuTelemetry).catch((err) => addLog(`GPU load: ${err}`));
       invoke<VaultEnvironmentsAuditReport>("audit_environments").then(setEnvAudit).catch((err) => addLog(`Audit load: ${err}`));
@@ -119,7 +134,7 @@ function App() {
       // 2. Heavy storage intelligence and adoption telemetry
       const [stor, adop] = await Promise.allSettled([
         invoke<ComprehensiveStorageReport>("get_storage_report"),
-        invoke<AdoptionPlanReport>("get_adoption_report"),
+        discoveryAllowed ? invoke<AdoptionPlanReport>("get_adoption_report") : Promise.reject("Discovery not authorized"),
       ]);
 
       if (stor.status === "fulfilled") setStorageReport(stor.value);
@@ -355,6 +370,9 @@ function App() {
   const vaultGb = storageReport ? (storageReport.vault_physical_bytes / 1073741824).toFixed(2) : "...";
   const ratio = storageReport ? storageReport.hardlink_sharing_ratio.toFixed(2) : "...";
 
+  if (setupError) return <main style={{ padding: 32 }}><h1>ULVO configuration needs attention</h1><p role="alert">{setupError}</p><p>No discovery or setup changes were applied. Use an explicit configuration directory for headless repair.</p></main>;
+  if (!ready) return setup ? <SetupWizard initial={setup} onComplete={allowed => { setDiscoveryAllowed(allowed); setReady(true); }} /> : <main style={{ padding: 32 }}>Opening offline setup…</main>;
+
   return (
     <div className="app-container">
       {/* Top Header */}
@@ -402,6 +420,7 @@ function App() {
       <div className="app-body">
         {/* Sidebar */}
         <aside className="app-sidebar">
+          <div className={`nav-item ${activeTab === "migration" ? "active" : ""}`} onClick={() => setActiveTab("migration")}>Migration Review</div>
           <div
             className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
             onClick={() => setActiveTab("dashboard")}
@@ -469,6 +488,8 @@ function App() {
 
         {/* Viewport Content */}
         <main className="main-viewport">
+          {activeTab === "migration" && <MigrationReview />}
+          {activeTab === "activity" && <section><h2>Persistent local diagnostics</h2><button onClick={() => invoke<typeof operationLogs>("get_operation_logs").then(setOperationLogs).catch(e => addLog(String(e)))}>Load bounded operation logs</button>{operationLogs.map(event => <details key={event.operation_id}><summary>{event.operation_id} · {event.component} · {event.classification}</summary><pre style={{ whiteSpace: "pre-wrap" }}>{event.message}</pre></details>)}</section>}
           {/* Onboarding Banner if Fresh State */}
           {onboarding?.is_first_run && (
             <div className="onboarding-banner">

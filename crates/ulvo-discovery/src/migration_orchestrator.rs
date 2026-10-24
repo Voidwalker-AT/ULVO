@@ -333,10 +333,11 @@ impl MigrationOrchestrator {
         if report.gates.iter().any(|g| g.gate_id == "GATE_H" && g.passed) {
             match self.project_orchestrator.resolve(&canon_proj) {
                 Ok(_) => {
-                    // Passed ULVO resolve
+                    // Resolution is not proof of project execution, consumer
+                    // compatibility, or a tested rollback. Never retire on it.
                     if let Some(gate_i) = report.gates.iter_mut().find(|g| g.gate_id == "GATE_I") {
-                        gate_i.passed = true;
-                        gate_i.message = "ULVO resolve succeeded: runtime and dependencies verified".into();
+                        gate_i.passed = false;
+                        gate_i.message = "Runtime resolution succeeded; actual replacement execution, external consumers and rollback remain unverified. Retirement blocked.".into();
                     }
                 }
                 Err(e) => {

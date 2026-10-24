@@ -19,6 +19,34 @@
   --font-mono: "Consolas", "Courier New", monospace;
 }
 
+.setup-wizard {
+  max-width: 960px;
+  height: 100vh;
+  overflow-y: auto;
+  margin: 0 auto;
+  padding: 48px 36px;
+  user-select: text;
+}
+.setup-wizard h1 { font-size: 30px; margin-bottom: 12px; }
+.setup-wizard h2 { font-size: 20px; margin-bottom: 16px; overflow-wrap: anywhere; }
+.setup-wizard p, .setup-wizard ul { margin: 16px 0; line-height: 1.7; overflow-wrap: anywhere; }
+.setup-wizard ul { padding-left: 24px; }
+.setup-wizard section { padding: 24px; margin: 24px 0; background: var(--color-bg-surface); border: 1px solid var(--color-border); border-radius: 12px; }
+.setup-wizard label { display: block; margin: 14px 0; }
+.setup-wizard input:not([type="checkbox"]), .setup-wizard textarea {
+  margin-top: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg-base); color: var(--color-text-main); font: inherit; user-select: text;
+}
+.setup-wizard input[type="checkbox"] { margin-right: 10px; accent-color: var(--color-cyan-glow); }
+.setup-wizard button {
+  padding: 10px 18px; border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg-subtle); color: var(--color-text-main); font: inherit; cursor: pointer;
+}
+.setup-wizard button:hover { border-color: var(--color-cyan-glow); }
+.setup-wizard button:focus-visible, .setup-wizard input:focus-visible, .setup-wizard textarea:focus-visible { outline: 2px solid var(--color-cyan-glow); outline-offset: 3px; }
+.setup-wizard button:disabled { opacity: 0.5; cursor: wait; }
+.setup-wizard progress { accent-color: var(--color-cyan-glow); height: 6px; margin: 12px 0; }
+
 * {
   box-sizing: border-box;
   margin: 0;

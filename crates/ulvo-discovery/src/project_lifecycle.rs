@@ -1350,9 +1350,10 @@ impl ProjectOrchestrator {
     }
 
     pub fn detect_host_gpu() -> Option<HostGpuInfo> {
+        let executable = ulvo_adapters::trusted_nvidia_smi()?;
         // First extract runtime CUDA version from full nvidia-smi banner if available
         let mut runtime_cuda = None;
-        if let Ok(full_out) = std::process::Command::new("nvidia-smi").output() {
+        if let Ok(full_out) = std::process::Command::new(&executable).output() {
             if full_out.status.success() {
                 let text = String::from_utf8_lossy(&full_out.stdout);
                 for line in text.lines() {
@@ -1370,8 +1371,8 @@ impl ProjectOrchestrator {
             }
         }
 
-        let out = std::process::Command::new("nvidia-smi")
-            .arg("--query-gpu=name,driver_version,memory.total")
+        let out = std::process::Command::new(&executable)
+            .arg("--query-gpu=name,driver_version,memory.total,compute_cap")
             .arg("--format=csv,noheader,nounits")
             .output()
             .ok()?;
@@ -1379,17 +1380,11 @@ impl ProjectOrchestrator {
             let s = String::from_utf8_lossy(&out.stdout);
             let line = s.lines().next()?;
             let parts: Vec<&str> = line.split(',').map(|p| p.trim()).collect();
-            if parts.len() >= 3 {
+            if parts.len() >= 4 {
                 let name = parts[0].to_string();
                 let driver = parts[1].to_string();
                 let vram = parts[2].parse().unwrap_or(0);
-                let cc = if name.contains("RTX 2050") || name.contains("RTX 30") {
-                    "sm_86".to_string()
-                } else if name.contains("RTX 40") {
-                    "sm_89".to_string()
-                } else {
-                    "sm_75".to_string()
-                };
+                let cc = format!("sm_{}", parts[3].replace('.', ""));
 
                 let parsed_driver = ulvo_core::NvidiaDriverVersion::parse_with_runtime_cuda(&driver, runtime_cuda.as_deref());
                 let (max_cuda, source_str) = match parsed_driver {

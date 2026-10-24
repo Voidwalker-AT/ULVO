@@ -303,7 +303,7 @@ impl ProjectRegistry {
         let registry_file = reg_dir.join("projects.json");
 
         let default_ws = default_workspace
-            .unwrap_or_else(|| PathBuf::from("E:\\Workspace"))
+            .unwrap_or_default()
             .to_string_lossy()
             .to_string();
 
@@ -357,6 +357,13 @@ impl ProjectRegistry {
 
     pub fn set_workspace_root(&mut self, root: &str) {
         self.data.workspace_root = root.to_string();
+    }
+
+    pub fn set_workspace_roots(&mut self, roots: &[PathBuf]) -> Result<(), String> {
+        for root in roots { ulvo_adapters::validate_absolute_directory(root)?; }
+        self.data.workspace_root = roots.first().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+        self.data.workspace_roots = roots.iter().skip(1).map(|p| p.to_string_lossy().to_string()).collect();
+        Ok(())
     }
 
     pub fn save(&self) -> Result<(), String> {

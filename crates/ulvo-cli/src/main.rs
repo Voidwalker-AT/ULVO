@@ -7,12 +7,26 @@ use ulvo_core::VaultRegistry;
 struct Cli {
     #[arg(long, global = true)]
     json: bool,
+    #[arg(long, global = true)]
+    vault_root: Option<PathBuf>,
+    #[arg(long, global = true)]
+    config_root: Option<PathBuf>,
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Offline first-run setup; no downloads or project migration are implied
+    Setup { #[command(subcommand)] command: SetupCommands },
+    /// Bounded structured operation diagnostics
+    Logs { #[command(subcommand)] command: LogCommands },
+    /// Plan or explicitly apply reversible metadata repair
+    Repair {
+        #[arg(long, conflicts_with = "apply")] plan: bool,
+        #[arg(long, requires = "plan")] backup: Option<PathBuf>,
+        #[arg(long)] apply: Option<String>,
+    },
     Inventory {
         #[arg(long)]
         all_backends: bool,
@@ -24,8 +38,6 @@ enum Commands {
         project_path: PathBuf,
     },
     Vault {
-        #[arg(long, global = true)]
-        vault_root: Option<PathBuf>,
         #[command(subcommand)]
         subcommand: VaultCommands,
     },
@@ -85,7 +97,7 @@ enum Commands {
         command: Vec<String>,
     },
     /// System-wide diagnostic check verifying vault durability, gateway, runtimes, GPU and storage
-    Doctor,
+    Doctor { #[arg(long)] deep: bool },
     /// Universal catalog of managed and available language runtimes, compilers, and toolchains
     Catalog {
         #[command(subcommand)]
@@ -108,6 +120,33 @@ enum Commands {
         /// Workspace or project path to analyze (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum SetupCommands {
+    Status,
+    Plan {
+        #[arg(long)] vault: Option<PathBuf>,
+        #[arg(long)] workspace_root: Vec<PathBuf>,
+        #[arg(long)] ecosystem: Vec<String>,
+        #[arg(long)] allow_discovery: bool,
+        #[arg(long)] enable_agent: bool,
+    },
+    Apply { approved_plan_id: String },
+    Cancel,
+}
+
+#[derive(Subcommand)]
+enum LogCommands {
+    List,
+    Show { operation_id: String },
+    Export { destination: PathBuf },
+    /// Explicit noninteractive native-tool capture; arguments are never logged
+    Capture {
+        #[arg(long)] tool: String,
+        #[arg(long, default_value_t = 120)] timeout_seconds: u64,
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)] args: Vec<String>,
     },
 }
 
@@ -247,6 +286,15 @@ enum GpuCommands {
 
 #[derive(Subcommand)]
 enum MigrateCommands {
+    /// Review one or several candidates; existing environments remain untouched
+    BatchReview {
+        #[arg(long, required_unless_present = "all_eligible")] project: Vec<PathBuf>,
+        /// Review all native-manifest candidates in an explicitly selected workspace
+        #[arg(long, requires = "workspace")] all_eligible: bool,
+        #[arg(long)] workspace: Option<PathBuf>,
+    },
+    /// Apply only the reviewed connector batch; never deletes environments
+    BatchApply { approved_plan_id: String, #[arg(long)] project: Vec<PathBuf> },
     /// Perform a read-only scan of the workspace for Python environments and projects
     Scan {
         #[arg(default_value = ".")]
@@ -440,7 +488,43 @@ enum WorkspaceCommands {
 }
 
 fn run(cli: Cli) -> Result<i32, String> {
+    let paths = ulvo_adapters::resolve_paths(cli.vault_root.as_deref(), cli.config_root.as_deref())?;
+    // Startup-only process configuration, never User/Machine environment state.
+    std::env::set_var("ULVO_VAULT_ROOT", &paths.vault_root);
+    std::env::set_var("ULVO_CONFIG_ROOT", &paths.config_root);
     match cli.command {
+        Commands::Repair { plan, backup, apply } => {
+            let repair = ulvo_services::RepairService::new(paths.config_root, paths.vault_root);
+            let result = if let Some(id) = apply { repair.apply(&id)? } else if plan { repair.plan(backup)? } else { return Err("select --plan or --apply <approved-plan-id>".into()); };
+            println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?); Ok(0)
+        }
+        Commands::Setup { command } => {
+            let setup = ulvo_services::SetupService::new(paths.clone());
+            let result = match command {
+                SetupCommands::Status => setup.status()?,
+                SetupCommands::Plan { vault, workspace_root, ecosystem, allow_discovery, enable_agent } => setup.stage_plan(ulvo_services::SetupRequest {
+                    vault_path: vault.unwrap_or(paths.vault_root), workspace_roots: workspace_root,
+                    ecosystems: ecosystem, discovery_consent: allow_discovery, enable_background_agent: enable_agent,
+                })?,
+                SetupCommands::Apply { approved_plan_id } => setup.apply(&approved_plan_id)?,
+                SetupCommands::Cancel => setup.cancel()?,
+            };
+            println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?); Ok(0)
+        }
+        Commands::Logs { command } => {
+            let logs = ulvo_services::DiagnosticStore::new(paths.config_root);
+            match command {
+                LogCommands::List => println!("{}", serde_json::to_string_pretty(&logs.list()?).map_err(|e| e.to_string())?),
+                LogCommands::Show { operation_id } => println!("{}", serde_json::to_string_pretty(&logs.show(&operation_id)?).map_err(|e| e.to_string())?),
+                LogCommands::Export { destination } => { logs.export(&destination)?; println!("Diagnostic export written"); }
+                LogCommands::Capture { tool, timeout_seconds, args } => {
+                    let registry = ulvo_discovery::load_vault_registry_readonly(&paths.vault_root)?;
+                    let resolver = ulvo_adapters::GatewayResolver::new(&registry).with_vault_root(paths.vault_root);
+                    let (id, code) = logs.capture(&resolver, &tool, &args, timeout_seconds)?;
+                    println!("Operation {id}; exit {code}. Use logs show to inspect redacted output."); return Ok(code);
+                }
+            }; Ok(0)
+        }
         Commands::Inventory { all_backends, verify } => {
             let result = ulvo_discovery::inventory(all_backends, verify);
             if cli.json {
@@ -469,8 +553,8 @@ fn run(cli: Cli) -> Result<i32, String> {
             }
             Ok(0)
         }
-        Commands::Vault { vault_root, subcommand } => {
-            let vault_path = ulvo_discovery::resolve_vault_root(vault_root.as_deref())?;
+        Commands::Vault { subcommand } => {
+            let vault_path = ulvo_discovery::resolve_vault_root(None)?;
             match subcommand {
                 VaultCommands::List => {
                     let registry = ulvo_discovery::load_vault_registry_readonly(&vault_path)?;
@@ -1251,8 +1335,25 @@ fn run(cli: Cli) -> Result<i32, String> {
         }
         Commands::Migrate { subcommand } => {
             let vault_path = ulvo_discovery::resolve_vault_root(None)?;
+            let batch = ulvo_services::MigrationBatchService::new(paths.config_root.clone(), vault_path.clone());
+            if let MigrateCommands::BatchReview { project, all_eligible, workspace } = &subcommand {
+                let mut selected = project.clone();
+                if *all_eligible {
+                    let root = workspace.as_ref().ok_or("workspace is required for candidate review")?;
+                    let (projects, inaccessible) = ulvo_discovery::WorkspaceScanner::new(root).scan();
+                    if !inaccessible.is_empty() { return Err("workspace scan was incomplete; select explicit project candidates".into()); }
+                    selected.extend(projects.into_iter().filter(|p| p.classification == ulvo_core::ProjectClassification::Standard && p.ecosystem.contains("Python")).map(|p| PathBuf::from(p.canonical_path)));
+                }
+                let result = batch.review(selected)?;
+                println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?); return Ok(0);
+            }
+            if let MigrateCommands::BatchApply { approved_plan_id, project } = &subcommand {
+                let result = batch.apply_selected(approved_plan_id, project)?;
+                println!("{}", serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?); return Ok(0);
+            }
             let orchestrator = ulvo_discovery::MigrationOrchestrator::new(vault_path)?;
             match subcommand {
+                MigrateCommands::BatchReview { .. } | MigrateCommands::BatchApply { .. } => Err("invalid batch dispatch".into()),
                 MigrateCommands::Scan { path } => {
                     let result = orchestrator.scan(&path)?;
                     if cli.json {
@@ -1736,7 +1837,7 @@ fn run(cli: Cli) -> Result<i32, String> {
             let code = status.code().unwrap_or(if status.success() { 0 } else { 1 });
             Ok(code)
         }
-        Commands::Doctor => run_doctor(cli.json),
+        Commands::Doctor { deep } => run_doctor(cli.json, deep),
         Commands::Catalog { subcommand } => run_catalog(subcommand, cli.json),
         Commands::Agent { subcommand } => run_agent(subcommand, cli.json),
         Commands::Storage { subcommand, path } => run_storage(subcommand, path, cli.json),
@@ -1746,7 +1847,18 @@ fn run(cli: Cli) -> Result<i32, String> {
 fn main() {
     let cli = Cli::parse();
     let json = cli.json;
-    match run(cli) {
+    let log_root = ulvo_adapters::resolve_paths(cli.vault_root.as_deref(), cli.config_root.as_deref()).ok().map(|p| p.config_root);
+    if let Some(root) = &log_root { ulvo_services::install_crash_handler(root.clone(), "cli"); }
+    let outcome = run(cli);
+    if let Some(root) = log_root {
+        let (classification, message) = match &outcome {
+            Ok(0) => ("VERIFIED", "CLI operation completed".to_string()),
+            Ok(code) => ("FAILED", format!("CLI operation exited with code {code}")),
+            Err(e) => ("FAILED", e.clone()),
+        };
+        if let Err(e) = ulvo_services::DiagnosticStore::new(root).record("cli", classification, &message) { eprintln!("ULVO diagnostic recording unavailable: {}", ulvo_services::redact(&e)); }
+    }
+    match outcome {
         Ok(code) => {
             if code != 0 {
                 std::process::exit(code);
@@ -1824,9 +1936,13 @@ fn adopt_tool(tool_name: String, vault_path: &Path, json: bool) -> Result<i32, S
     }
 }
 
-fn run_doctor(cli_json: bool) -> Result<i32, String> {
+fn run_doctor(cli_json: bool, deep: bool) -> Result<i32, String> {
     let vault_path = ulvo_discovery::resolve_vault_root(None)?;
     let clean_vault = ulvo_core::strip_unc_prefix(&vault_path);
+    if deep {
+        ulvo_discovery::ProjectRegistry::load_or_create(&vault_path, None)?;
+        if let Ok(paths) = ulvo_adapters::resolve_paths(None, None) { ulvo_services::SetupService::new(paths).status()?; }
+    }
 
     // 1. Vault Durability
     let reg_path = clean_vault.join("registry").join("vault_registry.json");
@@ -1841,7 +1957,7 @@ fn run_doctor(cli_json: bool) -> Result<i32, String> {
     let total_resources = registry.list().len();
 
     // 2. Execution Gateway
-    let gateway_exe_1 = PathBuf::from(r"E:\Workspace\Active\ULVO\bin\ulvo.exe");
+    let gateway_exe_1 = std::env::current_exe().unwrap_or_default();
     let gateway_exe_2 = clean_vault.join("bin").join("ulvo.exe");
     let gateway_ok = gateway_exe_1.is_file() || gateway_exe_2.is_file();
 
@@ -1875,7 +1991,8 @@ fn run_doctor(cli_json: bool) -> Result<i32, String> {
         }
     }
 
-    let all_pass = reg_exists && lock_exists && journal_exists && gateway_ok && capacity_ok && py_ok && rust_ok && msys_ok && cas_all_ok;
+    let initialized = reg_exists || clean_vault.join(".ulvo-vault.json").is_file();
+    let all_pass = initialized && gateway_ok && capacity_ok && cas_all_ok;
 
     if cli_json {
         let payload = serde_json::json!({
