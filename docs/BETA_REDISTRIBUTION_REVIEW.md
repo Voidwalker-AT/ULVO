@@ -125,6 +125,17 @@ Evergreen separately. Microsoft's [distribution documentation](https://learn.mic
 distinguishes the architecture-specific loader from the browser runtime. No
 runtime installer, fixed-version browser or Microsoft endorsement is included.
 
+## Historical source records
+
+Historical workstation reports and older development documents are retained in
+Git for provenance. They are excluded from the portable ZIP and from Git source
+exports by scoped `.gitattributes` export rules. The exported current documents
+are README, installation, privacy, troubleshooting, Stage 4 qualification and the
+beta notes/review/matrix. Existing Git history and ordinary clones still contain
+historical machine-specific records; export rules do not erase that history.
+Verify the pinned GitHub source export before publication. No history rewrite or
+removal of original evidence is part of this remediation.
+
 ## Rust, GNU and native code
 
 Rust 1.96.0 GNU was the qualified toolchain. Included native materials comprise

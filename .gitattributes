@@ -5,3 +5,15 @@
 /docs/INSTALLATION.md text eol=lf
 /docs/TROUBLESHOOTING.md text eol=lf
 /scripts/*distribution*.py text eol=lf
+
+# Retain historical evidence in Git, omit workstation reports from source exports.
+/docs/** export-ignore
+/docs/INSTALLATION.md -export-ignore
+/docs/PRIVACY.md -export-ignore
+/docs/TROUBLESHOOTING.md -export-ignore
+/docs/STAGE4_RELEASE_MATRIX.md -export-ignore
+/docs/BETA_*.md -export-ignore
+/CHANGELOG.md export-ignore
+/USER_ACCEPTANCE_TEST.md export-ignore
+/scripts/PROVISION-RUST-WINDOWS.md export-ignore
+/.vscode export-ignore

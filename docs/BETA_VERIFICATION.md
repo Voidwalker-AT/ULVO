@@ -12,6 +12,7 @@ An absent or failing receipt means the candidate has not passed acceptance.
 | Archive integrity | Rerun CRC, duplicate/path/ADS/traversal/symlink checks, extraction and every file hash |
 | Packaging contents | Rerun complete allowlist, MIT, notices, MPL source checksums, manifest/provenance and relative documentation links |
 | Public data | Rerun credential-pattern scan and private-file/path review; no proof of arbitrary secret absence |
+| Source export | Verify scoped export exclusions and the pinned GitHub source archive; historical reports remain in Git but are omitted from exported release documentation |
 | Portable CLI/setup | Rerun extracted CLI with isolated absolute Unicode config/vault and System32-only PATH; no toolchain on PATH |
 | Optional agent | Rerun start, redirected CLI completion while daemon lives, status/IPC and stop against isolated vault only |
 | Standalone GUI | Rerun extracted production executable; inspect native window with WebView2 already installed, no Vite server |
