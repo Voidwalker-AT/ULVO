@@ -1,36 +1,24 @@
-> Historical qualification record for the previous immutable candidate. The Adoption repair and new candidate evidence supersede its GUI failure and unchanged-desktop statements. Independent Windows A–J remain BLOCKED; root installer remains EXPERIMENTAL; legal approval remains outstanding.
+# Adoption repair verification matrix
 
-# Beta verification matrix
+PASS: nine frontend tests covering opted-out/enabled/empty/error/loading states,
+permission changes and failed writes, navigation disposal, persisted relaunch;
+TypeScript and production frontend build; desktop-only Rust release build;
+native GUI rendering across all nine views and actual disabled/enabled/error/
+recovery/navigation/persistence/close/relaunch checks. Real tool results were not
+fabricated. Empty/managed synthetic fixtures supplement the host GUI checks.
 
-Candidate: **v1.2.0-beta.1 / Windows 11 x64 Early Access / GitHub Pre-release**.
-The release-side `candidate-verification.json` is the authoritative receipt for
-the exact ZIP hash. It is generated after extraction from the corrected archive.
-An absent or failing receipt means the candidate has not passed acceptance.
+PASS: archive CRC, extraction, safe paths, allowlist, complete MIT text, native
+notice hashes, MPL checksums, document links, credential patterns, portable CLI
+and isolated agent lifecycle, bounded CrossModalLab regression. Final exact-ZIP
+receipt and file hashes accompany the publication proposal. No new full model
+campaign or external toolchain replacement was performed.
 
-| Check | Evidence and scope |
-| --- | --- |
-| Immutable reference | Original Stage 4 ZIP SHA-256 must remain a02dc550c88ed47fc2f847a4943580a15540af703ffe2255a3de1b68e2e9c995; source d112aac retained |
-| Binary preservation | All three executables and loader must equal reference entry bytes; no rebuild or stripping |
-| Archive integrity | Rerun CRC, duplicate/path/ADS/traversal/symlink checks, extraction and every file hash |
-| Packaging contents | Rerun complete allowlist, MIT, notices, MPL source checksums, manifest/provenance and relative documentation links |
-| Public data | Rerun credential-pattern scan and private-file/path review; no proof of arbitrary secret absence |
-| Source export | Verify scoped export exclusions and the pinned GitHub source archive; historical reports remain in Git but are omitted from exported release documentation |
-| Portable CLI/setup | Rerun extracted CLI with isolated absolute Unicode config/vault and System32-only PATH; no toolchain on PATH |
-| Optional agent | Rerun start, redirected CLI completion while daemon lives, status/IPC and stop against isolated vault only |
-| Standalone GUI | Rerun extracted production executable; inspect native window with WebView2 already installed, no Vite server |
-| Vault/installation preservation | Rerun owned test sentinel preservation, before/after installed binary hashes and protected registry/connector/lock hashes |
-| Existing research project | Rerun 19 bounded portability/scorer-contract tests through extracted ULVO using the existing managed environment; no training/model campaign |
-| Workspace unit tests | INHERITED: 225 host Rust workspace tests; final services 31 + transport 2 after last code changes; not rerun for documentation-only remediation |
-| Frontend/release build | INHERITED: production frontend and final GNU release builds; binary identity is verified anew |
-| GPU preflight | INHERITED: bounded existing-project GPU execution; no new GPU compatibility certification |
-| Installer fixtures | INHERITED: seven isolated script fixture groups; final packaged root pair not accepted |
-| Packaged root installer | BLOCKED / experimental: previous host PowerShell startup timeout; no installer execution claimed by this remediation |
-| Independent Windows A–J | BLOCKED: no independently controlled clean/conflicting/no-GPU/constrained/offline machines supplied |
-| Legal clearance | BLOCKED pending human review of native linker provenance and applicable redistribution obligations |
+INHERITED: 225 workspace tests, final 31 service and 2 transport tests, prior native
+license inventory and registry investigation. The new desktop has fresh build and
+GUI evidence; no prior GUI PASS is substituted for it. CLI/agent/loader identity
+is checked against the original immutable reference.
 
-The private historical evidence remains unchanged and is not distributed because
-it includes local paths and inventories. Public provenance records give content
-hashes of inherited receipts so a maintainer can correlate retained evidence.
-No measurement is a guarantee across hardware. Universal Windows compatibility,
-all package managers, independent offline startup and the root installer are not
-described as verified. No stable release or automatic merge is authorized.
+BLOCKED: independent Windows A–J, root installer acceptance (EXPERIMENTAL), exact
+original native linker inputs and human legal approval. No universal Windows or
+broad ecosystem compatibility claim. Historical registry mutation remains benign
+but unexplained; current registry must be preserved, never restored for a hash.

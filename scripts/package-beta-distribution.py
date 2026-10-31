@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--allow-dirty', action='store_true')
     parser.add_argument('--inherited-evidence', type=Path)
     parser.add_argument('--desktop', type=Path, help='Explicitly rebuilt desktop; CLI, agent and loader remain reference bytes')
+    parser.add_argument('--desktop-source-commit', help='Exact source revision used for the rebuilt desktop')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
 
@@ -78,7 +79,7 @@ def main():
                       packaging_working_tree_dirty=dirty,
                       immutable_reference_archive_sha256=REFERENCE_SHA,
                       binaries_rebuilt=bool(args.desktop), binaries_stripped=False,
-                      binary_sources={n: (git('rev-parse', 'HEAD') if args.desktop and n == 'ulvo-desktop.exe' else BINARY_SOURCE) for n in manifest['binaries']},
+                      binary_sources={n: ((args.desktop_source_commit or git('rev-parse', 'HEAD')) if args.desktop and n == 'ulvo-desktop.exe' else BINARY_SOURCE) for n in manifest['binaries']},
                       cargo_lock_sha256=sha((root / 'Cargo.lock').read_bytes()),
                       npm_lock_sha256=sha((root / 'apps/ulvo-desktop/package-lock.json').read_bytes()))
     if args.inherited_evidence:

@@ -1,71 +1,48 @@
-> Historical qualification record for the previous immutable candidate. The Adoption repair and new candidate evidence supersede its GUI failure and unchanged-desktop statements. Independent Windows A–J remain BLOCKED; root installer remains EXPERIMENTAL; legal approval remains outstanding.
+# ULVO v1.2.0-beta.1 — Windows 11 x64 Early Access
 
-# ULVO v1.2.0-beta.1 — First Public Beta
+Proposed GitHub Pre-release; publication requires explicit human approval.
 
-**Windows 11 x64 Early Access · GitHub Pre-release**
+ULVO coordinates runtimes, native dependency managers and project environments
+through a shared local vault and thin project connectors. Seven Rust crates
+provide contracts, adapters, discovery, services, CLI, optional agent and Tauri
+desktop with embedded React frontend assets. Native manifests and locks remain
+authoritative. Bootstrap setup is metadata-only; ecosystem choices do not install
+runtimes. Migration review creates eligible connectors and retains legacy data;
+it does not authorize retirement or establish functional equivalence.
 
-ULVO coordinates development runtimes, toolchains, native dependency managers and
-isolated project environments through a shared local vault. Thin project
-connectors retain native manifests and lockfiles alongside project source.
+The desktop Adoption repair displays disabled, loading, empty, results and error
+states, with explicit persisted metadata-discovery permission. Declining consent
+is not an error. Registered tools remain accessible in Installed. Late IPC results
+are ignored after navigation or permission changes. No discovery is enabled
+automatically. Other setup/privacy preferences are retained.
 
-The application consists of a Rust CLI, an optional background agent and a Tauri
-desktop with embedded React assets. Seven Rust workspace crates separate types,
-platform/storage adapters, discovery, shared services and these three interfaces.
-The production desktop starts without a development server.
+Fresh evidence: nine focused frontend tests, TypeScript checks, production frontend
+and desktop-only GNU release build, portable integrity/CLI/agent checks, 19 bounded
+CrossModalLab regression tests, and actual standalone GUI navigation across all
+nine views. Disabled/enabled Adoption, permission persistence, navigation return,
+isolated fault-injected IPC error, recovery, clean close and relaunch were observed.
+The zero-result and managed-result states also have synthetic IPC/SSR test coverage;
+synthetic fixtures are not host discovery evidence. Screenshots remain private.
 
-First-run CLI/GUI setup reviews the vault location, capacity, ecosystem preferences
-and optional bounded metadata discovery before applying metadata. No prerequisite
-download occurs during bootstrap. Ecosystem selections do not install runtimes.
-Gateway/provisioning support does not certify every native package-manager or
-dependency combination; preserve existing working environments and pinned locks.
+CLI, agent and WebView2 loader bytes remain from the Stage 4 reference. Only the
+desktop was rebuilt. All application versions remain 1.2.0; the public beta tag is
+v1.2.0-beta.1. Per-binary source revisions are recorded in the build manifest.
+Previous archives remain immutable references.
 
-Migration uses explicit review/apply plans and creates eligible thin connectors.
-It preserves legacy environments, project source and native locks. Unsupported or
-ML-sensitive projects may remain blocked. Connector creation does not prove
-functional equivalence or authorize deleting an old toolchain/environment.
+Extract the whole portable ZIP into a writable directory. Run bin\ulvo.exe or
+bin\ulvo-desktop.exe. The desktop requires separately installed Microsoft WebView2
+Evergreen; the loader is not the browser runtime. No Vite or localhost frontend
+server is needed. CLI bootstrap needs no Python, Node, Rust, GPU or agent.
 
-Local structured logging, bounded diagnostics, reviewed export and narrow registry
-repair support diagnosis and recovery. Redaction cannot recognize every secret;
-review exports before sharing. Repair requires a valid reviewed registry backup,
-rechecks hashes and preserves original bytes. It does not repair arbitrary data.
-The agent is opt-in; standalone CLI/desktop operation is supported without it.
+Local bounded logs, reviewed diagnostic export and narrow registry repair support
+recovery. Redaction is incomplete for arbitrary secrets; review exports. Keep
+backups and vault data. Executables are unsigned. Root installer remains
+EXPERIMENTAL. Independent Windows A–J remain BLOCKED; universal compatibility and
+broad ecosystem/GPU qualification are not claimed.
 
-## Installation and limitations
-
-Extract the complete portable ZIP to a writable directory. Run `bin\ulvo.exe
-setup status`, or launch `bin\ulvo-desktop.exe` / `ULVO Control Center.bat`.
-The desktop requires Microsoft's separately installed WebView2 Evergreen Runtime.
-The bundled x64 loader is not the browser runtime. CLI bootstrap does not require
-WebView2, Python, Node, Rust, a GPU, an agent or a development server.
-
-The root installer/uninstaller is **experimental** and has not passed final
-packaged-entrypoint acceptance. Earlier isolated script fixtures do not qualify
-these root entrypoints. Use portable startup for this beta. Independent clean
-Windows scenarios, other operating systems and universal clean-machine
-compatibility remain unverified. Executables are unsigned.
-
-The executables retain their development-qualified **1.2.0** version and exact
-Stage 4 bytes from `d112aac3c13c54022ba54e78488de49e019147ff`. The public
-distribution name/tag is **v1.2.0-beta.1**. This remediation changes packaging,
-licensing materials and documentation; it does not introduce application features
-or rebuild/strip executables. Harmless compiler/source path strings remain.
-
-## Verification and licensing
-
-The accompanying verification matrix separates rerun portable CRC/extraction,
-hashes, safe paths, documentation, secret-pattern review, CLI/GUI/agent checks and
-the existing-project regression from inherited Stage 4 service/build receipts.
-Host-only checks do not establish independent Windows acceptance. No new full
-model/GPU research campaign is claimed.
-
-The corrected ZIP includes ULVO's standard MIT LICENSE, third-party attribution,
-the complete lockfile inventory, native notices and original checksum-verified MPL
-source archives. Microsoft's exact loader was matched to its upstream NuGet
-package. Third-party terms remain separate from ULVO's MIT license.
-
-**Redistribution review remains qualified:** exact native linker provenance and
-human legal sign-off are outstanding. This is an engineering review, not complete
-license clearance. See `docs/BETA_REDISTRIBUTION_REVIEW.md` and
-`docs/BETA_VERIFICATION.md` in the archive. Publication requires explicit human
-approval after resolving the recorded blockers. No tag or release is created by
-this preparation work.
+ULVO uses the standard MIT License, 2026 Voidwalker-AT. Third-party notices, native
+texts and original checksum-verified MPL sources are included. Dependency locks
+and third-party graph are unchanged; previous inventory review is inherited.
+Exact original native object/linker membership and exception eligibility remain
+UNRESOLVED. Human legal approval is separate from technical acceptance; complete
+redistribution clearance is not claimed.
