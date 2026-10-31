@@ -89,12 +89,17 @@ integration. Their packaged root entrypoints remain experimental pending accepta
 Use the portable entrypoints for this beta. Keep backups and the previous package;
 never delete a vault to resolve an installation problem.
 
-Executables report the development-qualified version **1.2.0**. Their bytes are
-preserved from Stage 4 source `d112aac3c13c54022ba54e78488de49e019147ff`.
-The proposed public distribution tag is **v1.2.0-beta.1**, not a stable release.
-The build manifest separates binary source provenance from packaging provenance.
-Executables are unsigned; Windows may display reputation warnings. Harmless
-compiler/source paths remain in binary bytes. No attempt was made to strip them.
+Executables report application version **1.2.0**; the proposed public tag is
+**v1.2.0-beta.1**. The desktop was rebuilt for the narrowly scoped Adoption repair.
+CLI, agent and WebView2 loader bytes remain from Stage 4 source
+`d112aac3c13c54022ba54e78488de49e019147ff`. The build manifest records per-binary
+source provenance. Executables remain unsigned. Harmless compiler paths remain.
+
+Adoption always displays a disabled, loading, empty, results or error state.
+Discovery remains opt-in. Its explicit permission control persists separately
+from the approved setup plan and does not overwrite other preferences. Previously
+registered tools remain available through Installed. Late replies are ignored
+after navigation or permission changes; unavailable IPC offers an explicit retry.
 
 ## License
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "./commands";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
+import AdoptionView from "./AdoptionView";
 import SetupWizard, { SetupStatus } from "./SetupWizard";
 import MigrationReview from "./MigrationReview";
 import {
@@ -12,7 +13,6 @@ import {
   ComprehensiveStorageReport,
   PackageCachePruneReport,
   PackageCacheGcReport,
-  AdoptionPlanReport,
   GpuTelemetry,
   VaultEnvironmentsAuditReport,
   VaultEnvironmentsGcReport,
@@ -49,7 +49,6 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResolution, setSearchResolution] = useState<SearchResolution | null>(null);
   const [storageReport, setStorageReport] = useState<ComprehensiveStorageReport | null>(null);
-  const [adoptionReport, setAdoptionReport] = useState<AdoptionPlanReport | null>(null);
   const [gpuTelemetry, setGpuTelemetry] = useState<GpuTelemetry | null>(null);
   const [envAudit, setEnvAudit] = useState<VaultEnvironmentsAuditReport | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
@@ -131,13 +130,11 @@ function App() {
       invoke<RegisteredProject[]>("get_project_registry").then(setProjectRegistry).catch((err) => addLog(`Project registry load: ${err}`));
 
       // 2. Heavy storage intelligence and adoption telemetry
-      const [stor, adop] = await Promise.allSettled([
+      const [stor] = await Promise.allSettled([
         invoke<ComprehensiveStorageReport>("get_storage_report"),
-        discoveryAllowed ? invoke<AdoptionPlanReport>("get_adoption_report") : Promise.reject("Discovery not authorized"),
       ]);
 
       if (stor.status === "fulfilled") setStorageReport(stor.value);
-      if (adop.status === "fulfilled") setAdoptionReport(adop.value);
 
       setStatusMessage("System synchronized with Universal Vault");
     } catch (err: any) {
@@ -984,70 +981,7 @@ function App() {
           )}
 
           {/* TAB 7: ADOPTION */}
-          {activeTab === "adoption" && adoptionReport && (
-            <div>
-              <div className="card-header">
-                <div className="card-title">System-Wide Toolchain Discovery & Staged Adoption</div>
-                <div style={{ color: "var(--color-text-muted)", fontSize: "12px" }}>
-                  Discovered: {adoptionReport.total_discovered} | Managed: {adoptionReport.managed_count} | Adoptable: {adoptionReport.adoptable_count}
-                </div>
-              </div>
-
-              <div className="data-table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Tool Name</th>
-                      <th>Host Path</th>
-                      <th>Classification</th>
-                      <th>Recommended Action</th>
-                      <th>Adoption</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adoptionReport.installations.map((inst, idx) => (
-                      <tr key={idx}>
-                        <td><strong>{inst.name}</strong></td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>{inst.path}</td>
-                        <td>
-                          <span
-                            className={`badge ${
-                              inst.classification === "managed"
-                                ? "badge-managed"
-                                : inst.classification === "adoptable"
-                                ? "badge-system"
-                                : inst.classification === "system_managed"
-                                ? "badge-gpu"
-                                : "badge-external"
-                            }`}
-                          >
-                            {inst.classification.toUpperCase()}
-                          </span>
-                        </td>
-                        <td>{inst.explanation}</td>
-                        <td>
-                          {inst.classification === "adoptable" && (
-                            <button
-                              className="btn btn-primary"
-                              onClick={() => handleAdoptTool(inst.name, inst.path, typeof inst.ecosystem === "string" ? inst.ecosystem : "system")}
-                            >
-                              Adopt
-                            </button>
-                          )}
-                          {inst.classification === "managed" && (
-                            <span className="badge badge-managed">MANAGED</span>
-                          )}
-                          {inst.classification === "system_managed" && (
-                            <span className="badge badge-gpu">RETAINED</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          {activeTab === "adoption" && <AdoptionView invoke={invoke} installed={() => setActiveTab("installed")} adopt={handleAdoptTool} />}
 
           {/* TAB 8: ACTIVITY */}
           {activeTab === "activity" && (

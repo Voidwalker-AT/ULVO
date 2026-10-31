@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--git', default='git')
     parser.add_argument('--allow-dirty', action='store_true')
     parser.add_argument('--inherited-evidence', type=Path)
+    parser.add_argument('--desktop', type=Path, help='Explicitly rebuilt desktop; CLI, agent and loader remain reference bytes')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
 
@@ -58,6 +59,10 @@ def main():
             'docs/TROUBLESHOOTING.md', 'docs/STAGE4_RELEASE_MATRIX.md',
             'docs/BETA_RELEASE_NOTES.md', 'docs/BETA_REDISTRIBUTION_REVIEW.md',
             'docs/BETA_VERIFICATION.md']
+    if args.desktop:
+        if not args.desktop.is_file():
+            raise RuntimeError('Rebuilt desktop is absent')
+        files['bin/ulvo-desktop.exe'] = args.desktop.read_bytes()
     for name in docs:
         # Commit bytes avoid checkout-specific CRLF conversion in public assets.
         files[name] = subprocess.check_output([args.git, '-C', str(root), 'show', 'HEAD:' + name]) if not dirty else (root / name).read_bytes()
@@ -72,7 +77,8 @@ def main():
                       packaging_source_tree=git('rev-parse', 'HEAD^{tree}'),
                       packaging_working_tree_dirty=dirty,
                       immutable_reference_archive_sha256=REFERENCE_SHA,
-                      binaries_rebuilt=False, binaries_stripped=False,
+                      binaries_rebuilt=bool(args.desktop), binaries_stripped=False,
+                      binary_sources={n: (git('rev-parse', 'HEAD') if args.desktop and n == 'ulvo-desktop.exe' else BINARY_SOURCE) for n in manifest['binaries']},
                       cargo_lock_sha256=sha((root / 'Cargo.lock').read_bytes()),
                       npm_lock_sha256=sha((root / 'apps/ulvo-desktop/package-lock.json').read_bytes()))
     if args.inherited_evidence:

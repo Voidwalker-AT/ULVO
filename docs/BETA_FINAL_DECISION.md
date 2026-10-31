@@ -1,3 +1,5 @@
+> Historical qualification record for the previous immutable candidate. The Adoption repair and new candidate evidence supersede its GUI failure and unchanged-desktop statements. Independent Windows A–J remain BLOCKED; root installer remains EXPERIMENTAL; legal approval remains outstanding.
+
 # v1.2.0-beta.1 qualification decision — 2026-10-31
 
 **Decision: NOT READY for publication. No tag or release is authorized.**

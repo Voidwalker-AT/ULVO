@@ -1,3 +1,5 @@
+> Historical qualification record for the previous immutable candidate. The Adoption repair and new candidate evidence supersede its GUI failure and unchanged-desktop statements. Independent Windows A–J remain BLOCKED; root installer remains EXPERIMENTAL; legal approval remains outstanding.
+
 # Beta verification matrix
 
 Candidate: **v1.2.0-beta.1 / Windows 11 x64 Early Access / GitHub Pre-release**.

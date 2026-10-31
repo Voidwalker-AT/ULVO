@@ -79,7 +79,7 @@ def main():
                                                 'BETA_RELEASE_NOTES.md', 'BETA_VERIFICATION.md', 'BETA_REDISTRIBUTION_REVIEW.md'])
             expected.update('legal/' + n['file'] for n in inv['native_notice_files'])
             check('complete-expected-files-no-extras', set(files) == expected)
-            check('binary-byte-identity', all(files['bin/' + n] == ref.read('bin/' + n) and sha(files['bin/' + n]) == h for n, h in manifest['binaries'].items()))
+            check('binary-byte-identity', all((n == 'ulvo-desktop.exe' and manifest['provenance'].get('binaries_rebuilt') or files['bin/' + n] == ref.read('bin/' + n)) and sha(files['bin/' + n]) == h for n, h in manifest['binaries'].items()))
             check('installer-byte-identity', all(files[n] == ref.read(n) for n in ['install.ps1', 'uninstall.ps1', 'scripts/install-ulvo.ps1', 'scripts/uninstall-ulvo.ps1']))
             check('manifest-content-hashes', all(sha(files[e['path']]) == e['sha256'] and len(files[e['path']]) == e['bytes'] for e in manifest['content_files'])
                   and {e['path'] for e in manifest['content_files']} == set(files) - {'build-manifest.json', 'FILES.sha256'})

@@ -148,8 +148,30 @@ fn gc_cache(
     svc.storage().gc_cache(max_gb, false)
 }
 
+// A separate consent override leaves the reviewed setup plan and other preferences intact.
+#[tauri::command]
+fn get_discovery_permission() -> Result<bool, String> {
+    let paths = ulvo_adapters::resolve_paths(None, None)?;
+    let file = paths.config_root.join("discovery-consent.json");
+    if file.exists() {
+        let value: bool = serde_json::from_str(&ulvo_adapters::bounded_read(&file)?).map_err(|e| e.to_string())?;
+        return Ok(value);
+    }
+    Ok(SetupService::new(paths).status()?.plan.map(|p| p.request.discovery_consent).unwrap_or(false))
+}
+
+#[tauri::command]
+fn set_discovery_permission(allowed: bool) -> Result<(), String> {
+    let paths = ulvo_adapters::resolve_paths(None, None)?;
+    let _lock = ulvo_adapters::EnvironmentFileLock::acquire(&paths.config_root.join("setup.lock"), 1000)?;
+    let file = paths.config_root.join("discovery-consent.json");
+    ulvo_adapters::reject_links(&file)?;
+    ulvo_adapters::write_atomic(&file, if allowed { b"true" } else { b"false" })
+}
+
 #[tauri::command]
 async fn get_adoption_report(state: State<'_, DesktopState>) -> Result<AdoptionPlanReport, String> {
+    if !get_discovery_permission()? { return Err("Metadata discovery is disabled. Enable it explicitly in Adoption.".into()); }
     let root = state.services.lock().map_err(|e| e.to_string())?.vault_root().to_path_buf();
     tauri::async_runtime::spawn_blocking(move || AdoptionService::new(root).discover_system_installations())
         .await.map_err(|e| e.to_string())
@@ -374,6 +396,8 @@ pub fn run() {
             get_storage_report,
             prune_cache,
             gc_cache,
+            get_discovery_permission,
+            set_discovery_permission,
             get_adoption_report,
             adopt_tool,
             get_gpu_telemetry,
