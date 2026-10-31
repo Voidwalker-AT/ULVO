@@ -17,3 +17,4 @@
 /USER_ACCEPTANCE_TEST.md export-ignore
 /scripts/PROVISION-RUST-WINDOWS.md export-ignore
 /.vscode export-ignore
+/STORAGE_BASELINE_STAGE_3_0_1.json export-ignore
